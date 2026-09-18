@@ -6,9 +6,10 @@ import { createInterface } from 'node:readline'
 import net from 'node:net'
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
 import { Engine } from '../core/engine'
+import { McpEndpoint } from '../mcp/endpoint'
 import type { AgentState, Event } from '../shared/model'
 import { pipePath } from './paths'
-import type { Message, Request } from './protocol'
+import type { Message, Request, Responses } from './protocol'
 
 const [directory, corePath] = process.argv.slice(2)
 if (!directory || !corePath) {
@@ -18,6 +19,15 @@ if (!directory || !corePath) {
 mkdirSync(directory, { recursive: true, mode: 0o700 })
 const clients = new Set<net.Socket>()
 const engine = new Engine(directory, corePath)
+const mcp = new McpEndpoint(
+    {
+        transactions: engine.transactions,
+        state: () => state(),
+        call: <M extends Request['method']>(method: M, args: object) =>
+            handle({ method, ...args } as Request) as Promise<Responses[M]>
+    },
+    (message) => process.stdout.write(message + '\n')
+)
 let exitTimer: NodeJS.Timeout | undefined
 
 function state(): AgentState {
@@ -29,7 +39,8 @@ function state(): AgentState {
         truststorePath: engine.truststorePath,
         clients: clients.size,
         pid: process.pid,
-        coreVersion: engine.coreVersion
+        coreVersion: engine.coreVersion,
+        mcpPort: mcp.port
     }
 }
 function send(socket: net.Socket, message: Message) {
@@ -56,6 +67,10 @@ async function handle(request: Request): Promise<unknown> {
                 await engine.stop()
                 await engine.start()
             }
+            if (mcp.port !== engine.settings.mcpPort)
+                await mcp
+                    .listen(engine.settings.mcpPort)
+                    .catch((error) => process.stdout.write(`mcp: ${error.message}\n`))
             broadcast({ type: 'state', state: state() })
             return state()
         }
@@ -90,17 +105,18 @@ async function handle(request: Request): Promise<unknown> {
 
 const path = pipePath(directory)
 
-/** Stop capture, remove the socket file and exit. */
+/**
+ * Stop accepting clients first (so a reconnecting client spawns a fresh agent instead
+ * of finding this one), then stop capture and exit.
+ */
 function shutdown(code: number) {
-    void engine.stop().finally(() => {
-        server.close()
-        if (process.platform !== 'win32') {
-            try {
-                unlinkSync(path)
-            } catch {}
-        }
-        process.exit(code)
-    })
+    server.close()
+    if (process.platform !== 'win32') {
+        try {
+            unlinkSync(path)
+        } catch {}
+    }
+    void Promise.all([engine.stop(), mcp.close()]).finally(() => process.exit(code))
 }
 
 function scheduleExit() {

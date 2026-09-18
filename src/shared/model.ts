@@ -125,6 +125,8 @@ export interface Settings {
     sslHosts: string[]
     maxEntries: number
     maxBodyBytes: number
+    /** Loopback port of the MCP endpoint; 0 disables it. */
+    mcpPort: number
     /** Absolute paths of .proto files used to decode gRPC messages. */
     protoFiles: string[]
 }
@@ -135,6 +137,7 @@ export const defaultSettings: Settings = {
     sslHosts: ['*'],
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,
+    mcpPort: 3607,
     protoFiles: []
 }
 
@@ -162,6 +165,8 @@ export interface AgentState {
     clients: number
     pid: number
     coreVersion?: string
+    /** Port the MCP endpoint is listening on, 0 when disabled or failed. */
+    mcpPort?: number
 }
 
 export type Event =

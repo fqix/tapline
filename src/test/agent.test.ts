@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { build } from 'esbuild'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync } from 'node:fs'
@@ -73,13 +75,28 @@ describeCore('shared agent', () => {
         const b = new TestClient()
         await a.connect(path)
         await b.connect(path)
-        const settings = { ...defaultSettings, port: await freePort() }
-        expect((await a.call('hello', { settings })).clients).toBe(2)
+        const settings = { ...defaultSettings, port: await freePort(), mcpPort: await freePort() }
+        const hello = await a.call('hello', { settings })
+        expect(hello.clients).toBe(2)
+        expect(hello.mcpPort).toBe(settings.mcpPort)
         await expect(b.call('state')).rejects.toThrow('hello first')
         await b.call('hello', { settings })
         const state = await a.call('start')
         expect(state.running).toBe(true)
         expect(state.port).toBe(settings.port)
+        // The MCP endpoint serves the same engine over Streamable HTTP.
+        const mcp = new Client({ name: 'test', version: '0' })
+        await mcp.connect(
+            new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${settings.mcpPort}/mcp`))
+        )
+        const status = (await mcp.callTool({ name: 'status', arguments: {} })) as {
+            content: { text: string }[]
+        }
+        expect(JSON.parse(status.content[0].text)).toMatchObject({
+            running: true,
+            proxy: `http://127.0.0.1:${settings.port}`
+        })
+        await mcp.close()
         // b learns about a's start through the event stream.
         await new Promise((r) => setTimeout(r, 100))
         expect(b.events.some((e) => e.type === 'state' && e.state.running)).toBe(true)
