@@ -81,5 +81,9 @@
     "Code": "状态码",
     "Host": "主机",
     "Path": "路径",
-    "Start": "开始时间"
+    "Start": "开始时间",
+    "Tapline is capturing on 127.0.0.1:{0}. New terminals and debug sessions are routed through it automatically.": "Tapline 正在 127.0.0.1:{0} 抓包。新开的终端和调试会话会自动经由它代理。",
+    "Tapline could not start capture: {0}": "Tapline 无法开始抓包：{0}",
+    "Change Port": "修改端口",
+    "Tapline capture stopped. Terminals opened from now on use the normal network.": "Tapline 已停止抓包，之后新开的终端使用正常网络。"
 }

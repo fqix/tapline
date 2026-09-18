@@ -2,7 +2,6 @@
     "extension.description": "在 VS Code 中捕获并检查来自集成终端和调试会话的 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC 与 WebSocket 流量。",
     "view.traffic": "流量",
     "view.traffic.title": "Tapline 流量",
-    "view.welcome": "抓包已停止。\n[开始抓包](command:tapline.start)\n抓包运行期间新开的终端会自动经由 Tapline 代理。",
     "command.start": "开始抓包",
     "command.stop": "停止抓包",
     "command.toggleRecording": "暂停/继续录制",
@@ -30,5 +29,7 @@
     "config.maxBodyKiB": "每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。",
     "command.openHost": "打开域名概览",
     "command.openText": "以文本方式打开",
-    "command.openSequence": "打开时序视图"
+    "command.openSequence": "打开时序视图",
+    "view.welcome.stopped": "抓包已停止。\n[开始抓包](command:tapline.start)\n开始后，新开的集成终端和调试会话会自动经由 Tapline 代理。",
+    "view.welcome.running": "抓包运行中，暂无请求。\n[新建抓包终端](command:tapline.openTerminal)\n在其中执行任意 curl、npm、pip、git 命令，或启动调试会话，请求会实时出现在这里。\n[复制根证书路径](command:tapline.copyCertificatePath)，用于需要手动配置 CA 的工具。"
 }
