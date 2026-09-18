@@ -85,6 +85,9 @@ export class AgentClient implements vscode.Disposable {
             maxEntries: config.get<number>('maxEntries', defaultSettings.maxEntries),
             maxBodyBytes:
                 config.get<number>('maxBodyKiB', defaultSettings.maxBodyBytes / 1024) * 1024,
+            mcpPort: config.get<boolean>('mcp.enabled', true)
+                ? config.get<number>('mcp.port', defaultSettings.mcpPort)
+                : 0,
             protoFiles: this.protoFiles
         }
     }
@@ -103,6 +106,10 @@ export class AgentClient implements vscode.Disposable {
     }
     get truststorePath() {
         return this.state.truststorePath
+    }
+    /** URL of the MCP endpoint while the agent serves one. */
+    get mcpUrl() {
+        return this.state.mcpPort ? `http://127.0.0.1:${this.state.mcpPort}/mcp` : undefined
     }
     get connected() {
         return !!this.socket && !this.socket.destroyed

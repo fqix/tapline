@@ -28,7 +28,8 @@
         "grpc",
         "websocket",
         "mitm",
-        "har"
+        "har",
+        "mcp"
     ],
     "icon": "media/icon.png",
     "main": "./dist/extension.js",
@@ -232,6 +233,12 @@
                 "title": "%command.openSequence%",
                 "category": "Tapline",
                 "icon": "$(list-flat)"
+            },
+            {
+                "command": "tapline.configureMcp",
+                "title": "%command.configureMcp%",
+                "category": "Tapline",
+                "icon": "$(sparkle)"
             }
         ],
         "menus": {
@@ -310,6 +317,11 @@
                     "command": "tapline.showLogs",
                     "when": "view == tapline.traffic",
                     "group": "4_logs@1"
+                },
+                {
+                    "command": "tapline.configureMcp",
+                    "when": "view == tapline.traffic",
+                    "group": "4_logs@0"
                 }
             ],
             "view/item/context": [
@@ -565,6 +577,18 @@
                         "coreclr": []
                     },
                     "description": "%config.debug.runtimes%"
+                },
+                "tapline.mcp.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "%config.mcp.enabled%"
+                },
+                "tapline.mcp.port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "default": 3607,
+                    "description": "%config.mcp.port%"
                 },
                 "tapline.grpc.protoFiles": {
                     "type": "array",

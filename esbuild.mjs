@@ -1,5 +1,7 @@
 import { build, context } from 'esbuild'
+import { readFileSync } from 'node:fs'
 const watch = process.argv.includes('--watch')
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 const node = {
     entryPoints: { extension: 'src/extension.ts', agent: 'src/agent/main.ts' },
     bundle: true,
@@ -8,6 +10,7 @@ const node = {
     format: 'cjs',
     outdir: 'dist',
     external: ['vscode'],
+    define: { 'process.env.TAPLINE_VERSION': JSON.stringify(version) },
     sourcemap: true,
     minify: !watch,
     logLevel: 'info'

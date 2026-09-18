@@ -9,6 +9,7 @@ import { CertificateTrust } from './environment/certificateTrust'
 import { ProtoIndex } from './environment/protoIndex'
 import { TrafficView, type TrafficNode } from './views/trafficView'
 import { TrafficPanel, type PanelActions } from './panels/trafficPanel'
+import { configureMcp } from './mcp/integration'
 
 let client: AgentClient | undefined
 
@@ -315,6 +316,7 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     })
     command('tapline.showLogs', () => client!.output.show())
+    command('tapline.configureMcp', () => configureMcp(client!))
 
     // Connect lazily so a broken core never blocks activation; autoStart opts in.
     void protos
