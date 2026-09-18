@@ -5,6 +5,7 @@ import { toCurl, toHAR, type Transaction } from './shared/model'
 import { AgentClient } from './client/agentClient'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
+import { CertificateTrust } from './environment/certificateTrust'
 import { TrafficView, type TrafficNode } from './views/trafficView'
 import { DetailPanel, type PanelActions } from './panels/detailPanel'
 
@@ -15,6 +16,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const view = new TrafficView(client)
     const documents = new TransactionDocuments(client)
     const environment = new CaptureEnvironment(context, client)
+    const certificate = new CertificateTrust(client)
     const byId = (id: string) => {
         const t = client!.transactions.get(id)
         if (!t) throw new Error(vscode.l10n.t('This request is no longer available.'))
@@ -66,7 +68,16 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     status.name = 'Tapline'
     status.command = 'tapline.status'
-    context.subscriptions.push(client, view, documents, environment, panel, sequence, status)
+    context.subscriptions.push(
+        client,
+        view,
+        documents,
+        environment,
+        certificate,
+        panel,
+        sequence,
+        status
+    )
 
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
@@ -130,7 +141,9 @@ export async function activate(context: vscode.ExtensionContext) {
         else if (choice === vscode.l10n.t('Show Traffic'))
             await vscode.commands.executeCommand('tapline.traffic.focus')
     }
-    command('tapline.start', async () => {
+    /** Start capture once the OS trusts the root CA; resolves `false` when it did not start. */
+    const startCapture = async (modal = true) => {
+        if (!(await certificate.ensureTrusted(modal))) return false
         try {
             await client!.start()
         } catch (error) {
@@ -146,9 +159,12 @@ export async function activate(context: vscode.ExtensionContext) {
                     'workbench.action.openSettings',
                     'tapline.port'
                 )
-            return
+            return false
         }
-        void started()
+        return true
+    }
+    command('tapline.start', async () => {
+        if (await startCapture()) void started()
     })
     command('tapline.stop', async () => {
         await client!.stop()
@@ -170,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   }
                 : {
                       label: `$(play) ${vscode.l10n.t('Start Capture')}`,
-                      run: () => client!.start()
+                      run: () => startCapture()
                   },
             ...(running
                 ? [
@@ -190,6 +206,17 @@ export async function activate(context: vscode.ExtensionContext) {
                 label: `$(list-flat) ${vscode.l10n.t('Show Traffic')}`,
                 run: () => vscode.commands.executeCommand('tapline.traffic.focus')
             },
+            certificate.status === 'trusted'
+                ? {
+                      label: `$(shield) ${vscode.l10n.t('Uninstall Root Certificate')}`,
+                      description: certificate.describe(),
+                      run: () => certificate.uninstall()
+                  }
+                : {
+                      label: `$(shield) ${vscode.l10n.t('Install Root Certificate')}`,
+                      description: certificate.describe(),
+                      run: () => certificate.trust()
+                  },
             { label: `$(output) ${vscode.l10n.t('Show Logs')}`, run: () => client!.output.show() }
         ]
         const pick = await vscode.window.showQuickPick(picks, { title: 'Tapline' })
@@ -264,8 +291,15 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     })
     command('tapline.openTerminal', async () => {
-        if (!client!.running) await client!.start()
+        if (!client!.running && !(await startCapture())) return
         await environment.openTerminal()
+    })
+    command('tapline.installCertificate', () => certificate.install())
+    command('tapline.trustCertificate', () => certificate.trust())
+    command('tapline.uninstallCertificate', () => certificate.uninstall())
+    command('tapline.checkCertificate', async () => {
+        await certificate.check()
+        void vscode.window.showInformationMessage(`Tapline: ${certificate.describe()}`)
     })
     command('tapline.copyCertificatePath', async () => {
         if (!client!.connected) await client!.connect()
@@ -284,9 +318,10 @@ export async function activate(context: vscode.ExtensionContext) {
     // Connect lazily so a broken core never blocks activation; autoStart opts in.
     void client
         .connect()
+        .then(() => certificate.check().catch((error) => client!.output.warn(String(error))))
         .then(() =>
             vscode.workspace.getConfiguration('tapline').get<boolean>('autoStart', false)
-                ? client!.start()
+                ? startCapture(false)
                 : undefined
         )
         .catch((error) => client!.output.error(String(error)))
