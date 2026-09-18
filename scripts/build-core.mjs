@@ -11,11 +11,10 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const PATCHES = join(ROOT, 'third_party/sing-box/patches')
-const PIN = JSON.parse(readFileSync(join(ROOT, 'third_party/sing-box/pin.json'), 'utf8'))
-const SOURCE = join(ROOT, '.build/sing-box')
+const PATCHES = join(ROOT, 'third_party/patches/sing-box')
+const PIN = JSON.parse(readFileSync(join(ROOT, 'third_party/patches/sing-box/pin.json'), 'utf8'))
+const SOURCE = join(ROOT, 'third_party/sing-box')
 const GO = process.env.TAPLINE_GO || 'go'
-const UPSTREAM = 'https://github.com/SagerNet/sing-box.git'
 const GOOS = { darwin: 'darwin', linux: 'linux', win32: 'windows' }
 const GOARCH = { x64: 'amd64', arm64: 'arm64' }
 
@@ -45,22 +44,17 @@ const patches = ['0001', '0002', '0003', '0004', '0005', '0006'].map((prefix) =>
 function checkout() {
     const git = (...args) => output('git', args, { cwd: SOURCE })
     if (!existsSync(join(SOURCE, '.git'))) {
-        mkdirSync(dirname(SOURCE), { recursive: true })
-        console.log(`Cloning sing-box ${PIN.version} into ${SOURCE}`)
-        run('git', [
-            'clone',
-            '--quiet',
-            '--depth',
-            '1',
-            '--branch',
-            `v${PIN.version}`,
-            UPSTREAM,
-            SOURCE
-        ])
+        throw new Error(
+            `sing-box submodule not initialized at ${SOURCE}. ` +
+                'Run `git submodule update --init --recursive` and retry.'
+        )
     }
-    if (git('rev-parse', 'HEAD') !== PIN.revision) {
-        run('git', ['fetch', '--quiet', '--depth', '1', 'origin', PIN.revision], { cwd: SOURCE })
-        run('git', ['checkout', '--quiet', '--force', PIN.revision], { cwd: SOURCE })
+    const head = git('rev-parse', 'HEAD')
+    if (head !== PIN.revision) {
+        throw new Error(
+            `sing-box submodule at ${SOURCE} is at ${head}, expected ${PIN.revision}. ` +
+                'Run `git submodule update --init --recursive` and retry.'
+        )
     }
     // Always rebuild from the pristine revision, then apply the series in order.
     run('git', ['checkout', '--quiet', '--force', '--', '.'], { cwd: SOURCE })
@@ -169,7 +163,7 @@ for (const target of targets) {
     const { modules, text } = notices(env, tags)
     writeFileSync(join(directory, 'sing-box.licenses.txt'), text)
     writeFileSync(
-        join(directory, 'sing-box.build.json'),
+        binary + '.build.json',
         JSON.stringify(
             {
                 version: PIN.version,
