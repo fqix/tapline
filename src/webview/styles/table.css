@@ -14,7 +14,6 @@
     gap: 2px;
 }
 .toolbar .count {
-    font-size: 11px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     padding: 0 4px;
