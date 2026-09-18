@@ -4,21 +4,27 @@ import { t } from '../lib/i18n'
 import { saveState, vscode } from '../lib/vscode'
 import { Frames } from './Frames'
 import { Overview } from './Overview'
-import { SideView } from './SideView'
+import { ContentsView } from './ContentsView'
 import { StatusBadge } from './StatusBadge'
 
-type Tab = 'overview' | 'request' | 'response' | 'frames'
+type Tab = 'overview' | 'contents' | 'frames'
 
-export function TransactionView({ transaction: x }: { transaction: Transaction }) {
+export function TransactionView({
+    transaction: x,
+    compact = false
+}: {
+    transaction: Transaction
+    compact?: boolean
+}) {
     const [tab, setTab] = useState<Tab>(() => (vscode.getState()?.tab as Tab) ?? 'overview')
     const select = (next: Tab) => {
         setTab(next)
         saveState({ tab: next })
     }
     const isWS = x.frames.length > 0 || x.status === 101 || x.scheme.startsWith('ws')
-    const tabs: Tab[] = ['overview', 'request', 'response', ...(isWS ? (['frames'] as Tab[]) : [])]
+    const tabs: Tab[] = ['overview', 'contents', ...(isWS ? (['frames'] as Tab[]) : [])]
     return (
-        <div className="page">
+        <div className={compact ? 'page compact' : 'page'}>
             <header className="summary">
                 <span className={`badge status s${Math.floor((x.status ?? 0) / 100)} ${x.state}`}>
                     {x.state === 'pending'
@@ -60,8 +66,7 @@ export function TransactionView({ transaction: x }: { transaction: Transaction }
                 ))}
             </nav>
             {tab === 'overview' && <Overview x={x} />}
-            {tab === 'request' && <SideView x={x} side="request" />}
-            {tab === 'response' && <SideView x={x} side="response" />}
+            {tab === 'contents' && <ContentsView x={x} />}
             {tab === 'frames' && <Frames x={x} />}
         </div>
     )

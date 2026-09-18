@@ -184,14 +184,8 @@
                 "icon": "$(file-text)"
             },
             {
-                "command": "tapline.viewStructure",
-                "title": "%command.viewStructure%",
-                "category": "Tapline",
-                "icon": "$(list-tree)"
-            },
-            {
-                "command": "tapline.viewSequence",
-                "title": "%command.viewSequence%",
+                "command": "tapline.openSequence",
+                "title": "%command.openSequence%",
                 "category": "Tapline",
                 "icon": "$(list-flat)"
             }
@@ -219,13 +213,8 @@
                     "group": "navigation@3"
                 },
                 {
-                    "command": "tapline.viewSequence",
-                    "when": "view == tapline.traffic && tapline.viewMode == 'structure'",
-                    "group": "navigation@5"
-                },
-                {
-                    "command": "tapline.viewStructure",
-                    "when": "view == tapline.traffic && tapline.viewMode == 'sequence'",
+                    "command": "tapline.openSequence",
+                    "when": "view == tapline.traffic",
                     "group": "navigation@5"
                 },
                 {
@@ -425,19 +414,6 @@
                     "maximum": 4096,
                     "default": 512,
                     "description": "%config.maxBodyKiB%"
-                },
-                "tapline.viewMode": {
-                    "type": "string",
-                    "enum": [
-                        "structure",
-                        "sequence"
-                    ],
-                    "default": "structure",
-                    "enumDescriptions": [
-                        "%config.viewMode.structure%",
-                        "%config.viewMode.sequence%"
-                    ],
-                    "description": "%config.viewMode%"
                 }
             }
         }

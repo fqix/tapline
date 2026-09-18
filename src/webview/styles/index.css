@@ -247,3 +247,148 @@ table.list tbody tr {
 table.list tbody tr:hover {
     background: var(--vscode-list-hoverBackground);
 }
+
+/* ---- split panes, contents sub-tabs, sequence table ---- */
+.page.compact {
+    min-height: 0;
+    height: 100%;
+}
+.page.compact .summary {
+    position: static;
+    padding: 6px 10px;
+}
+.split {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 78px);
+    min-height: 0;
+}
+.page.compact .split {
+    height: auto;
+    flex: 1;
+}
+.split-pane {
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+.split-divider {
+    flex: 0 0 5px;
+    cursor: row-resize;
+    background: var(--vscode-panel-border);
+    border-top: 1px solid var(--vscode-editor-background);
+    border-bottom: 1px solid var(--vscode-editor-background);
+}
+.split-divider:hover {
+    background: var(--vscode-focusBorder);
+}
+.pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.pane-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 0;
+}
+.pane-head .line {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.subtabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px 12px 0;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+.subtabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+.subtabs button.active {
+    color: var(--vscode-foreground);
+    border-bottom-color: var(--vscode-focusBorder);
+}
+.pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 12px;
+}
+.pane-body pre.body {
+    max-height: none;
+}
+pre.hex {
+    white-space: pre;
+    word-break: normal;
+}
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+}
+input.filter {
+    flex: 1;
+    max-width: 420px;
+    font: inherit;
+    padding: 3px 8px;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+}
+input.filter:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+}
+.sequence {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+.table-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+table.sequence-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--vscode-editor-background);
+    cursor: pointer;
+    user-select: none;
+}
+table.sequence-table thead th.sorted {
+    color: var(--vscode-foreground);
+}
+table.list tbody tr.selected {
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+table.list td.row-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+table.list td.row-actions button {
+    padding: 0 6px;
+    font-size: 11px;
+    opacity: 0.6;
+}
+table.list tbody tr:hover td.row-actions button,
+table.list tbody tr.selected td.row-actions button {
+    opacity: 1;
+}

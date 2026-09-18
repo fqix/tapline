@@ -10,11 +10,15 @@ sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
 
 ## Features
 
-- **Structure view** — Charles-style tree: host → path folders → requests, or a flat
-  sequence view. Click a host for its overview (counts, status codes, bytes) and a
-  request for the detail panel with Overview / Request / Response / Frames tabs,
-  header tables, pretty/raw JSON bodies and a timing waterfall. Bodies can also be
-  opened as editor documents (JSON/HTML/XML highlighting) or the whole exchange as text.
+- **Charles-style views** — the sidebar is the _Structure_ tree (host → path
+  folders → requests); _Sequence_ opens a sortable, filterable table (Code, Method,
+  Host, Path, Start, Duration, Size) with the selected request's detail below and
+  per-row replay. A request's detail has _Overview_ (status, protocol, client, sizes,
+  timing waterfall) and _Contents_ — request above, response below, each with
+  Headers / Text / JSON / Raw / Hex sub-tabs plus Query String, Cookies and Form when
+  present — and _Frames_ for WebSockets. Clicking a host shows its summary (status
+  codes, content types, protocols, durations, bytes) with a filterable request list.
+  Bodies can also be opened as editor documents or the whole exchange as text.
 - **Terminal and debug capture** — while capture runs, new integrated terminals and
   debug sessions (`node`, `python`, `go`, … configurable) receive `HTTP(S)_PROXY`
   plus CA variables (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`,
@@ -45,17 +49,16 @@ matched by `tapline.ssl.hosts` are tunnelled opaquely. See
 
 ## Settings
 
-| Setting                                     | Default             | Purpose                                                                    |
-| ------------------------------------------- | ------------------- | -------------------------------------------------------------------------- |
-| `tapline.port`                              | `6070`              | Loopback port of the capture proxy                                         |
-| `tapline.autoStart`                         | `false`             | Start capture when VS Code opens                                           |
-| `tapline.terminal.inject`                   | `true`              | Inject proxy/CA variables into new terminals                               |
-| `tapline.debug.inject`                      | `true`              | Inject them into launched debug sessions                                   |
-| `tapline.debug.types`                       | node, python, go, … | Debug configuration types that get the variables                           |
-| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]`    | Which hosts are decrypted                                                  |
-| `tapline.maxEntries`                        | `2000`              | Live transactions kept in memory                                           |
-| `tapline.maxBodyKiB`                        | `512`               | Retained body bytes per direction                                          |
-| `tapline.viewMode`                          | `structure`         | `structure` groups by host and path like Charles; `sequence` lists by time |
+| Setting                                     | Default             | Purpose                                          |
+| ------------------------------------------- | ------------------- | ------------------------------------------------ |
+| `tapline.port`                              | `6070`              | Loopback port of the capture proxy               |
+| `tapline.autoStart`                         | `false`             | Start capture when VS Code opens                 |
+| `tapline.terminal.inject`                   | `true`              | Inject proxy/CA variables into new terminals     |
+| `tapline.debug.inject`                      | `true`              | Inject them into launched debug sessions         |
+| `tapline.debug.types`                       | node, python, go, … | Debug configuration types that get the variables |
+| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]`    | Which hosts are decrypted                        |
+| `tapline.maxEntries`                        | `2000`              | Live transactions kept in memory                 |
+| `tapline.maxBodyKiB`                        | `512`               | Retained body bytes per direction                |
 
 The root certificate lives in the extension's global storage (`Tapline: Copy Root
 Certificate Path`). Only processes told to trust it (via the injected variables, or by
@@ -71,7 +74,7 @@ src/
 ├── panels/detailPanel.ts        # webview panel host: transaction detail, host overview
 ├── webview/                     # React UI bundled to dist/webview.js (browser tsconfig)
 │   ├── main.tsx, App.tsx        #   entry and root component
-│   ├── components/              #   TransactionView, HostView, Overview, SideView, …
+│   ├── components/              #   TransactionView, ContentsView, MessagePane, SequenceView, HostView, …
 │   ├── hooks/                   #   useHostMessages (host → panel message stream)
 │   ├── lib/                     #   vscode api bridge, i18n
 │   ├── styles/                  #   theme-aware CSS (VS Code variables)

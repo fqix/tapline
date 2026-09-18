@@ -3,16 +3,11 @@ import type { Transaction } from '../shared/model'
 import type { AgentClient } from '../client/agentClient'
 import { bytes, duration, statusLabel } from '../utils/format'
 
-/**
- * Charles-style structure view: host → path folders → requests. `sequence` mode
- * lists requests flat, newest first.
- */
+/** Charles-style structure view: host → path folders → requests. */
 export type TrafficNode =
     | { kind: 'host'; host: string }
     | { kind: 'folder'; host: string; prefix: string }
     | { kind: 'transaction'; id: string }
-
-export type ViewMode = 'structure' | 'sequence'
 
 const segments = (t: Transaction) => {
     const path = t.scheme === 'connect' ? '' : t.path.split('?')[0]
@@ -34,16 +29,9 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
         })
         this.disposables.push(
             this.view,
-            client.onEvent(() => this.refresh()),
-            vscode.workspace.onDidChangeConfiguration((change) => {
-                if (change.affectsConfiguration('tapline.viewMode')) this.refresh()
-            })
+            client.onEvent(() => this.refresh())
         )
         this.refresh()
-    }
-
-    get mode(): ViewMode {
-        return vscode.workspace.getConfiguration('tapline').get<ViewMode>('viewMode', 'structure')
     }
 
     /** Coalesce bursts of transaction events into one repaint. */
@@ -53,7 +41,6 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
             this.timer = undefined
             this.changed.fire(undefined)
             const count = this.client.transactions.size
-            void vscode.commands.executeCommand('setContext', 'tapline.viewMode', this.mode)
             this.view.description = this.client.running
                 ? vscode.l10n.t('{0} requests · port {1}', count, this.client.port)
                 : count
@@ -72,8 +59,6 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
 
     getChildren(node?: TrafficNode): TrafficNode[] {
         if (!node) {
-            if (this.mode === 'sequence')
-                return this.ordered().map((t) => ({ kind: 'transaction', id: t.id }))
             const hosts = new Set<string>()
             for (const t of this.ordered()) hosts.add(t.host)
             return [...hosts].sort().map((host) => ({ kind: 'host', host }))
@@ -128,19 +113,11 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
         }
         const t = this.client.transactions.get(node.id)
         if (!t) return new vscode.TreeItem('…')
-        const structure = this.mode === 'structure'
         const query = t.path.includes('?') ? '?' + t.path.split('?')[1] : ''
         const leaf = t.scheme === 'connect' ? t.path : (segments(t).pop() ?? '/')
-        const label = structure
-            ? `${leaf}${query}`
-            : `${statusLabel(t)}  ${t.method}  ${t.host}${t.path.length > 60 ? t.path.slice(0, 59) + '…' : t.path}`
-        const item = new vscode.TreeItem(label)
+        const item = new vscode.TreeItem(`${leaf}${query}`)
         item.id = t.id
-        item.description = structure
-            ? `${t.method} · ${statusLabel(t)}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}`
-            : t.state === 'pending'
-              ? ''
-              : `${duration(t.duration)} · ${bytes(t.responseBytes)}`
+        item.description = `${t.method} · ${statusLabel(t)}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}`
         item.tooltip = new vscode.MarkdownString(
             `**${t.method}** ${t.url}\n\n` +
                 `${t.status ?? ''} ${t.statusMessage ?? ''} · ${t.scheme}${t.httpVersion ? ' HTTP/' + t.httpVersion : ''}\n\n` +
@@ -155,7 +132,6 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
     }
 
     getParent(node: TrafficNode): TrafficNode | undefined {
-        if (this.mode === 'sequence') return undefined
         if (node.kind === 'host') return undefined
         if (node.kind === 'folder') {
             const parts = node.prefix.split('/')

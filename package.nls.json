@@ -30,9 +30,5 @@
     "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",
     "command.openHost": "Open Host Overview",
     "command.openText": "Open as Text",
-    "command.viewStructure": "View as Structure (by host)",
-    "command.viewSequence": "View as Sequence (by time)",
-    "config.viewMode": "How the traffic view lists requests.",
-    "config.viewMode.structure": "Group by host, then by path (like Charles).",
-    "config.viewMode.sequence": "Flat list, newest first."
+    "command.openSequence": "Open Sequence View"
 }

@@ -30,9 +30,5 @@
     "config.maxBodyKiB": "每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。",
     "command.openHost": "打开域名概览",
     "command.openText": "以文本方式打开",
-    "command.viewStructure": "结构视图（按域名）",
-    "command.viewSequence": "时序视图（按时间）",
-    "config.viewMode": "流量视图的列表方式。",
-    "config.viewMode.structure": "按域名再按路径分组（类似 Charles）。",
-    "config.viewMode.sequence": "平铺列表，最新在前。"
+    "command.openSequence": "打开时序视图"
 }
