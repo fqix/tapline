@@ -3,7 +3,7 @@
 All notable changes to Tapline are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-19
 
 ### Added
 
@@ -25,6 +25,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Changed
 
+- The traffic panel follows the VS Code font family, size and weight instead of
+  hard-coded 11–12px text; code-like values use the editor font.
 - Clearing the session restarts sequence numbers at 1.
 - A window running a newer build replaces the shared capture agent automatically
   (restoring capture if it was running), so updates and rebuilds take effect without
