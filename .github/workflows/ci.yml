@@ -21,10 +21,16 @@ jobs:
         include:
           - runner: ubuntu-latest
             target: linux-x64
+          - runner: ubuntu-latest
+            target: linux-arm64
           - runner: macos-13
             target: darwin-x64
+          - runner: macos-13
+            target: darwin-arm64
           - runner: windows-latest
             target: win32-x64
+          - runner: windows-latest
+            target: win32-arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -41,7 +47,7 @@ jobs:
 
       - name: Read pinned Go version
         id: go
-        run: node -e "const fs=require('fs'), p=require('./third_party/sing-box/pin.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + p.toolchain.slice(2) + '\\n')"
+        run: node -e "const fs=require('fs'), p=require('./third_party/sing-box/pin.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + p.toolchain.slice(2).split('.').slice(0,2).join('.') + String.fromCharCode(10))"
 
       - name: Set up Go
         uses: actions/setup-go@v7
