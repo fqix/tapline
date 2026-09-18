@@ -1,0 +1,315 @@
+/* Tokens, resets and primitives shared by the table and the inspector. Every colour comes
+   from a VS Code theme variable so the panel follows light, dark and high-contrast themes. */
+:root {
+    color-scheme: light dark;
+    --border: var(
+        --vscode-panel-border,
+        var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35))
+    );
+    --border-faint: var(--vscode-tree-tableColumnsBorder, rgba(128, 128, 128, 0.18));
+    --ok: var(--vscode-testing-iconPassed, #2ea043);
+    --redirect: var(--vscode-charts-blue, #3794ff);
+    --warn: var(--vscode-charts-orange, #d18616);
+    --bad: var(--vscode-errorForeground, #f14c4c);
+    --row: 22px;
+    --radius: 4px;
+}
+* {
+    box-sizing: border-box;
+}
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+body {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size, 13px);
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+    -webkit-font-smoothing: antialiased;
+}
+body.resizing {
+    user-select: none;
+}
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.mono,
+pre,
+code {
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, Consolas, monospace);
+    font-size: var(--vscode-editor-font-size, 12px);
+}
+.muted {
+    color: var(--vscode-descriptionForeground);
+}
+.dim {
+    opacity: 0.6;
+}
+.ellipsis {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.padded {
+    padding: 8px 12px;
+}
+.selectable {
+    user-select: text;
+}
+.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 24px;
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
+}
+.spacer {
+    flex: 1;
+}
+:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+/* ---- codicons ---- */
+.codicon {
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: -0.125em;
+}
+@keyframes codicon-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+.codicon-modifier-spin {
+    animation: codicon-spin 1.5s steps(30) infinite;
+}
+
+/* ---- buttons ---- */
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 22px;
+    min-width: 22px;
+    padding: 0 3px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: none;
+    color: var(--vscode-icon-foreground, var(--vscode-foreground));
+}
+.icon-button .label {
+    font-size: 11px;
+}
+.icon-button:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+.icon-button:active {
+    background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.3));
+}
+.icon-button.active {
+    background: var(--vscode-inputOption-activeBackground, rgba(0, 120, 212, 0.4));
+    border-color: var(--vscode-inputOption-activeBorder, transparent);
+    color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+}
+.link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--vscode-textLink-foreground);
+}
+.link:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration: underline;
+}
+
+/* Segmented control for mutually exclusive small choices (Pretty · Text · Hex). */
+.segmented {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.segmented button {
+    padding: 1px 8px;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: none;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+.segmented button:last-child {
+    border-right: none;
+}
+.segmented button:hover {
+    color: var(--vscode-foreground);
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+.segmented button.active {
+    background: var(--vscode-inputOption-activeBackground, rgba(0, 120, 212, 0.4));
+    color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+}
+
+/* Filter chips share the input-option look VS Code uses for regex / match-case toggles. */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: none;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+}
+.chip:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-foreground);
+}
+.chip.active {
+    background: var(--vscode-inputOption-activeBackground, rgba(0, 120, 212, 0.4));
+    border-color: var(--vscode-inputOption-activeBorder, transparent);
+    color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+}
+.chip.host {
+    font-family: var(--vscode-editor-font-family);
+    padding-right: 2px;
+}
+.chip.host .icon-button {
+    height: 16px;
+    min-width: 16px;
+}
+.chip.host .icon-button .codicon {
+    font-size: 12px;
+}
+
+/* ---- inputs ---- */
+.filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 360px;
+    min-width: 140px;
+    height: 24px;
+    padding: 0 2px 0 6px;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+}
+.filter:focus-within {
+    border-color: var(--vscode-focusBorder);
+}
+.filter .codicon {
+    color: var(--vscode-descriptionForeground);
+}
+.filter input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+}
+.filter input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+.filter .icon-button {
+    height: 18px;
+    min-width: 18px;
+}
+
+/* ---- status and method ---- */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-variant-numeric: tabular-nums;
+}
+.status .codicon {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+.status.pending .codicon {
+    font-size: 12px;
+}
+.status.s2 .codicon {
+    color: var(--ok);
+}
+.status.s3 .codicon {
+    color: var(--redirect);
+}
+.status.s4 .codicon {
+    color: var(--warn);
+}
+.status.s5 .codicon,
+.status.error .codicon {
+    color: var(--bad);
+}
+.status.error .mono {
+    color: var(--bad);
+}
+.method {
+    font-family: var(--vscode-editor-font-family);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.method.m-get {
+    color: var(--vscode-charts-blue, #3794ff);
+}
+.method.m-post {
+    color: var(--vscode-charts-green, #89d185);
+}
+.method.m-put,
+.method.m-patch {
+    color: var(--vscode-charts-orange, #d18616);
+}
+.method.m-delete {
+    color: var(--vscode-charts-red, #f14c4c);
+}
+.method.m-connect,
+.method.m-options,
+.method.m-head {
+    color: var(--vscode-descriptionForeground);
+}
+
+/* ---- notes ---- */
+.note {
+    margin: 8px 12px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--vscode-editorWarning-foreground, #cca700);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--vscode-textBlockQuote-background);
+}
+.note.error {
+    border-left-color: var(--bad);
+}
+.error-text {
+    color: var(--bad);
+}
