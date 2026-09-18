@@ -26,6 +26,7 @@ function state(): AgentState {
         recording: engine.recording,
         port: engine.settings.port,
         certificatePath: engine.certificatePath,
+        truststorePath: engine.truststorePath,
         clients: clients.size,
         pid: process.pid,
         coreVersion: engine.coreVersion

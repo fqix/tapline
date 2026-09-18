@@ -88,23 +88,54 @@ export function renderTransaction(t: Transaction): string {
     return parts.join('\n') + '\n'
 }
 
-/** Environment applied to terminals and debug sessions while capture runs. */
-export function captureEnvironment(port: number, certificatePath: string): Record<string, string> {
+/**
+ * Environment applied to terminals and debug sessions while capture runs. Every
+ * variable is one a common runtime or tool reads on its own; nothing else changes.
+ */
+export function captureEnvironment(
+    port: number,
+    certificatePath: string,
+    truststorePath?: string
+): Record<string, string> {
     const proxy = `http://127.0.0.1:${port}`
-    return {
+    const env: Record<string, string> = {
+        // Proxy: curl, git, pip, npm, Go, Python, Ruby, Rust reqwest, .NET, Deno, Bun…
         http_proxy: proxy,
         https_proxy: proxy,
         HTTP_PROXY: proxy,
         HTTPS_PROXY: proxy,
         NO_PROXY: 'localhost,127.0.0.1,::1',
         no_proxy: 'localhost,127.0.0.1,::1',
+        // Trust the Tapline root CA
+        SSL_CERT_FILE: certificatePath, // OpenSSL-based tools, Go, Ruby, Python ssl
         CURL_CA_BUNDLE: certificatePath,
-        REQUESTS_CA_BUNDLE: certificatePath,
-        SSL_CERT_FILE: certificatePath,
-        NODE_EXTRA_CA_CERTS: certificatePath,
-        // Node 24+ honours HTTP(S)_PROXY for fetch/undici only with this flag.
-        NODE_USE_ENV_PROXY: '1',
-        GRPC_DEFAULT_SSL_ROOTS_FILE_PATH: certificatePath,
-        GIT_SSL_CAINFO: certificatePath
+        REQUESTS_CA_BUNDLE: certificatePath, // Python requests
+        PIP_CERT: certificatePath,
+        AWS_CA_BUNDLE: certificatePath, // aws cli, boto3
+        GIT_SSL_CAINFO: certificatePath,
+        NODE_EXTRA_CA_CERTS: certificatePath, // Node and Bun
+        NODE_USE_ENV_PROXY: '1', // Node 22.21+/24+: fetch/undici honour HTTP(S)_PROXY
+        npm_config_cafile: certificatePath,
+        CARGO_HTTP_CAINFO: certificatePath,
+        DENO_CERT: certificatePath,
+        GRPC_DEFAULT_SSL_ROOTS_FILE_PATH: certificatePath
     }
+    if (truststorePath)
+        // JVMs ignore the variables above; JAVA_TOOL_OPTIONS is read by every JVM at start.
+        env.JAVA_TOOL_OPTIONS = [
+            `-Dhttp.proxyHost=127.0.0.1`,
+            `-Dhttp.proxyPort=${port}`,
+            `-Dhttps.proxyHost=127.0.0.1`,
+            `-Dhttps.proxyPort=${port}`,
+            `-Dhttp.nonProxyHosts=localhost|127.0.0.1`,
+            `-Djavax.net.ssl.trustStore=${quoteJavaOption(truststorePath)}`,
+            `-Djavax.net.ssl.trustStorePassword=changeit`,
+            `-Djavax.net.ssl.trustStoreType=PKCS12`
+        ].join(' ')
+    return env
+}
+
+/** JAVA_TOOL_OPTIONS splits on whitespace unless the value is double-quoted. */
+function quoteJavaOption(value: string) {
+    return /\s/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value
 }
