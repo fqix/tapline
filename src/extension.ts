@@ -7,7 +7,7 @@ import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
 import { CertificateTrust } from './environment/certificateTrust'
 import { TrafficView, type TrafficNode } from './views/trafficView'
-import { DetailPanel, type PanelActions } from './panels/detailPanel'
+import { TrafficPanel, type PanelActions } from './panels/trafficPanel'
 
 let client: AgentClient | undefined
 
@@ -59,8 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
             )),
         delete: (ids) => client!.delete(ids)
     }
-    const panel = new DetailPanel(context, client, actions)
-    const sequence = new DetailPanel(context, client, actions, 'tapline.sequence')
+    const panel = new TrafficPanel(context, client, actions)
     const status = vscode.window.createStatusBarItem(
         'tapline.status',
         vscode.StatusBarAlignment.Left,
@@ -68,16 +67,7 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     status.name = 'Tapline'
     status.command = 'tapline.status'
-    context.subscriptions.push(
-        client,
-        view,
-        documents,
-        environment,
-        certificate,
-        panel,
-        sequence,
-        status
-    )
+    context.subscriptions.push(client, view, documents, environment, certificate, panel, status)
 
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
@@ -224,7 +214,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     command('tapline.open', (node?: TrafficNode) => {
         const t = one(node)
-        if (t) panel.showTransaction(t.id)
+        if (t) panel.focus(t.id)
     })
     command('tapline.openHost', (node?: TrafficNode) => {
         if (node?.kind === 'host') panel.showHost(node.host)
@@ -259,9 +249,9 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     command('tapline.replay', async (node?: TrafficNode) => {
         const t = one(node)
-        if (t) panel.showTransaction((await replay(t)).id)
+        if (t) panel.focus((await replay(t)).id)
     })
-    command('tapline.openSequence', () => sequence.showSequence())
+    command('tapline.openSequence', () => panel.show())
     command('tapline.delete', async (node?: TrafficNode) => {
         const ids = view.selected(node).map((t) => t.id)
         if (ids.length) await client!.delete(ids)

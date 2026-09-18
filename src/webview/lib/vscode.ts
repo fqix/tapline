@@ -13,3 +13,5 @@ export const vscode = acquireVsCodeApi()
 export function saveState(patch: Partial<PanelState>) {
     vscode.setState({ ...vscode.getState(), ...patch })
 }
+
+export const state = (): PanelState => vscode.getState() ?? {}
