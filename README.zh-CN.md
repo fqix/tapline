@@ -11,9 +11,11 @@
 
 ## 功能
 
-- **Charles 风格视图** — _结构_ 树（主机 → 路径 → 请求）和可排序的 _序列_ 表格。每个
-  请求有带时序瀑布图的概览、请求与响应内容（Headers / Text / JSON / Raw / Hex，以及
-  Query、Cookies、Form），WebSocket 帧和 SSE 事件实时刷新。
+- **Charles 风格视图** — 侧边栏是 _结构_ 树（主机 → 路径 → 请求），编辑区只有一个流量
+  面板：可排序、可过滤的 _序列_ 表格（状态码 / 方法快捷筛选、按主机查看），详情可放在
+  下方或右侧。详情包含带时序瀑布图的概览、请求与响应页（Headers、Query、Cookies、
+  Form、Trailers，内容支持格式化 JSON / 文本 / 十六进制），WebSocket 帧和 SSE 事件
+  实时刷新。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……可配置）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）。

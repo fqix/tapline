@@ -11,10 +11,12 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 
 ## Features
 
-- **Charles-style views** — _Structure_ tree (host → path → request) and a sortable
-  _Sequence_ table. Each request shows an overview with timing waterfall, request and
-  response contents (Headers / Text / JSON / Raw / Hex, plus Query, Cookies, Form),
-  WebSocket frames and SSE events streamed live.
+- **Charles-style views** — a _Structure_ tree (host → path → request) in the sidebar
+  and one traffic panel: a sortable, filterable _Sequence_ table (status / method quick
+  filters, per-host view) with an inspector below or beside it. The inspector shows an
+  overview with timing waterfall, request and response pages (headers, query, cookies,
+  form, trailers, body as Pretty JSON / Text / Hex), WebSocket frames and SSE events
+  streamed live.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, … configurable) get `HTTP(S)_PROXY` and the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
