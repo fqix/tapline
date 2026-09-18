@@ -1,6 +1,14 @@
 // Pure helpers shared by the tree view and virtual documents; no vscode imports so
 // the root vitest suite can cover them.
-import { bytes, duration, pretty, type Headers, type Transaction } from '../shared/model'
+import {
+    bytes,
+    duration,
+    grpcStatusName,
+    pretty,
+    type GrpcMessage,
+    type Headers,
+    type Transaction
+} from '../shared/model'
 export { bytes, duration }
 
 export function statusLabel(t: Transaction): string {
@@ -34,8 +42,26 @@ export function bodyExtension(headers: Headers, body: string, binary: boolean): 
     return 'txt'
 }
 
-function block(headers: Headers, body: string, binary: boolean, size: number) {
+function grpcBlock(messages: GrpcMessage[], type?: string) {
+    return messages
+        .map(
+            (m) =>
+                `--- message ${m.index} · ${bytes(m.size)}${m.compressed ? ' · compressed' : ''}${(m.type ?? type) ? ` · ${m.type ?? type}` : ''}${m.error ? ` · ${m.error}` : ''}\n` +
+                (m.body !== undefined ? JSON.stringify(m.body, null, 2) : '(undecodable)')
+        )
+        .join('\n')
+}
+
+function block(
+    headers: Headers,
+    body: string,
+    binary: boolean,
+    size: number,
+    grpc?: { messages: GrpcMessage[]; type?: string }
+) {
     const lines = Object.entries(headers).map(([k, v]) => `${k}: ${v}`)
+    if (grpc?.messages.length)
+        return lines.join('\n') + '\n\n' + grpcBlock(grpc.messages, grpc.type)
     const text = binary
         ? size
             ? `(binary body, ${bytes(size)})`
@@ -52,8 +78,23 @@ export function renderTransaction(t: Transaction): string {
     const parts = [
         `### Request · ${t.client} · ${new Date(t.timestamp).toISOString()}${t.replayOf ? ' · replay' : ''}`,
         `${t.method} ${t.url} ${version}`,
-        block(t.requestHeaders, t.requestBody, t.requestBinary, t.requestBytes)
+        block(
+            t.requestHeaders,
+            t.requestBody,
+            t.requestBinary,
+            t.requestBytes,
+            t.grpc && { messages: t.grpc.request, type: t.grpc.requestType }
+        )
     ]
+    if (t.grpc)
+        parts.splice(
+            1,
+            0,
+            `### gRPC ${t.grpc.service}/${t.grpc.method}` +
+                (t.grpc.status !== undefined
+                    ? ` · ${t.grpc.status} ${grpcStatusName(t.grpc.status)}${t.grpc.statusMessage ? `: ${t.grpc.statusMessage}` : ''}`
+                    : '')
+        )
     if (t.scheme === 'connect') {
         parts.push(
             '',
@@ -70,7 +111,13 @@ export function renderTransaction(t: Transaction): string {
             '',
             `### Response · ${duration(t.duration)} · ${bytes(t.responseBytes)}${t.truncated ? ' · body truncated' : ''}`,
             `${version} ${t.status ?? ''} ${t.statusMessage ?? ''}`.trimEnd(),
-            block(t.responseHeaders, t.responseBody, t.responseBinary, t.responseBytes)
+            block(
+                t.responseHeaders,
+                t.responseBody,
+                t.responseBinary,
+                t.responseBytes,
+                t.grpc && { messages: t.grpc.response, type: t.grpc.responseType }
+            )
         )
         if (t.responseTrailers && Object.keys(t.responseTrailers).length)
             parts.push('', '### Trailers', block(t.responseTrailers, '', false, 0))

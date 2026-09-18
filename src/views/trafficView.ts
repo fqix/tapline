@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import type { Transaction } from '../shared/model'
+import { grpcStatusName, type Transaction } from '../shared/model'
 import type { AgentClient } from '../client/agentClient'
 import { bytes, duration, statusLabel } from '../utils/format'
 
@@ -117,7 +117,11 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
         const leaf = t.scheme === 'connect' ? t.path : (segments(t).pop() ?? '/')
         const item = new vscode.TreeItem(`${leaf}${query}`)
         item.id = t.id
-        item.description = `${t.method} · ${statusLabel(t)}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}${t.events ? ` · ${vscode.l10n.t('{0} events', t.events.length)}` : ''}`
+        const grpc =
+            t.grpc?.status !== undefined
+                ? ` · gRPC ${t.grpc.status} ${grpcStatusName(t.grpc.status)}`
+                : ''
+        item.description = `${t.grpc ? 'gRPC' : t.method} · ${statusLabel(t)}${grpc}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}${t.events ? ` · ${vscode.l10n.t('{0} events', t.events.length)}` : ''}`
         item.tooltip = new vscode.MarkdownString(
             `**${t.method}** ${t.url}\n\n` +
                 `${t.status ?? ''} ${t.statusMessage ?? ''} · ${t.scheme}${t.httpVersion ? ' HTTP/' + t.httpVersion : ''}\n\n` +
@@ -183,6 +187,8 @@ function icon(t: Transaction): vscode.ThemeIcon {
         return new vscode.ThemeIcon('plug')
     if (t.events) return new vscode.ThemeIcon('radio-tower')
     if (t.scheme === 'connect') return new vscode.ThemeIcon('lock')
+    if (t.grpc?.status)
+        return new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'))
     const status = t.status ?? 0
     if (status >= 500)
         return new vscode.ThemeIcon('flame', new vscode.ThemeColor('list.errorForeground'))

@@ -52,6 +52,8 @@ export class AgentClient implements vscode.Disposable {
     private readonly events = new vscode.EventEmitter<Event>()
     readonly onEvent = this.events.event
     private disposed = false
+    /** Absolute .proto paths found in the workspace; pushed to the agent with the settings. */
+    protoFiles: string[] = []
 
     constructor(private context: vscode.ExtensionContext) {
         this.output = vscode.window.createOutputChannel('Tapline', { log: true })
@@ -65,6 +67,15 @@ export class AgentClient implements vscode.Disposable {
         )
     }
 
+    /** Resend the settings, e.g. after the .proto file set changed. */
+    pushSettings() {
+        if (!this.socket) return Promise.resolve()
+        return this.call('settings', { settings: this.settings() }).then(
+            () => undefined,
+            (error) => this.output.error(String(error))
+        )
+    }
+
     private settings(): Settings {
         const config = vscode.workspace.getConfiguration('tapline')
         return {
@@ -73,7 +84,8 @@ export class AgentClient implements vscode.Disposable {
             sslHosts: config.get<string[]>('ssl.hosts', defaultSettings.sslHosts),
             maxEntries: config.get<number>('maxEntries', defaultSettings.maxEntries),
             maxBodyBytes:
-                config.get<number>('maxBodyKiB', defaultSettings.maxBodyBytes / 1024) * 1024
+                config.get<number>('maxBodyKiB', defaultSettings.maxBodyBytes / 1024) * 1024,
+            protoFiles: this.protoFiles
         }
     }
 

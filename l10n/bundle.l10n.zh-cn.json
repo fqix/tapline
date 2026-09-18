@@ -130,5 +130,9 @@
     "Hide CONNECT tunnels": "隐藏 CONNECT 隧道",
     "Clear filters": "清除过滤",
     "Inspector below": "详情在下方",
-    "Inspector to the right": "详情在右侧"
+    "Inspector to the right": "详情在右侧",
+    "Messages": "消息",
+    "compressed": "已压缩",
+    "Decoded by field number. Add the .proto files to the workspace (tapline.grpc.protoFiles) to see field names.": "按字段编号解码。把 .proto 文件放进工作区（tapline.grpc.protoFiles）即可显示字段名。",
+    "Not a valid protobuf message": "不是有效的 protobuf 消息"
 }

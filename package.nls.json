@@ -39,5 +39,6 @@
     "view.welcome.stopped": "Capture is stopped.\n[Start Capture](command:tapline.start)\nOnce running, new integrated terminals and debug sessions are routed through Tapline automatically.",
     "view.welcome.running": "Capture is running; no requests yet.\n[New Captured Terminal](command:tapline.openTerminal)\nRun any curl, npm, pip or git command there, or start a debug session — requests appear here as they happen.\n[Copy Root Certificate Path](command:tapline.copyCertificatePath) for tools that need the CA configured manually.",
     "config.terminal.profiles": "Trust-store variable profiles injected into every new terminal. Keep this generic; use \"New Captured Terminal\" to open a terminal for a specific runtime (Node, Python, Java, …). Profiles: openssl (SSL_CERT_FILE, CURL_CA_BUNDLE), git, node, python, java, rust, deno, grpc.",
-    "config.debug.runtimes": "Profiles injected per debug configuration type (proxy variables are always included). Types not listed are left untouched; an empty list injects the proxy only."
+    "config.debug.runtimes": "Profiles injected per debug configuration type (proxy variables are always included). Types not listed are left untouched; an empty list injects the proxy only.",
+    "config.grpc.protoFiles": "Glob patterns (relative to the workspace) or absolute paths of .proto files used to decode gRPC messages with field names. Without a matching schema, messages are decoded by field number."
 }

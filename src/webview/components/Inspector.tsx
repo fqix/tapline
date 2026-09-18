@@ -6,7 +6,7 @@ import { Frames, ServerEvents } from './Frames'
 import { IconButton } from './IconButton'
 import { MessageView } from './MessageView'
 import { Overview } from './Overview'
-import { methodClass, StatusBadge } from './StatusBadge'
+import { methodClass, methodLabel, StatusBadge } from './StatusBadge'
 
 type Tab = 'overview' | 'request' | 'response' | 'frames' | 'events'
 
@@ -30,8 +30,10 @@ export function Inspector({ x, onFocus }: { x: Transaction; onFocus(id: string):
     return (
         <div className="inspector">
             <header className="inspector-head">
-                <StatusBadge x={x} />
-                <span className={methodClass(x.method)}>{x.method}</span>
+                <StatusBadge x={{ ...x, grpcStatus: x.grpc?.status }} />
+                <span className={methodClass(methodLabel({ method: x.method, grpc: !!x.grpc }))}>
+                    {methodLabel({ method: x.method, grpc: !!x.grpc })}
+                </span>
                 <button
                     type="button"
                     className="title url mono ellipsis"

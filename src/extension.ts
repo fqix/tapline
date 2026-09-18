@@ -6,6 +6,7 @@ import { AgentClient } from './client/agentClient'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
 import { CertificateTrust } from './environment/certificateTrust'
+import { ProtoIndex } from './environment/protoIndex'
 import { TrafficView, type TrafficNode } from './views/trafficView'
 import { TrafficPanel, type PanelActions } from './panels/trafficPanel'
 
@@ -17,6 +18,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const documents = new TransactionDocuments(client)
     const environment = new CaptureEnvironment(context, client)
     const certificate = new CertificateTrust(client)
+    const protos = new ProtoIndex(client)
     const byId = (id: string) => {
         const t = client!.transactions.get(id)
         if (!t) throw new Error(vscode.l10n.t('This request is no longer available.'))
@@ -67,7 +69,16 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     status.name = 'Tapline'
     status.command = 'tapline.status'
-    context.subscriptions.push(client, view, documents, environment, certificate, panel, status)
+    context.subscriptions.push(
+        client,
+        view,
+        documents,
+        environment,
+        certificate,
+        protos,
+        panel,
+        status
+    )
 
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
@@ -306,8 +317,10 @@ export async function activate(context: vscode.ExtensionContext) {
     command('tapline.showLogs', () => client!.output.show())
 
     // Connect lazily so a broken core never blocks activation; autoStart opts in.
-    void client
-        .connect()
+    void protos
+        .refresh()
+        .catch((error) => client!.output.warn(String(error)))
+        .then(() => client!.connect())
         .then(() => certificate.check().catch((error) => client!.output.warn(String(error))))
         .then(() =>
             vscode.workspace.getConfiguration('tapline').get<boolean>('autoStart', false)

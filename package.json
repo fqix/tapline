@@ -565,6 +565,16 @@
                         "coreclr": []
                     },
                     "description": "%config.debug.runtimes%"
+                },
+                "tapline.grpc.protoFiles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "**/*.proto"
+                    ],
+                    "description": "%config.grpc.protoFiles%"
                 }
             }
         }
