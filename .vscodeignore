@@ -1,0 +1,12 @@
+**
+!dist/extension.js
+!dist/agent.js
+!core/sing-box*
+!core/LICENSE
+!media/**
+!syntaxes/**
+!README.md
+!package.nls*.json
+!l10n/**
+!LICENSE
+!package.json

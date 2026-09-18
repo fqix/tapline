@@ -1,0 +1,434 @@
+{
+    "name": "tapline",
+    "displayName": "Tapline",
+    "description": "%extension.description%",
+    "version": "0.1.0",
+    "publisher": "fqix",
+    "license": "MIT",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/fqix/tapline"
+    },
+    "engines": {
+        "vscode": "^1.95.0"
+    },
+    "categories": [
+        "Debuggers",
+        "Testing",
+        "Other"
+    ],
+    "keywords": [
+        "http",
+        "https",
+        "proxy",
+        "capture",
+        "network",
+        "inspector",
+        "grpc",
+        "websocket",
+        "mitm",
+        "har"
+    ],
+    "icon": "media/icon.png",
+    "main": "./dist/extension.js",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "tapline",
+                    "title": "Tapline",
+                    "icon": "media/activity.svg"
+                }
+            ]
+        },
+        "views": {
+            "tapline": [
+                {
+                    "id": "tapline.traffic",
+                    "name": "%view.traffic%",
+                    "contextualTitle": "%view.traffic.title%"
+                }
+            ]
+        },
+        "viewsWelcome": [
+            {
+                "view": "tapline.traffic",
+                "contents": "%view.welcome%"
+            }
+        ],
+        "languages": [
+            {
+                "id": "tapline-http",
+                "aliases": [
+                    "Tapline HTTP"
+                ],
+                "extensions": [
+                    ".taplinehttp"
+                ]
+            }
+        ],
+        "grammars": [
+            {
+                "language": "tapline-http",
+                "scopeName": "source.tapline-http",
+                "path": "./syntaxes/tapline-http.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.json": "json"
+                }
+            }
+        ],
+        "commands": [
+            {
+                "command": "tapline.start",
+                "title": "%command.start%",
+                "category": "Tapline",
+                "icon": "$(play)"
+            },
+            {
+                "command": "tapline.stop",
+                "title": "%command.stop%",
+                "category": "Tapline",
+                "icon": "$(debug-stop)"
+            },
+            {
+                "command": "tapline.toggleRecording",
+                "title": "%command.toggleRecording%",
+                "category": "Tapline",
+                "icon": "$(record)"
+            },
+            {
+                "command": "tapline.clear",
+                "title": "%command.clear%",
+                "category": "Tapline",
+                "icon": "$(clear-all)"
+            },
+            {
+                "command": "tapline.open",
+                "title": "%command.open%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.openRequestBody",
+                "title": "%command.openRequestBody%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.openResponseBody",
+                "title": "%command.openResponseBody%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.copyCurl",
+                "title": "%command.copyCurl%",
+                "category": "Tapline",
+                "icon": "$(terminal)"
+            },
+            {
+                "command": "tapline.copyUrl",
+                "title": "%command.copyUrl%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.replay",
+                "title": "%command.replay%",
+                "category": "Tapline",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "tapline.delete",
+                "title": "%command.delete%",
+                "category": "Tapline",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "tapline.exportHar",
+                "title": "%command.exportHar%",
+                "category": "Tapline",
+                "icon": "$(export)"
+            },
+            {
+                "command": "tapline.openTerminal",
+                "title": "%command.openTerminal%",
+                "category": "Tapline",
+                "icon": "$(terminal-view-icon)"
+            },
+            {
+                "command": "tapline.copyCertificatePath",
+                "title": "%command.copyCertificatePath%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.revealCertificate",
+                "title": "%command.revealCertificate%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.showLogs",
+                "title": "%command.showLogs%",
+                "category": "Tapline",
+                "icon": "$(output)"
+            },
+            {
+                "command": "tapline.toggleGroupByHost",
+                "title": "%command.toggleGroupByHost%",
+                "category": "Tapline",
+                "icon": "$(list-tree)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "tapline.start",
+                    "when": "view == tapline.traffic && !tapline.running",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "tapline.stop",
+                    "when": "view == tapline.traffic && tapline.running",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "tapline.toggleRecording",
+                    "when": "view == tapline.traffic && tapline.running",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "tapline.clear",
+                    "when": "view == tapline.traffic",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "tapline.openTerminal",
+                    "when": "view == tapline.traffic",
+                    "group": "navigation@4"
+                },
+                {
+                    "command": "tapline.toggleGroupByHost",
+                    "when": "view == tapline.traffic",
+                    "group": "1_view@1"
+                },
+                {
+                    "command": "tapline.exportHar",
+                    "when": "view == tapline.traffic",
+                    "group": "2_export@1"
+                },
+                {
+                    "command": "tapline.copyCertificatePath",
+                    "when": "view == tapline.traffic",
+                    "group": "3_cert@1"
+                },
+                {
+                    "command": "tapline.revealCertificate",
+                    "when": "view == tapline.traffic",
+                    "group": "3_cert@2"
+                },
+                {
+                    "command": "tapline.showLogs",
+                    "when": "view == tapline.traffic",
+                    "group": "4_logs@1"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "tapline.replay",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "tapline.copyCurl",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "tapline.open",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "1_open@1"
+                },
+                {
+                    "command": "tapline.openRequestBody",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "1_open@2"
+                },
+                {
+                    "command": "tapline.openResponseBody",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "1_open@3"
+                },
+                {
+                    "command": "tapline.copyCurl",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "2_copy@1"
+                },
+                {
+                    "command": "tapline.copyUrl",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "2_copy@2"
+                },
+                {
+                    "command": "tapline.replay",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "3_act@1"
+                },
+                {
+                    "command": "tapline.exportHar",
+                    "when": "view == tapline.traffic && viewItem =~ /transaction|host/",
+                    "group": "3_act@2"
+                },
+                {
+                    "command": "tapline.delete",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "4_delete@1"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "tapline.open",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.openRequestBody",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.openResponseBody",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.copyCurl",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.copyUrl",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.replay",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.delete",
+                    "when": "false"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "Tapline",
+            "properties": {
+                "tapline.port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535,
+                    "default": 6070,
+                    "description": "%config.port%"
+                },
+                "tapline.autoStart": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "%config.autoStart%"
+                },
+                "tapline.terminal.inject": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "%config.terminal.inject%"
+                },
+                "tapline.debug.inject": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "%config.debug.inject%"
+                },
+                "tapline.debug.types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "node",
+                        "pwa-node",
+                        "node-terminal",
+                        "python",
+                        "debugpy",
+                        "go",
+                        "java",
+                        "lldb",
+                        "cppdbg",
+                        "dart",
+                        "php",
+                        "ruby",
+                        "rdbg"
+                    ],
+                    "description": "%config.debug.types%"
+                },
+                "tapline.ssl.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "%config.ssl.enabled%"
+                },
+                "tapline.ssl.hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "*"
+                    ],
+                    "description": "%config.ssl.hosts%"
+                },
+                "tapline.maxEntries": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 10000,
+                    "default": 2000,
+                    "description": "%config.maxEntries%"
+                },
+                "tapline.groupByHost": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "%config.groupByHost%"
+                },
+                "tapline.maxBodyKiB": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4096,
+                    "default": 512,
+                    "description": "%config.maxBodyKiB%"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "core:build": "node scripts/build-core.mjs",
+        "core:test": "node scripts/build-core.mjs --test",
+        "build": "node esbuild.mjs",
+        "watch": "node esbuild.mjs --watch",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run",
+        "format": "prettier --write src tests scripts/*.mjs esbuild.mjs package.json",
+        "format:check": "prettier --check src tests scripts/*.mjs esbuild.mjs package.json",
+        "package": "node scripts/package.mjs",
+        "package:all": "node scripts/package.mjs --all"
+    },
+    "devDependencies": {
+        "@types/node": "^22.19.0",
+        "@types/node-forge": "^1.3.11",
+        "@types/vscode": "^1.95.0",
+        "@vscode/vsce": "^3.6.0",
+        "esbuild": "^0.25.0",
+        "node-forge": "^1.3.1",
+        "prettier": "^3.6.0",
+        "typescript": "^5.9.0",
+        "vitest": "^4.0.0"
+    },
+    "l10n": "./l10n",
+    "homepage": "https://github.com/fqix/tapline#readme",
+    "bugs": {
+        "url": "https://github.com/fqix/tapline/issues"
+    },
+    "galleryBanner": {
+        "color": "#0f172a",
+        "theme": "dark"
+    }
+}

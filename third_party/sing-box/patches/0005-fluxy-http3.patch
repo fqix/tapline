@@ -1,0 +1,1038 @@
+diff --git a/adapter/inbound.go b/adapter/inbound.go
+index ae1067d..8551464 100644
+--- a/adapter/inbound.go
++++ b/adapter/inbound.go
+@@ -63,6 +63,7 @@ type InboundContext struct {
+ 
+ 	Protocol     string
+ 	Domain       string
++	ALPN         []string
+ 	Client       string
+ 	SniffContext any
+ 	SnifferNames []string
+diff --git a/common/ja3/ja3.go b/common/ja3/ja3.go
+index 608819f..f367d2a 100644
+--- a/common/ja3/ja3.go
++++ b/common/ja3/ja3.go
+@@ -22,6 +22,7 @@ type ClientHello struct {
+ 	Versions            []uint16
+ 	SignatureAlgorithms []uint16
+ 	ServerName          string
++	ALPN                []string
+ 	ja3ByteString       []byte
+ 	ja3Hash             string
+ }
+diff --git a/common/ja3/parser.go b/common/ja3/parser.go
+index a4bd712..5782f3b 100644
+--- a/common/ja3/parser.go
++++ b/common/ja3/parser.go
+@@ -195,6 +195,18 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
+ 		sex := exs[extensionHeaderLen : extensionHeaderLen+int(exLen)]
+ 
+ 		switch exType {
++		case 16: // application_layer_protocol_negotiation
++			if len(sex) < 3 || int(binary.BigEndian.Uint16(sex)) != len(sex)-2 {
++				return &ParseError{LengthErr, 21}
++			}
++			for protocols := sex[2:]; len(protocols) != 0; {
++				length := int(protocols[0])
++				if length == 0 || length > len(protocols)-1 {
++					return &ParseError{LengthErr, 21}
++				}
++				j.ALPN = append(j.ALPN, string(protocols[1:1+length]))
++				protocols = protocols[1+length:]
++			}
+ 		case sniExtensionType: // Extensions: server_name
+ 
+ 			// Check if we can decode the next fields
+diff --git a/common/ja3/parser_test.go b/common/ja3/parser_test.go
+new file mode 100644
+index 0000000..154fcaa
+--- /dev/null
++++ b/common/ja3/parser_test.go
+@@ -0,0 +1,39 @@
++package ja3
++
++import (
++	"encoding/binary"
++	"slices"
++	"testing"
++)
++
++func TestALPN(t *testing.T) {
++	for _, test := range []struct {
++		name    string
++		data    []byte
++		want    []string
++		invalid bool
++	}{
++		{name: "HTTP3", data: []byte{0, 3, 2, 'h', '3'}, want: []string{"h3"}},
++		{name: "multiple", data: []byte{0, 6, 2, 'h', '3', 2, 'h', '2'}, want: []string{"h3", "h2"}},
++		{name: "other QUIC", data: []byte{0, 4, 3, 'f', 'o', 'o'}, want: []string{"foo"}},
++		{name: "truncated vector", data: []byte{0, 9, 2, 'h', '3'}, invalid: true},
++		{name: "truncated protocol", data: []byte{0, 3, 5, 'h', '3'}, invalid: true},
++		{name: "empty protocol", data: []byte{0, 1, 0}, invalid: true},
++		{name: "empty list", data: []byte{0, 0}, invalid: true},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			extension := binary.BigEndian.AppendUint16(nil, uint16(4+len(test.data)))
++			extension = binary.BigEndian.AppendUint16(extension, 16)
++			extension = binary.BigEndian.AppendUint16(extension, uint16(len(test.data)))
++			extension = append(extension, test.data...)
++			var hello ClientHello
++			err := hello.parseExtensions(extension)
++			if (err != nil) != test.invalid {
++				t.Fatalf("unexpected parse result: %v", err)
++			}
++			if !test.invalid && !slices.Equal(hello.ALPN, test.want) {
++				t.Fatalf("protocols=%v want=%v", hello.ALPN, test.want)
++			}
++		})
++	}
++}
+diff --git a/common/sniff/quic.go b/common/sniff/quic.go
+index 049bd2c..f4f0345 100644
+--- a/common/sniff/quic.go
++++ b/common/sniff/quic.go
+@@ -307,6 +307,7 @@ find:
+ 		return E.Cause1(ErrNeedMoreData, err)
+ 	}
+ 	metadata.Domain = fingerprint.ServerName
++	metadata.ALPN = fingerprint.ALPN
+ 	for metadata.Client == "" {
+ 		if len(frameTypeList) == 1 {
+ 			metadata.Client = C.ClientFirefox
+diff --git a/include/fluxy_inspect.go b/include/fluxy_inspect.go
+index 2412b82..bbb3e9d 100644
+--- a/include/fluxy_inspect.go
++++ b/include/fluxy_inspect.go
+@@ -7,6 +7,7 @@ import (
+ 	"net/http"
+ 	"net/netip"
+ 	"os"
++	"slices"
+ 
+ 	"github.com/sagernet/sing-box/adapter"
+ 	"github.com/sagernet/sing-box/adapter/outbound"
+@@ -14,6 +15,7 @@ import (
+ 	"github.com/sagernet/sing-box/log"
+ 	"github.com/sagernet/sing-box/option"
+ 	"github.com/sagernet/sing-box/service/fluxyinspector"
++	"github.com/sagernet/sing/common/bufio"
+ 	M "github.com/sagernet/sing/common/metadata"
+ 	N "github.com/sagernet/sing/common/network"
+ 	sHTTP "github.com/sagernet/sing/protocol/http"
+@@ -44,7 +46,7 @@ func newInspectOutbound(ctx context.Context, _ adapter.Router, _ log.ContextLogg
+ 			return nil, errors.New("choose an inspector service or a remote inspection endpoint")
+ 		}
+ 		return &inspectOutbound{
+-			Adapter:      outbound.NewAdapter("fluxy-inspect", tag, []string{N.NetworkTCP}, nil),
++			Adapter:      outbound.NewAdapter("fluxy-inspect", tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
+ 			inspectorTag: options.Inspector, manager: service.FromContext[adapter.ServiceManager](ctx),
+ 		}, nil
+ 	}
+@@ -113,3 +115,43 @@ func (h *inspectOutbound) DialContext(ctx context.Context, network string, desti
+ func (h *inspectOutbound) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
+ 	return nil, os.ErrInvalid
+ }
++
++// UDP flows enter the inspector directly, without a TCP CONNECT envelope.
++func (h *inspectOutbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
++	go func() {
++		var err error
++		defer func() {
++			_ = conn.Close()
++			if onClose != nil {
++				onClose(err)
++			}
++		}()
++		if h.inspector == nil {
++			err = errors.New("UDP inspection requires an in-process inspector")
++			return
++		}
++		source := netip.AddrPortFrom(metadata.Source.Addr, metadata.Source.Port)
++		packets := &inspectionPacketConn{
++			PacketConn: bufio.NewNetPacketConn(conn),
++			source:     net.UDPAddrFromAddrPort(source), destination: metadata.Destination,
++		}
++		err = h.inspector.ServePacket(ctx, packets, source, metadata.Destination.String(), metadata.Domain, slices.Contains(metadata.ALPN, "h3"))
++	}()
++}
++
++// sing's routed packet readers report the destination; a QUIC server expects
++// ReadFrom to report its client and replies to retain the original destination.
++type inspectionPacketConn struct {
++	net.PacketConn
++	source      *net.UDPAddr
++	destination M.Socksaddr
++}
++
++func (c *inspectionPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
++	n, _, err := c.PacketConn.ReadFrom(p)
++	return n, c.source, err
++}
++
++func (c *inspectionPacketConn) WriteTo(p []byte, _ net.Addr) (int, error) {
++	return c.PacketConn.WriteTo(p, c.destination)
++}
+diff --git a/service/fluxyinspector/README.md b/service/fluxyinspector/README.md
+index b6ce06b..c1cfe6f 100644
+--- a/service/fluxyinspector/README.md
++++ b/service/fluxyinspector/README.md
+@@ -6,6 +6,16 @@ tree; it does not require a local checkout of Fluxy to compile. The engine's
+ original code is MIT licensed (see LICENSE). Its dependencies keep their own
+ licenses and versions in the top-level go.mod/go.sum.
+ 
++HTTP/3 uses the pinned quic-go transport and the same request/response policy
++hooks. `fluxy-inspect` accepts routed QUIC packet flows from TUN and SOCKS5 UDP.
++Before interception, a `quic` IPC message asks the controller for an SSL policy
++decision (`quic-result` with `inspect` and `route`). Excluded hosts stay encrypted.
++The optional `packet_egress` service setting names the core outbound for native
++H3 and encrypted UDP egress; the Helper sets it to `direct`, which can itself use
++the chosen interface or SOCKS proxy. Requests preserve the original UDP endpoint
++unless a rule selects a different HTTP authority. HTTP/3 metadata uses `3.0`.
++Extended CONNECT/WebTransport and early-data acceptance are not supported.
++
+ ## Inspector process configuration
+ 
+ Fluxy runs one sing-box process: Electron owns it in proxy mode, and the Helper
+@@ -21,7 +31,11 @@ application settings.
+   "services": [{"type": "fluxy-inspector", "tag": "inspector"}],
+   "inbounds": [{"type": "fluxy-mixed", "tag": "proxy", "listen": "127.0.0.1", "listen_port": 6060}],
+   "outbounds": [{"type": "fluxy-inspect", "tag": "inspect", "inspector": "inspector"}],
+-  "route": {"final": "inspect", "rules": [{"network": "udp", "action": "reject"}]}
++  "route": {"final": "inspect", "rules": [
++    {"network":"udp", "action":"sniff", "sniffer":["quic"], "timeout":"300ms"},
++    {"network":"udp", "protocol":"quic", "action":"route", "outbound":"inspect"},
++    {"network":"udp", "action":"reject"}
++  ]}
+ }
+ ```
+ 
+@@ -85,5 +99,5 @@ the inspector inside the Helper-owned core, including its elevated privileges.
+ ## Tests
+ 
+ ```sh
+-go test -race -mod=readonly -tags=with_gvisor,with_fluxy -ldflags=-checklinkname=0 ./service/fluxyinspector/... ./include ./cmd/sing-box
++go test -race -mod=readonly -tags=with_gvisor,with_fluxy,integration -ldflags=-checklinkname=0 ./service/fluxyinspector/... ./include ./cmd/sing-box
+ ```
+diff --git a/service/fluxyinspector/internal/ipc/wire.go b/service/fluxyinspector/internal/ipc/wire.go
+index 5ca2c76..e79c2a5 100644
+--- a/service/fluxyinspector/internal/ipc/wire.go
++++ b/service/fluxyinspector/internal/ipc/wire.go
+@@ -64,6 +64,7 @@ type Message struct {
+ 	Route         string         `json:"route,omitempty"`
+ 	Options       RequestOptions `json:"options,omitempty"`
+ 	Local         bool           `json:"local,omitempty"`
++	Inspect       bool           `json:"inspect,omitempty"`
+ 	Status        int            `json:"status,omitempty"`
+ 	StatusMessage string         `json:"statusMessage,omitempty"`
+ 	Headers       map[string]any `json:"headers,omitempty"`
+diff --git a/service/fluxyinspector/internal/proxy/engine.go b/service/fluxyinspector/internal/proxy/engine.go
+index 312405e..3cfcf3f 100644
+--- a/service/fluxyinspector/internal/proxy/engine.go
++++ b/service/fluxyinspector/internal/proxy/engine.go
+@@ -28,20 +28,28 @@ type Engine struct {
+ 	closeOnce sync.Once
+ 	sequence  atomic.Uint64
+ 	err       error
++	packetMu  sync.Mutex
++	packets   sync.WaitGroup
+ }
+ 
+-func NewEngine(parent context.Context, input io.ReadCloser, output io.WriteCloser) *Engine {
++func NewEngine(parent context.Context, input io.ReadCloser, output io.WriteCloser, packetDialer ...func(context.Context, string) (net.Conn, error)) *Engine {
+ 	ctx, cancel := context.WithCancel(parent)
+ 	e := &Engine{ctx: ctx, cancel: cancel, input: input, output: output,
+ 		ready: make(chan struct{}), done: make(chan struct{})}
+ 	e.listener = &streamListener{ctx: ctx, cancel: cancel, connections: make(chan net.Conn)}
+ 	e.runtime = &runtime{peer: newControlPeer(output, cancel), listener: e.listener, cancel: cancel, ready: e.ready}
++	if len(packetDialer) != 0 {
++		e.runtime.transports.DialUDP = packetDialer[0]
++	}
+ 	context.AfterFunc(ctx, e.closeIO)
+ 	go func() {
+ 		defer close(e.done)
+ 		e.err = e.runtime.run(ctx, input)
+ 		cancel()
+ 		e.closeIO()
++		e.packetMu.Lock()
++		e.packets.Wait()
++		e.packetMu.Unlock()
+ 		e.runtime.closeResources()
+ 	}()
+ 	return e
+diff --git a/service/fluxyinspector/internal/proxy/http3.go b/service/fluxyinspector/internal/proxy/http3.go
+new file mode 100644
+index 0000000..e39faa9
+--- /dev/null
++++ b/service/fluxyinspector/internal/proxy/http3.go
+@@ -0,0 +1,202 @@
++package proxy
++
++import (
++	"context"
++	"crypto/tls"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/netip"
++	"strings"
++	"time"
++
++	"github.com/elazarl/goproxy"
++	"github.com/sagernet/quic-go"
++	"github.com/sagernet/quic-go/http3"
++)
++
++type quicSourceKey struct{}
++type quicDestinationKey struct{}
++
++// ServePacket owns one routed UDP flow. The caller supplies a packet connection
++// whose peer is the original client, not the flow's destination address.
++func (e *Engine) ServePacket(ctx context.Context, packets net.PacketConn, source netip.AddrPort, destination, serverName string, http3Protocol bool) error {
++	defer closeQuietly(packets)
++	e.packetMu.Lock()
++	if e.ctx.Err() != nil {
++		e.packetMu.Unlock()
++		return net.ErrClosed
++	}
++	e.packets.Add(1)
++	e.packetMu.Unlock()
++	defer e.packets.Done()
++	if !source.IsValid() || source.Port() == 0 {
++		return errors.New("inspection source endpoint is required")
++	}
++	host, port, err := net.SplitHostPort(destination)
++	if err != nil {
++		return fmt.Errorf("invalid QUIC destination: %w", err)
++	}
++	if serverName == "" {
++		serverName = host
++	}
++	ctx, cancel := context.WithCancel(ctx)
++	defer cancel()
++	stopEngine := context.AfterFunc(e.ctx, cancel)
++	defer stopEngine()
++	stopPackets := context.AfterFunc(ctx, func() { closeQuietly(packets) })
++	defer stopPackets()
++	select {
++	case <-ctx.Done():
++		return ctx.Err()
++	case <-e.ready:
++	}
++	r := e.runtime
++	if !http3Protocol {
++		if r.transports.DialUDP == nil {
++			return errors.New("only HTTP/3 UDP is supported by the proxy listener")
++		}
++		return e.relayPacket(ctx, packets, destination, source, "")
++	}
++	policyCtx, policyCancel := context.WithTimeout(ctx, 15*time.Second)
++	policy, err := r.peer.Ask(policyCtx, map[string]any{
++		"type": "quic", "id": fmt.Sprint(r.sequence.Add(1)), "host": serverName,
++	})
++	policyCancel()
++	if err != nil {
++		return err
++	}
++	if !policy.Inspect {
++		return e.relayPacket(ctx, packets, destination, source, policy.Route)
++	}
++	transport := &quic.Transport{Conn: packets}
++	defer closeQuietly(transport)
++	config := &tls.Config{
++		MinVersion: tls.VersionTLS13,
++		NextProtos: []string{http3.NextProtoH3},
++		GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
++			if hello.ServerName != "" && !strings.EqualFold(hello.ServerName, serverName) {
++				return nil, errors.New("QUIC server name differs from routed destination")
++			}
++			req := (&http.Request{}).WithContext(hello.Context())
++			config, err := r.tlsConfig(net.JoinHostPort(serverName, port), &goproxy.ProxyCtx{Req: req, Proxy: r.proxyServer})
++			if err != nil {
++				return nil, err
++			}
++			config = config.Clone()
++			config.MinVersion = tls.VersionTLS13
++			config.NextProtos = []string{http3.NextProtoH3}
++			return config, nil
++		},
++	}
++	listener, err := transport.Listen(config, &quic.Config{
++		HandshakeIdleTimeout: 10 * time.Second,
++		MaxIdleTimeout:       90 * time.Second,
++		MaxIncomingStreams:   100,
++		// Do not accept replayable early requests at an interception endpoint.
++		Allow0RTT: false,
++	})
++	if err != nil {
++		return err
++	}
++	defer closeQuietly(listener)
++	acceptCtx, acceptCancel := context.WithTimeout(ctx, 15*time.Second)
++	conn, err := listener.Accept(acceptCtx)
++	acceptCancel()
++	if err != nil {
++		return err
++	}
++	defer conn.CloseWithError(0, "inspection finished")
++	server := &http3.Server{
++		MaxHeaderBytes: 1 << 20,
++		ConnContext: func(ctx context.Context, _ *quic.Conn) context.Context {
++			ctx = context.WithValue(ctx, quicSourceKey{}, source)
++			return context.WithValue(ctx, quicDestinationKey{}, destination)
++		},
++		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
++			// A new authority needs its own SSL policy and certificate decision.
++			authority := req.Host
++			if name, _, err := net.SplitHostPort(authority); err == nil {
++				authority = name
++			}
++			authority = strings.Trim(authority, "[]")
++			if !strings.EqualFold(authority, serverName) {
++				http.Error(w, "Use a separate connection for this authority", http.StatusMisdirectedRequest)
++				return
++			}
++			if req.Method == http.MethodConnect {
++				http.Error(w, "Extended CONNECT is not supported", http.StatusNotImplemented)
++				return
++			}
++			req.URL.Scheme, req.URL.Host = "https", req.Host
++			flushHandler{r.proxyServer}.ServeHTTP(w, req)
++		}),
++	}
++	defer closeQuietly(server)
++	stopServer := context.AfterFunc(ctx, func() { closeQuietly(server) })
++	defer stopServer()
++	return server.ServeQUICConn(conn)
++}
++
++// Bypassed SSL domains retain their encrypted UDP stream and configured egress.
++func (e *Engine) relayPacket(ctx context.Context, packets net.PacketConn, destination string, source netip.AddrPort, route string) error {
++	dial := e.runtime.transports.DialUDP
++	if dial == nil {
++		if route != "" {
++			return errors.New("upstream proxy routing requires SSL inspection for QUIC")
++		}
++		dial = func(ctx context.Context, address string) (net.Conn, error) {
++			return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, "udp", address)
++		}
++	}
++	upstream, err := dial(ctx, destination)
++	if err != nil {
++		return err
++	}
++	defer closeQuietly(upstream)
++	stop := context.AfterFunc(ctx, func() { closeQuietly(upstream) })
++	defer stop()
++	result := make(chan error, 1)
++	go func() {
++		defer closeQuietly(upstream)
++		buffer := make([]byte, 65535)
++		for {
++			if err := packets.SetReadDeadline(time.Now().Add(90 * time.Second)); err != nil {
++				result <- err
++				return
++			}
++			n, _, err := packets.ReadFrom(buffer)
++			if err == nil {
++				_, err = upstream.Write(buffer[:n])
++			}
++			if err != nil {
++				result <- err
++				closeQuietly(upstream)
++				return
++			}
++		}
++	}()
++	buffer := make([]byte, 65535)
++	for {
++		if err = upstream.SetReadDeadline(time.Now().Add(90 * time.Second)); err != nil {
++			break
++		}
++		var n int
++		n, err = upstream.Read(buffer)
++		if err == nil {
++			_, err = packets.WriteTo(buffer[:n], net.UDPAddrFromAddrPort(source))
++		}
++		if err != nil {
++			break
++		}
++	}
++	closeQuietly(packets)
++	closeQuietly(upstream)
++	<-result
++	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
++		return nil
++	}
++	return err
++}
+diff --git a/service/fluxyinspector/internal/proxy/http3_test.go b/service/fluxyinspector/internal/proxy/http3_test.go
+new file mode 100644
+index 0000000..2634e39
+--- /dev/null
++++ b/service/fluxyinspector/internal/proxy/http3_test.go
+@@ -0,0 +1,251 @@
++//go:build integration
++
++package proxy
++
++import (
++	"bytes"
++	"context"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/json"
++	"encoding/pem"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"net/netip"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/sagernet/quic-go"
++	"github.com/sagernet/quic-go/http3"
++	"github.com/sagernet/sing-box/service/fluxyinspector/internal/ipc"
++)
++
++func TestHTTP3Inspection(t *testing.T) {
++	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
++	defer cancel()
++	originReceived := make(chan []byte, 8)
++	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {}))
++	defer origin.Close()
++	originPackets, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer originPackets.Close()
++	originServer := &http3.Server{TLSConfig: origin.TLS, Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
++		data, err := io.ReadAll(req.Body)
++		if err != nil {
++			return
++		}
++		if req.ProtoMajor != 3 {
++			t.Error("upstream was not HTTP/3")
++		}
++		originReceived <- data
++		w.Header().Set("X-Origin", req.Header.Get("X-Edited"))
++		w.Header().Set("Trailer", "X-Finished")
++		w.WriteHeader(201)
++		_, _ = w.Write(append([]byte("origin:"), data...))
++		w.Header().Set("X-Finished", "yes")
++	})}
++	defer originServer.Close()
++	go func() { _ = originServer.Serve(originPackets) }()
++	originCA, _ := json.Marshal(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: origin.Certificate().Raw})))
++	in, writer := io.Pipe()
++	reader, out := io.Pipe()
++	engine := NewEngine(ctx, in, out, func(ctx context.Context, address string) (net.Conn, error) {
++		if address != originPackets.LocalAddr().String() {
++			return nil, fmt.Errorf("lost captured Alt-Svc endpoint: %s", address)
++		}
++		return (&net.Dialer{}).DialContext(ctx, "udp", address)
++	})
++	defer engine.Close()
++	defer writer.Close()
++	defer reader.Close()
++	controller := ipc.NewPeer(writer, cancel)
++	identity := testIdentity(t)
++	if err := controller.Send(ipc.Message{Type: "start", Root: &identity, IngressPort: 6060}); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := readControl(reader); err != nil {
++		t.Fatal(err)
++	}
++	paused, resume := make(chan struct{}), make(chan struct{})
++	requestSeen := make(chan map[string]any, 8)
++	responseSeen := make(chan map[string]any, 8)
++	controlDone := make(chan struct{})
++	var workers sync.WaitGroup
++	go func() {
++		defer close(controlDone)
++		defer workers.Wait()
++		contexts := make(map[string]context.Context)
++		cancels := make(map[string]context.CancelFunc)
++		defer func() {
++			for _, stop := range cancels {
++				stop()
++			}
++		}()
++		for {
++			message, err := readControl(reader)
++			if err != nil {
++				return
++			}
++			id, _ := message["id"].(string)
++			switch message["type"] {
++			case "quic":
++				_ = controller.Send(ipc.Message{Type: "quic-result", ID: id, Inspect: true})
++			case "certificate":
++				_ = controller.Send(ipc.Message{Type: "certificate-result", ID: id})
++			case "request":
++				requestSeen <- message
++				request := message["request"].(map[string]any)
++				requestCtx, stop := context.WithCancel(ctx)
++				contexts[id], cancels[id] = requestCtx, stop
++				body := controller.Reader(requestCtx, id+":request:in", make(http.Header))
++				workers.Go(func() {
++					data, err := io.ReadAll(body)
++					if err != nil {
++						return
++					}
++					if strings.HasSuffix(request["url"].(string), "/paused") {
++						close(paused)
++						select {
++						case <-resume:
++						case <-requestCtx.Done():
++							return
++						}
++					}
++					data = append([]byte("edited:"), data...)
++					options := ipc.RequestOptions{Method: "POST", CA: originCA, Headers: map[string]any{"content-length": strconv.Itoa(len(data)), "x-edited": "yes"}}
++					if controller.Send(ipc.Message{Type: "request-result", ID: id, URL: request["url"].(string), Options: options}) == nil {
++						_ = controller.Pipe(requestCtx, id+":request:out", io.NopCloser(bytes.NewReader(data)), nil)
++					}
++				})
++			case "response":
++				responseSeen <- message
++				requestCtx := contexts[id]
++				trailers := make(http.Header)
++				body := controller.Reader(requestCtx, id+":response:in", trailers)
++				workers.Go(func() {
++					data, err := io.ReadAll(body)
++					if err != nil {
++						return
++					}
++					data = append(data, []byte(":modified")...)
++					if controller.Send(ipc.Message{Type: "response-result", ID: id, Status: 202, Headers: map[string]any{"content-length": strconv.Itoa(len(data)), "x-response-edit": "yes"}}) == nil {
++						_ = controller.Pipe(requestCtx, id+":response:out", io.NopCloser(bytes.NewReader(data)), func() http.Header { return trailers })
++					}
++				})
++			case "closed":
++				if stop := cancels[id]; stop != nil {
++					stop()
++					delete(cancels, id)
++					delete(contexts, id)
++				}
++			default:
++				encoded, _ := json.Marshal(message)
++				var msg ipc.Message
++				if json.Unmarshal(encoded, &msg) == nil {
++					_ = controller.Receive(msg)
++				}
++			}
++		}
++	}()
++	inspectorPackets, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	clientPackets, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer clientPackets.Close()
++	source := netip.MustParseAddrPort(clientPackets.LocalAddr().String())
++	serveDone := make(chan error, 1)
++	go func() {
++		serveDone <- engine.ServePacket(ctx, inspectorPackets, source, originPackets.LocalAddr().String(), "example.com", true)
++	}()
++	roots := x509.NewCertPool()
++	roots.AppendCertsFromPEM([]byte(identity.Certificate))
++	transport := &http3.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}, Dial: func(ctx context.Context, _ string, config *tls.Config, qc *quic.Config) (*quic.Conn, error) {
++		return quic.DialEarly(ctx, clientPackets, inspectorPackets.LocalAddr(), config, qc)
++	}}
++	defer transport.Close()
++	client := &http.Client{Transport: transport, Timeout: 10 * time.Second}
++	// The HTTP authority uses 443 while the captured QUIC endpoint uses an
++	// alternative port, as advertised by Alt-Svc in real deployments.
++	url := "https://example.com"
++	request := func(path string, data []byte) error {
++		req, _ := http.NewRequestWithContext(ctx, "POST", url+path, bytes.NewReader(data))
++		req.Header.Set("X-Fluxy-Source", "1.2.3.4:9999")
++		resp, err := client.Do(req)
++		if err != nil {
++			return err
++		}
++		defer resp.Body.Close()
++		body, err := io.ReadAll(resp.Body)
++		if err != nil {
++			return err
++		}
++		want := append(append([]byte("origin:edited:"), data...), []byte(":modified")...)
++		if !bytes.Equal(body, want) || resp.StatusCode != 202 || resp.ProtoMajor != 3 || resp.Header.Get("X-Response-Edit") != "yes" || resp.Trailer.Get("X-Finished") != "yes" {
++			return fmt.Errorf("incorrect H3 response: status=%d proto=%s body=%q trailers=%v", resp.StatusCode, resp.Proto, body, resp.Trailer)
++		}
++		if resp.TLS == nil || !bytes.Equal(resp.TLS.VerifiedChains[0][1].Raw, mustCertificate(t, identity)) {
++			return fmt.Errorf("client did not verify interception CA")
++		}
++		return nil
++	}
++	if err := request("/binary", []byte{0, 1, 127, 255}); err != nil {
++		t.Fatal(err)
++	}
++	message := <-requestSeen
++	if message["request"].(map[string]any)["httpVersion"] != "3.0" {
++		t.Fatal("lost HTTP/3 request version")
++	}
++	socket := message["socket"].(map[string]any)
++	if socket["remotePort"] != float64(source.Port()) || socket["remoteAddress"] != "127.0.0.1" {
++		t.Fatalf("lost source: %v", socket)
++	}
++	if (<-responseSeen)["response"].(map[string]any)["httpVersion"] != "3.0" {
++		t.Fatal("lost upstream HTTP/3 version")
++	}
++	if got := <-originReceived; !bytes.Equal(got, []byte{'e', 'd', 'i', 't', 'e', 'd', ':', 0, 1, 127, 255}) {
++		t.Fatalf("request edit not applied: %q", got)
++	}
++	blocked := make(chan error, 1)
++	go func() { blocked <- request("/paused", []byte("first")) }()
++	select {
++	case <-paused:
++	case <-ctx.Done():
++		t.Fatal(ctx.Err())
++	}
++	if err := request("/independent", []byte("second")); err != nil {
++		t.Fatal(err)
++	}
++	close(resume)
++	if err := <-blocked; err != nil {
++		t.Fatal(err)
++	}
++	_ = transport.Close()
++	select {
++	case <-serveDone:
++	case <-ctx.Done():
++		t.Fatal("HTTP/3 flow leaked")
++	}
++	_ = engine.Close()
++	<-controlDone
++}
++
++func mustCertificate(t *testing.T, identity ipc.Identity) []byte {
++	t.Helper()
++	block, _ := pem.Decode([]byte(identity.Certificate))
++	if block == nil {
++		t.Fatal("invalid test identity")
++	}
++	return block.Bytes
++}
+diff --git a/service/fluxyinspector/internal/proxy/ingress.go b/service/fluxyinspector/internal/proxy/ingress.go
+index 099ff70..7ba519d 100644
+--- a/service/fluxyinspector/internal/proxy/ingress.go
++++ b/service/fluxyinspector/internal/proxy/ingress.go
+@@ -73,6 +73,9 @@ func (r *runtime) acceptIngress(req *http.Request) bool {
+ }
+ 
+ func (r *runtime) hasIngress(req *http.Request) bool {
++	if source, ok := req.Context().Value(quicSourceKey{}).(netip.AddrPort); ok && source.IsValid() {
++		return true
++	}
+ 	if r.ingressToken == "" {
+ 		return true
+ 	}
+diff --git a/service/fluxyinspector/internal/proxy/proxy.go b/service/fluxyinspector/internal/proxy/proxy.go
+index 392e816..ef292b0 100644
+--- a/service/fluxyinspector/internal/proxy/proxy.go
++++ b/service/fluxyinspector/internal/proxy/proxy.go
+@@ -10,6 +10,7 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"net/http/httptrace"
++	"net/netip"
+ 	"net/url"
+ 	"sort"
+ 	"strconv"
+@@ -23,8 +24,9 @@ import (
+ )
+ 
+ type exchange struct {
+-	session *session
+-	timing  *upstream.Timing
++	session       *session
++	timing        *upstream.Timing
++	h3Destination string
+ }
+ 
+ func (r *runtime) proxy(root ipc.Identity) (*goproxy.ProxyHttpServer, error) {
+@@ -74,6 +76,7 @@ func (r *runtime) proxy(root ipc.Identity) (*goproxy.ProxyHttpServer, error) {
+ 			return config, err
+ 		},
+ 	}
++	r.tlsConfig = mitm.TLSConfig
+ 	proxy.OnRequest().HandleConnectFunc(func(host string, pc *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+ 		if !r.hasIngress(pc.Req) {
+ 			return goproxy.RejectConnect, host
+@@ -151,6 +154,11 @@ func (r *runtime) onRequest(req *http.Request, pc *goproxy.ProxyCtx) (*http.Requ
+ 	if err != nil {
+ 		return req, failedResponse(req, session, err)
+ 	}
++	if req.ProtoMajor == 3 && httpsAuthority(req.URL) == httpsAuthority(target) {
++		// Preserve the captured endpoint (including an Alt-Svc port). Map Remote
++		// and scripts selecting another origin must resolve their new endpoint.
++		ex.h3Destination, _ = req.Context().Value(quicDestinationKey{}).(string)
++	}
+ 	req.URL = target
+ 	req.Method = result.Options.Method
+ 	req.Header = ipc.HTTPHeaders(result.Options.Headers)
+@@ -179,7 +187,11 @@ func (r *runtime) onRequest(req *http.Request, pc *goproxy.ProxyCtx) (*http.Requ
+ func (r *runtime) setRoundTripper(pc *goproxy.ProxyCtx, options ipc.RequestOptions, route string, ex *exchange, websocket bool) {
+ 	pc.RoundTripper = goproxy.RoundTripperFunc(func(req *http.Request, _ *goproxy.ProxyCtx) (*http.Response, error) {
+ 		h2c := req.URL.Scheme == "http" && (req.ProtoMajor == 2 || strings.HasPrefix(req.Header.Get("Content-Type"), "application/grpc"))
+-		transport, err := r.transports.Get(options, route, h2c, websocket)
++		var h3 []string
++		if req.ProtoMajor == 3 && req.URL.Scheme == "https" {
++			h3 = []string{ex.h3Destination}
++		}
++		transport, err := r.transports.Get(options, route, h2c, websocket, h3...)
+ 		if err != nil {
+ 			return failedResponse(req, ex.session, err), nil
+ 		}
+@@ -315,6 +327,14 @@ func requestMetadata(req *http.Request) map[string]any {
+ 	}
+ }
+ 
++func httpsAuthority(target *url.URL) string {
++	port := target.Port()
++	if port == "" {
++		port = "443"
++	}
++	return strings.ToLower(net.JoinHostPort(target.Hostname(), port))
++}
++
+ func responseMetadata(resp *http.Response) map[string]any {
+ 	return map[string]any{
+ 		"headers": ipc.NodeHeaders(resp.Header), "rawHeaders": rawHeaders(resp.Header),
+@@ -347,6 +367,9 @@ func contentLength(headers http.Header) int64 {
+ }
+ 
+ func (r *runtime) socketMetadata(req *http.Request) map[string]any {
++	if source, ok := req.Context().Value(quicSourceKey{}).(netip.AddrPort); ok {
++		return map[string]any{"remoteAddress": source.Addr().String(), "remotePort": source.Port(), "localPort": r.ingressPort, "localAddress": "127.0.0.1"}
++	}
+ 	if value, ok := r.connections.Load(req.RemoteAddr); ok {
+ 		if source := value.(*trackedConn).ingressSource.Load(); source != nil {
+ 			return map[string]any{"remoteAddress": source.IP.String(), "remotePort": source.Port, "localPort": r.ingressPort, "localAddress": "127.0.0.1"}
+diff --git a/service/fluxyinspector/internal/proxy/runtime.go b/service/fluxyinspector/internal/proxy/runtime.go
+index 32a252a..d5f348a 100644
+--- a/service/fluxyinspector/internal/proxy/runtime.go
++++ b/service/fluxyinspector/internal/proxy/runtime.go
+@@ -3,6 +3,7 @@ package proxy
+ 
+ import (
+ 	"context"
++	"crypto/tls"
+ 	"errors"
+ 	"io"
+ 	"log/slog"
+@@ -12,6 +13,8 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
++	"github.com/elazarl/goproxy"
++
+ 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/ipc"
+ 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/upstream"
+ )
+@@ -28,6 +31,8 @@ type runtime struct {
+ 	port         int
+ 	ingressToken string
+ 	ingressPort  int
++	proxyServer  *goproxy.ProxyHttpServer
++	tlsConfig    func(string, *goproxy.ProxyCtx) (*tls.Config, error)
+ }
+ 
+ func newControlPeer(output io.Writer, cancel context.CancelFunc) *ipc.Peer {
+@@ -61,6 +66,7 @@ func (r *runtime) run(ctx context.Context, input io.Reader) error {
+ 		return err
+ 	}
+ 	r.port = start.IngressPort
++	r.proxyServer = proxy
+ 	capture := newCaptureListener(ctx, r.listener, &r.connections, prepareInProcess)
+ 	server := &http.Server{
+ 		Handler:           flushHandler{proxy},
+diff --git a/service/fluxyinspector/internal/upstream/http3.go b/service/fluxyinspector/internal/upstream/http3.go
+new file mode 100644
+index 0000000..b155001
+--- /dev/null
++++ b/service/fluxyinspector/internal/upstream/http3.go
+@@ -0,0 +1,53 @@
++package upstream
++
++import (
++	"context"
++	"crypto/tls"
++	"net"
++	"net/http/httptrace"
++	"time"
++
++	"github.com/sagernet/quic-go"
++	"github.com/sagernet/quic-go/http3"
++)
++
++func newHTTP3Transport(config *tls.Config, dial func(context.Context, string) (net.Conn, error), destination string) *http3.Transport {
++	if dial == nil {
++		dialer := &net.Dialer{Timeout: 15 * time.Second}
++		dial = func(ctx context.Context, address string) (net.Conn, error) {
++			return dialer.DialContext(ctx, "udp", address)
++		}
++	}
++	return &http3.Transport{
++		TLSClientConfig:    config,
++		DisableCompression: true,
++		QUICConfig:         &quic.Config{HandshakeIdleTimeout: 10 * time.Second, MaxIdleTimeout: 90 * time.Second},
++		Dial: func(ctx context.Context, address string, tlsConfig *tls.Config, quicConfig *quic.Config) (*quic.Conn, error) {
++			if destination != "" {
++				address = destination
++			}
++			packets, err := dial(ctx, address)
++			if err != nil {
++				return nil, err
++			}
++			trace := httptrace.ContextClientTrace(ctx)
++			if trace != nil && trace.TLSHandshakeStart != nil {
++				trace.TLSHandshakeStart()
++			}
++			conn, err := quic.DialConn(ctx, packets, tlsConfig, quicConfig)
++			if trace != nil && trace.TLSHandshakeDone != nil {
++				var state tls.ConnectionState
++				if conn != nil {
++					state = conn.ConnectionState().TLS
++				}
++				trace.TLSHandshakeDone(state, err)
++			}
++			if err != nil {
++				closeQuietly(packets)
++				return nil, err
++			}
++			context.AfterFunc(conn.Context(), func() { closeQuietly(packets) })
++			return conn, nil
++		},
++	}
++}
+diff --git a/service/fluxyinspector/internal/upstream/transport.go b/service/fluxyinspector/internal/upstream/transport.go
+index e95adee..c144e25 100644
+--- a/service/fluxyinspector/internal/upstream/transport.go
++++ b/service/fluxyinspector/internal/upstream/transport.go
+@@ -24,13 +24,21 @@ type reusableTransport interface {
+ }
+ 
+ type Pool struct {
++	// DialUDP is the core's configured egress, including interface binding or SOCKS.
++	// Set before the pool is first used. A nil value uses the normal direct dialer.
++	DialUDP func(context.Context, string) (net.Conn, error)
+ 	mu      sync.Mutex
+ 	entries map[[32]byte]reusableTransport
+ 	order   [][32]byte
+ }
+ 
+-func (p *Pool) Get(options ipc.RequestOptions, route string, h2c, websocket bool) (reusableTransport, error) {
+-	encoded, err := json.Marshal([]any{route, options.CA, options.Cert, options.Key, h2c, websocket})
++func (p *Pool) Get(options ipc.RequestOptions, route string, h2c, websocket bool, http3Destination ...string) (reusableTransport, error) {
++	h3 := len(http3Destination) != 0 && !websocket && !h2c && (route == "" || p.DialUDP != nil)
++	destination := ""
++	if h3 {
++		destination = http3Destination[0]
++	}
++	encoded, err := json.Marshal([]any{route, options.CA, options.Cert, options.Key, h2c, websocket, h3, destination})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("encode transport settings: %w", err)
+ 	}
+@@ -80,6 +88,9 @@ func (p *Pool) Get(options ipc.RequestOptions, route string, h2c, websocket bool
+ 		}
+ 	}
+ 	var result reusableTransport = transport
++	if h3 {
++		result = newHTTP3Transport(config, p.DialUDP, destination)
++	}
+ 	if h2c {
+ 		result = &http2.Transport{
+ 			AllowHTTP: true,
+diff --git a/service/fluxyinspector/service.go b/service/fluxyinspector/service.go
+index 01f2e28..80feac8 100644
+--- a/service/fluxyinspector/service.go
++++ b/service/fluxyinspector/service.go
+@@ -13,12 +13,16 @@ import (
+ 	boxService "github.com/sagernet/sing-box/adapter/service"
+ 	"github.com/sagernet/sing-box/log"
+ 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/proxy"
++	M "github.com/sagernet/sing/common/metadata"
++	N "github.com/sagernet/sing/common/network"
+ 	"github.com/sagernet/sing/service"
+ )
+ 
+ const Type = "fluxy-inspector"
+ 
+-type Options struct{}
++type Options struct {
++	PacketEgress string `json:"packet_egress,omitempty"`
++}
+ 
+ type control struct {
+ 	input    io.ReadCloser
+@@ -39,14 +43,15 @@ func Register(registry *boxService.Registry) {
+ 
+ type Service struct {
+ 	boxService.Adapter
+-	ctx    context.Context
+-	logger log.ContextLogger
+-	engine *proxy.Engine
+-	done   chan struct{}
++	ctx          context.Context
++	logger       log.ContextLogger
++	engine       *proxy.Engine
++	done         chan struct{}
++	packetEgress string
+ }
+ 
+-func New(ctx context.Context, logger log.ContextLogger, tag string, _ Options) (adapter.Service, error) {
+-	return &Service{Adapter: boxService.NewAdapter(Type, tag), ctx: ctx, logger: logger}, nil
++func New(ctx context.Context, logger log.ContextLogger, tag string, options Options) (adapter.Service, error) {
++	return &Service{Adapter: boxService.NewAdapter(Type, tag), ctx: ctx, logger: logger, packetEgress: options.PacketEgress}, nil
+ }
+ 
+ func (s *Service) Start(stage adapter.StartStage) error {
+@@ -60,7 +65,21 @@ func (s *Service) Start(stage adapter.StartStage) error {
+ 	if !c.claimed.CompareAndSwap(false, true) {
+ 		return errors.New("only one fluxy-inspector may own the IPC control channel")
+ 	}
+-	s.engine = proxy.NewEngine(s.ctx, c.input, c.output)
++	var packetDialer func(context.Context, string) (net.Conn, error)
++	if s.packetEgress != "" {
++		manager := service.FromContext[adapter.OutboundManager](s.ctx)
++		packetDialer = func(ctx context.Context, destination string) (net.Conn, error) {
++			if manager == nil {
++				return nil, errors.New("packet egress manager is missing")
++			}
++			egress, ok := manager.Outbound(s.packetEgress)
++			if !ok || egress.Type() == "fluxy-inspect" {
++				return nil, errors.New("invalid inspector packet egress")
++			}
++			return egress.DialContext(ctx, N.NetworkUDP, M.ParseSocksaddr(destination))
++		}
++	}
++	s.engine = proxy.NewEngine(s.ctx, c.input, c.output, packetDialer)
+ 	s.done = make(chan struct{})
+ 	go func() {
+ 		defer close(s.done)
+@@ -87,3 +106,10 @@ func (s *Service) DialContext(ctx context.Context, source netip.AddrPort, destin
+ 	}
+ 	return s.engine.DialContext(ctx, source, destination, rawHTTP)
+ }
++
++func (s *Service) ServePacket(ctx context.Context, conn net.PacketConn, source netip.AddrPort, destination, serverName string, http3 bool) error {
++	if s.engine == nil {
++		return errors.New("fluxy-inspector is not started")
++	}
++	return s.engine.ServePacket(ctx, conn, source, destination, serverName, http3)
++}

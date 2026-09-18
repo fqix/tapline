@@ -1,0 +1,970 @@
+diff --git a/include/acme.go b/include/acme.go
+--- a/include/acme.go
++++ b/include/acme.go
+@@ -1,4 +1,4 @@
+-//go:build with_acme
++//go:build !with_fluxy && with_acme
+ 
+ package include
+ 
+diff --git a/include/acme_stub.go b/include/acme_stub.go
+--- a/include/acme_stub.go
++++ b/include/acme_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_acme
++//go:build !with_fluxy && !with_acme
+ 
+ package include
+ 
+diff --git a/include/ccm.go b/include/ccm.go
+--- a/include/ccm.go
++++ b/include/ccm.go
+@@ -1,4 +1,4 @@
+-//go:build with_ccm && (!darwin || cgo)
++//go:build !with_fluxy && with_ccm && (!darwin || cgo)
+ 
+ package include
+ 
+diff --git a/include/ccm_stub.go b/include/ccm_stub.go
+--- a/include/ccm_stub.go
++++ b/include/ccm_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_ccm
++//go:build !with_fluxy && !with_ccm
+ 
+ package include
+ 
+diff --git a/include/ccm_stub_darwin.go b/include/ccm_stub_darwin.go
+--- a/include/ccm_stub_darwin.go
++++ b/include/ccm_stub_darwin.go
+@@ -1,4 +1,4 @@
+-//go:build with_ccm && darwin && !cgo
++//go:build !with_fluxy && with_ccm && darwin && !cgo
+ 
+ package include
+ 
+diff --git a/include/clashapi.go b/include/clashapi.go
+--- a/include/clashapi.go
++++ b/include/clashapi.go
+@@ -1,4 +1,4 @@
+-//go:build with_clash_api
++//go:build !with_fluxy && with_clash_api
+ 
+ package include
+ 
+diff --git a/include/clashapi_stub.go b/include/clashapi_stub.go
+--- a/include/clashapi_stub.go
++++ b/include/clashapi_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_clash_api
++//go:build !with_fluxy && !with_clash_api
+ 
+ package include
+ 
+diff --git a/include/cloudflared.go b/include/cloudflared.go
+--- a/include/cloudflared.go
++++ b/include/cloudflared.go
+@@ -1,4 +1,4 @@
+-//go:build with_cloudflared
++//go:build !with_fluxy && with_cloudflared
+ 
+ package include
+ 
+diff --git a/include/cloudflared_stub.go b/include/cloudflared_stub.go
+--- a/include/cloudflared_stub.go
++++ b/include/cloudflared_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_cloudflared
++//go:build !with_fluxy && !with_cloudflared
+ 
+ package include
+ 
+diff --git a/include/dhcp.go b/include/dhcp.go
+--- a/include/dhcp.go
++++ b/include/dhcp.go
+@@ -1,4 +1,4 @@
+-//go:build with_dhcp
++//go:build !with_fluxy && with_dhcp
+ 
+ package include
+ 
+diff --git a/include/dhcp_stub.go b/include/dhcp_stub.go
+--- a/include/dhcp_stub.go
++++ b/include/dhcp_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_dhcp
++//go:build !with_fluxy && !with_dhcp
+ 
+ package include
+ 
+diff --git a/include/naive_outbound.go b/include/naive_outbound.go
+--- a/include/naive_outbound.go
++++ b/include/naive_outbound.go
+@@ -1,4 +1,4 @@
+-//go:build with_naive_outbound
++//go:build !with_fluxy && with_naive_outbound
+ 
+ package include
+ 
+diff --git a/include/naive_outbound_stub.go b/include/naive_outbound_stub.go
+--- a/include/naive_outbound_stub.go
++++ b/include/naive_outbound_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_naive_outbound
++//go:build !with_fluxy && !with_naive_outbound
+ 
+ package include
+ 
+diff --git a/include/ocm.go b/include/ocm.go
+--- a/include/ocm.go
++++ b/include/ocm.go
+@@ -1,4 +1,4 @@
+-//go:build with_ocm
++//go:build !with_fluxy && with_ocm
+ 
+ package include
+ 
+diff --git a/include/ocm_stub.go b/include/ocm_stub.go
+--- a/include/ocm_stub.go
++++ b/include/ocm_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_ocm
++//go:build !with_fluxy && !with_ocm
+ 
+ package include
+ 
+diff --git a/include/oom_killer.go b/include/oom_killer.go
+--- a/include/oom_killer.go
++++ b/include/oom_killer.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package include
+ 
+ import (
+diff --git a/include/openconnect.go b/include/openconnect.go
+--- a/include/openconnect.go
++++ b/include/openconnect.go
+@@ -1,4 +1,4 @@
+-//go:build with_openconnect
++//go:build !with_fluxy && with_openconnect
+ 
+ package include
+ 
+diff --git a/include/openconnect_stub.go b/include/openconnect_stub.go
+--- a/include/openconnect_stub.go
++++ b/include/openconnect_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_openconnect
++//go:build !with_fluxy && !with_openconnect
+ 
+ package include
+ 
+diff --git a/include/openvpn.go b/include/openvpn.go
+--- a/include/openvpn.go
++++ b/include/openvpn.go
+@@ -1,4 +1,4 @@
+-//go:build with_openvpn
++//go:build !with_fluxy && with_openvpn
+ 
+ package include
+ 
+diff --git a/include/openvpn_stub.go b/include/openvpn_stub.go
+--- a/include/openvpn_stub.go
++++ b/include/openvpn_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_openvpn
++//go:build !with_fluxy && !with_openvpn
+ 
+ package include
+ 
+diff --git a/include/quic.go b/include/quic.go
+--- a/include/quic.go
++++ b/include/quic.go
+@@ -1,4 +1,4 @@
+-//go:build with_quic
++//go:build !with_fluxy && with_quic
+ 
+ package include
+ 
+diff --git a/include/quic_stub.go b/include/quic_stub.go
+--- a/include/quic_stub.go
++++ b/include/quic_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_quic
++//go:build !with_fluxy && !with_quic
+ 
+ package include
+ 
+diff --git a/include/registry.go b/include/registry.go
+--- a/include/registry.go
++++ b/include/registry.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package include
+ 
+ import (
+diff --git a/include/tailscale.go b/include/tailscale.go
+--- a/include/tailscale.go
++++ b/include/tailscale.go
+@@ -1,4 +1,4 @@
+-//go:build with_tailscale
++//go:build !with_fluxy && with_tailscale
+ 
+ package include
+ 
+diff --git a/include/tailscale_stub.go b/include/tailscale_stub.go
+--- a/include/tailscale_stub.go
++++ b/include/tailscale_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_tailscale
++//go:build !with_fluxy && !with_tailscale
+ 
+ package include
+ 
+diff --git a/include/tz_android.go b/include/tz_android.go
+--- a/include/tz_android.go
++++ b/include/tz_android.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/include/tz_ios.go b/include/tz_ios.go
+--- a/include/tz_ios.go
++++ b/include/tz_ios.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package include
+ 
+ /*
+diff --git a/include/usbip.go b/include/usbip.go
+--- a/include/usbip.go
++++ b/include/usbip.go
+@@ -1,4 +1,4 @@
+-//go:build with_usbip && (linux || (darwin && cgo) || windows)
++//go:build !with_fluxy && with_usbip && (linux || (darwin && cgo) || windows)
+ 
+ package include
+ 
+diff --git a/include/usbip_stub.go b/include/usbip_stub.go
+--- a/include/usbip_stub.go
++++ b/include/usbip_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_usbip || !(linux || (darwin && cgo) || windows)
++//go:build !with_fluxy && (!with_usbip || !(linux || (darwin && cgo) || windows))
+ 
+ package include
+ 
+diff --git a/include/v2rayapi.go b/include/v2rayapi.go
+--- a/include/v2rayapi.go
++++ b/include/v2rayapi.go
+@@ -1,4 +1,4 @@
+-//go:build with_v2ray_api
++//go:build !with_fluxy && with_v2ray_api
+ 
+ package include
+ 
+diff --git a/include/v2rayapi_stub.go b/include/v2rayapi_stub.go
+--- a/include/v2rayapi_stub.go
++++ b/include/v2rayapi_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_v2ray_api
++//go:build !with_fluxy && !with_v2ray_api
+ 
+ package include
+ 
+diff --git a/include/wireguard.go b/include/wireguard.go
+--- a/include/wireguard.go
++++ b/include/wireguard.go
+@@ -1,4 +1,4 @@
+-//go:build with_wireguard
++//go:build !with_fluxy && with_wireguard
+ 
+ package include
+ 
+diff --git a/include/wireguard_stub.go b/include/wireguard_stub.go
+--- a/include/wireguard_stub.go
++++ b/include/wireguard_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_wireguard
++//go:build !with_fluxy && !with_wireguard
+ 
+ package include
+ 
+diff --git a/include/registry_fluxy.go b/include/registry_fluxy.go
+new file mode 100644
+--- /dev/null
++++ b/include/registry_fluxy.go
+@@ -0,0 +1,57 @@
++//go:build with_fluxy
++
++package include
++
++import (
++	"context"
++	box "github.com/sagernet/sing-box"
++	"github.com/sagernet/sing-box/adapter/certificate"
++	"github.com/sagernet/sing-box/adapter/endpoint"
++	"github.com/sagernet/sing-box/adapter/inbound"
++	"github.com/sagernet/sing-box/adapter/outbound"
++	"github.com/sagernet/sing-box/adapter/service"
++	"github.com/sagernet/sing-box/dns"
++	"github.com/sagernet/sing-box/dns/transport"
++	"github.com/sagernet/sing-box/dns/transport/fakeip"
++	"github.com/sagernet/sing-box/dns/transport/local"
++	"github.com/sagernet/sing-box/option"
++	"github.com/sagernet/sing-box/protocol/direct"
++	"github.com/sagernet/sing-box/protocol/http"
++	"github.com/sagernet/sing-box/protocol/socks"
++	"github.com/sagernet/sing-box/protocol/tun"
++)
++
++// Context retains the upstream entry point with only Fluxy's transport capabilities.
++func Context(ctx context.Context) context.Context {
++	return box.Context(ctx, InboundRegistry(), OutboundRegistry(), EndpointRegistry(), DNSTransportRegistry(), ServiceRegistry(), CertificateProviderRegistry())
++}
++func InboundRegistry() *inbound.Registry {
++	registry := inbound.NewRegistry()
++	tun.RegisterInbound(registry)
++	http.RegisterInbound(registry)
++	socks.RegisterInbound(registry)
++	direct.RegisterInbound(registry)
++	inbound.Register[option.SocksInboundOptions](registry, "fluxy-mixed", newProxyInbound)
++	return registry
++}
++func OutboundRegistry() *outbound.Registry {
++	registry := outbound.NewRegistry()
++	direct.RegisterOutbound(registry)
++	http.RegisterOutbound(registry)
++	socks.RegisterOutbound(registry)
++	outbound.Register[inspectOptions](registry, "fluxy-inspect", newInspectOutbound)
++	return registry
++}
++func DNSTransportRegistry() *dns.TransportRegistry {
++	registry := dns.NewTransportRegistry()
++	local.RegisterTransport(registry)
++	fakeip.RegisterTransport(registry)
++	transport.RegisterUDP(registry)
++	transport.RegisterTCP(registry)
++	transport.RegisterTLS(registry)
++	transport.RegisterHTTPS(registry)
++	return registry
++}
++func EndpointRegistry() *endpoint.Registry               { return endpoint.NewRegistry() }
++func ServiceRegistry() *service.Registry                 { return service.NewRegistry() }
++func CertificateProviderRegistry() *certificate.Registry { return certificate.NewRegistry() }
+diff --git a/include/fluxy_registry_test.go b/include/fluxy_registry_test.go
+--- a/include/fluxy_registry_test.go
++++ b/include/fluxy_registry_test.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package include
+ 
+ import (
+diff --git a/include/registry_fluxy_test.go b/include/registry_fluxy_test.go
+new file mode 100644
+--- /dev/null
++++ b/include/registry_fluxy_test.go
+@@ -0,0 +1,60 @@
++//go:build with_fluxy
++
++package include
++
++import (
++	"context"
++	"fmt"
++	"testing"
++
++	"github.com/sagernet/sing-box/option"
++	"github.com/sagernet/sing/common/json"
++)
++
++func TestCoreContextSupportsCaptureProfile(t *testing.T) {
++	data := []byte(`{
++        "dns":{"servers":[{"type":"local","tag":"local"},{"type":"fakeip","tag":"fakeip","inet4_range":"198.19.0.0/16","inet6_range":"fd7a:115c:a1e0::/48"}]},
++        "inbounds":[
++            {"type":"tun","tag":"capture","address":["172.31.255.1/30"],"stack":"gvisor","auto_route":true,"dns_mode":"disabled"},
++            {"type":"http","tag":"egress","listen":"127.0.0.1","listen_port":19092},
++            {"type":"socks","tag":"test","listen":"127.0.0.1","listen_port":19093},
++            {"type":"fluxy-mixed","tag":"proxy","listen":"127.0.0.1","listen_port":19094}
++        ],
++        "outbounds":[{"type":"direct","tag":"direct"},
++            {"type":"http","tag":"inspect","server":"127.0.0.1","server_port":19091},
++            {"type":"socks","tag":"upstream","server":"127.0.0.1","server_port":7897},
++            {"type":"fluxy-inspect","tag":"private-inspect","server_port":19095,"token":"01234567890123456789012345678901"}],
++        "route":{"default_domain_resolver":"local","find_process":true,"final":"direct", "rules":[
++            {"inbound":["egress"],"action":"route","outbound":"direct"},
++            {"action":"sniff","sniffer":["http","tls"],"timeout":"300ms"},
++            {"network":"tcp","protocol":["http"],"action":"route","outbound":"inspect"}
++        ]}
++    }`)
++	_, err := json.UnmarshalExtendedContext[option.Options](Context(context.Background()), data)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestCoreContextRejectsExcludedProtocols(t *testing.T) {
++	for _, protocol := range []string{"vmess", "vless", "shadowsocks", "trojan", "hysteria2", "tuic", "ssh", "anytls", "selector"} {
++		t.Run(protocol, func(t *testing.T) {
++			data := []byte(fmt.Sprintf(`{"outbounds":[{"type":%q,"tag":"excluded"}]}`, protocol))
++			if _, err := json.UnmarshalExtendedContext[option.Options](Context(context.Background()), data); err == nil {
++				t.Fatalf("excluded protocol %q was accepted", protocol)
++			}
++		})
++	}
++}
++
++func TestCoreContextRejectsServicesAndEndpoints(t *testing.T) {
++	for _, config := range []string{
++		`{"endpoints":[{"type":"wireguard","tag":"wg"}]}`,
++		`{"endpoints":[{"type":"tailscale","tag":"ts"}]}`,
++		`{"services":[{"type":"api","tag":"api"}]}`,
++	} {
++		if _, err := json.UnmarshalExtendedContext[option.Options](Context(context.Background()), []byte(config)); err == nil {
++			t.Fatalf("excluded feature accepted: %s", config)
++		}
++	}
++}
+diff --git a/release/DEFAULT_BUILD_TAGS_OTHERS b/release/DEFAULT_BUILD_TAGS_OTHERS
+--- a/release/DEFAULT_BUILD_TAGS_OTHERS
++++ b/release/DEFAULT_BUILD_TAGS_OTHERS
+@@ -1 +1 @@
+-with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0
++with_gvisor,with_fluxy
+diff --git a/cmd/sing-box/cmd_api.go b/cmd/sing-box/cmd_api.go
+--- a/cmd/sing-box/cmd_api.go
++++ b/cmd/sing-box/cmd_api.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_connection.go b/cmd/sing-box/cmd_api_connection.go
+--- a/cmd/sing-box/cmd_api_connection.go
++++ b/cmd/sing-box/cmd_api_connection.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_connection_close.go b/cmd/sing-box/cmd_api_connection_close.go
+--- a/cmd/sing-box/cmd_api_connection_close.go
++++ b/cmd/sing-box/cmd_api_connection_close.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_connection_list.go b/cmd/sing-box/cmd_api_connection_list.go
+--- a/cmd/sing-box/cmd_api_connection_list.go
++++ b/cmd/sing-box/cmd_api_connection_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_connection_show.go b/cmd/sing-box/cmd_api_connection_show.go
+--- a/cmd/sing-box/cmd_api_connection_show.go
++++ b/cmd/sing-box/cmd_api_connection_show.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_group.go b/cmd/sing-box/cmd_api_group.go
+--- a/cmd/sing-box/cmd_api_group.go
++++ b/cmd/sing-box/cmd_api_group.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_group_list.go b/cmd/sing-box/cmd_api_group_list.go
+--- a/cmd/sing-box/cmd_api_group_list.go
++++ b/cmd/sing-box/cmd_api_group_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_group_select.go b/cmd/sing-box/cmd_api_group_select.go
+--- a/cmd/sing-box/cmd_api_group_select.go
++++ b/cmd/sing-box/cmd_api_group_select.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_group_show.go b/cmd/sing-box/cmd_api_group_show.go
+--- a/cmd/sing-box/cmd_api_group_show.go
++++ b/cmd/sing-box/cmd_api_group_show.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_group_urltest.go b/cmd/sing-box/cmd_api_group_urltest.go
+--- a/cmd/sing-box/cmd_api_group_urltest.go
++++ b/cmd/sing-box/cmd_api_group_urltest.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_logs.go b/cmd/sing-box/cmd_api_logs.go
+--- a/cmd/sing-box/cmd_api_logs.go
++++ b/cmd/sing-box/cmd_api_logs.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_mode.go b/cmd/sing-box/cmd_api_mode.go
+--- a/cmd/sing-box/cmd_api_mode.go
++++ b/cmd/sing-box/cmd_api_mode.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_mode_list.go b/cmd/sing-box/cmd_api_mode_list.go
+--- a/cmd/sing-box/cmd_api_mode_list.go
++++ b/cmd/sing-box/cmd_api_mode_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_mode_set.go b/cmd/sing-box/cmd_api_mode_set.go
+--- a/cmd/sing-box/cmd_api_mode_set.go
++++ b/cmd/sing-box/cmd_api_mode_set.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_networkquality.go b/cmd/sing-box/cmd_api_networkquality.go
+--- a/cmd/sing-box/cmd_api_networkquality.go
++++ b/cmd/sing-box/cmd_api_networkquality.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect.go b/cmd/sing-box/cmd_api_openconnect.go
+--- a/cmd/sing-box/cmd_api_openconnect.go
++++ b/cmd/sing-box/cmd_api_openconnect.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect_auth.go b/cmd/sing-box/cmd_api_openconnect_auth.go
+--- a/cmd/sing-box/cmd_api_openconnect_auth.go
++++ b/cmd/sing-box/cmd_api_openconnect_auth.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect_auth_browser.go b/cmd/sing-box/cmd_api_openconnect_auth_browser.go
+--- a/cmd/sing-box/cmd_api_openconnect_auth_browser.go
++++ b/cmd/sing-box/cmd_api_openconnect_auth_browser.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect_cancel.go b/cmd/sing-box/cmd_api_openconnect_cancel.go
+--- a/cmd/sing-box/cmd_api_openconnect_cancel.go
++++ b/cmd/sing-box/cmd_api_openconnect_cancel.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect_openvpn.go b/cmd/sing-box/cmd_api_openconnect_openvpn.go
+--- a/cmd/sing-box/cmd_api_openconnect_openvpn.go
++++ b/cmd/sing-box/cmd_api_openconnect_openvpn.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openconnect_status.go b/cmd/sing-box/cmd_api_openconnect_status.go
+--- a/cmd/sing-box/cmd_api_openconnect_status.go
++++ b/cmd/sing-box/cmd_api_openconnect_status.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openvpn.go b/cmd/sing-box/cmd_api_openvpn.go
+--- a/cmd/sing-box/cmd_api_openvpn.go
++++ b/cmd/sing-box/cmd_api_openvpn.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openvpn_auth.go b/cmd/sing-box/cmd_api_openvpn_auth.go
+--- a/cmd/sing-box/cmd_api_openvpn_auth.go
++++ b/cmd/sing-box/cmd_api_openvpn_auth.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openvpn_cancel.go b/cmd/sing-box/cmd_api_openvpn_cancel.go
+--- a/cmd/sing-box/cmd_api_openvpn_cancel.go
++++ b/cmd/sing-box/cmd_api_openvpn_cancel.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_openvpn_status.go b/cmd/sing-box/cmd_api_openvpn_status.go
+--- a/cmd/sing-box/cmd_api_openvpn_status.go
++++ b/cmd/sing-box/cmd_api_openvpn_status.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_outbounds.go b/cmd/sing-box/cmd_api_outbounds.go
+--- a/cmd/sing-box/cmd_api_outbounds.go
++++ b/cmd/sing-box/cmd_api_outbounds.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_output.go b/cmd/sing-box/cmd_api_output.go
+--- a/cmd/sing-box/cmd_api_output.go
++++ b/cmd/sing-box/cmd_api_output.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_status.go b/cmd/sing-box/cmd_api_status.go
+--- a/cmd/sing-box/cmd_api_status.go
++++ b/cmd/sing-box/cmd_api_status.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_stun.go b/cmd/sing-box/cmd_api_stun.go
+--- a/cmd/sing-box/cmd_api_stun.go
++++ b/cmd/sing-box/cmd_api_stun.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale.go b/cmd/sing-box/cmd_api_tailscale.go
+--- a/cmd/sing-box/cmd_api_tailscale.go
++++ b/cmd/sing-box/cmd_api_tailscale.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_certificate.go b/cmd/sing-box/cmd_api_tailscale_certificate.go
+--- a/cmd/sing-box/cmd_api_tailscale_certificate.go
++++ b/cmd/sing-box/cmd_api_tailscale_certificate.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_certificate_export.go b/cmd/sing-box/cmd_api_tailscale_certificate_export.go
+--- a/cmd/sing-box/cmd_api_tailscale_certificate_export.go
++++ b/cmd/sing-box/cmd_api_tailscale_certificate_export.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_certificate_list.go b/cmd/sing-box/cmd_api_tailscale_certificate_list.go
+--- a/cmd/sing-box/cmd_api_tailscale_certificate_list.go
++++ b/cmd/sing-box/cmd_api_tailscale_certificate_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node.go b/cmd/sing-box/cmd_api_tailscale_exit_node.go
+--- a/cmd/sing-box/cmd_api_tailscale_exit_node.go
++++ b/cmd/sing-box/cmd_api_tailscale_exit_node.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go b/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
+--- a/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
++++ b/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_list.go b/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
+--- a/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
++++ b/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_set.go b/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
+--- a/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
++++ b/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_logout.go b/cmd/sing-box/cmd_api_tailscale_logout.go
+--- a/cmd/sing-box/cmd_api_tailscale_logout.go
++++ b/cmd/sing-box/cmd_api_tailscale_logout.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_peer.go b/cmd/sing-box/cmd_api_tailscale_peer.go
+--- a/cmd/sing-box/cmd_api_tailscale_peer.go
++++ b/cmd/sing-box/cmd_api_tailscale_peer.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_peer_list.go b/cmd/sing-box/cmd_api_tailscale_peer_list.go
+--- a/cmd/sing-box/cmd_api_tailscale_peer_list.go
++++ b/cmd/sing-box/cmd_api_tailscale_peer_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_peer_show.go b/cmd/sing-box/cmd_api_tailscale_peer_show.go
+--- a/cmd/sing-box/cmd_api_tailscale_peer_show.go
++++ b/cmd/sing-box/cmd_api_tailscale_peer_show.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_ping.go b/cmd/sing-box/cmd_api_tailscale_ping.go
+--- a/cmd/sing-box/cmd_api_tailscale_ping.go
++++ b/cmd/sing-box/cmd_api_tailscale_ping.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_ssh.go b/cmd/sing-box/cmd_api_tailscale_ssh.go
+--- a/cmd/sing-box/cmd_api_tailscale_ssh.go
++++ b/cmd/sing-box/cmd_api_tailscale_ssh.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_ssh_unix.go b/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
+--- a/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
++++ b/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
+@@ -1,4 +1,4 @@
+-//go:build !windows
++//go:build !with_fluxy && !windows
+ 
+ package main
+ 
+diff --git a/cmd/sing-box/cmd_api_tailscale_ssh_windows.go b/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
+--- a/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
++++ b/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_status.go b/cmd/sing-box/cmd_api_tailscale_status.go
+--- a/cmd/sing-box/cmd_api_tailscale_status.go
++++ b/cmd/sing-box/cmd_api_tailscale_status.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop.go b/cmd/sing-box/cmd_api_tailscale_taildrop.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go b/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_get.go b/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_list.go b/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_send.go b/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go b/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
+--- a/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
++++ b/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_usbip.go b/cmd/sing-box/cmd_api_usbip.go
+--- a/cmd/sing-box/cmd_api_usbip.go
++++ b/cmd/sing-box/cmd_api_usbip.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_usbip_local.go b/cmd/sing-box/cmd_api_usbip_local.go
+--- a/cmd/sing-box/cmd_api_usbip_local.go
++++ b/cmd/sing-box/cmd_api_usbip_local.go
+@@ -1,4 +1,4 @@
+-//go:build with_usbip && (linux || (darwin && cgo) || windows)
++//go:build !with_fluxy && with_usbip && (linux || (darwin && cgo) || windows)
+ 
+ package main
+ 
+diff --git a/cmd/sing-box/cmd_api_usbip_share.go b/cmd/sing-box/cmd_api_usbip_share.go
+--- a/cmd/sing-box/cmd_api_usbip_share.go
++++ b/cmd/sing-box/cmd_api_usbip_share.go
+@@ -1,4 +1,4 @@
+-//go:build with_usbip && (linux || (darwin && cgo) || windows)
++//go:build !with_fluxy && with_usbip && (linux || (darwin && cgo) || windows)
+ 
+ package main
+ 
+diff --git a/cmd/sing-box/cmd_api_usbip_status.go b/cmd/sing-box/cmd_api_usbip_status.go
+--- a/cmd/sing-box/cmd_api_usbip_status.go
++++ b/cmd/sing-box/cmd_api_usbip_status.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_api_usbip_stub.go b/cmd/sing-box/cmd_api_usbip_stub.go
+--- a/cmd/sing-box/cmd_api_usbip_stub.go
++++ b/cmd/sing-box/cmd_api_usbip_stub.go
+@@ -1,4 +1,4 @@
+-//go:build !with_usbip || !(linux || (darwin && cgo) || windows)
++//go:build !with_fluxy && (!with_usbip || !(linux || (darwin && cgo) || windows))
+ 
+ package main
+ 
+diff --git a/cmd/sing-box/cmd_api_version.go b/cmd/sing-box/cmd_api_version.go
+--- a/cmd/sing-box/cmd_api_version.go
++++ b/cmd/sing-box/cmd_api_version.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
+diff --git a/cmd/sing-box/cmd_generate_wireguard.go b/cmd/sing-box/cmd_generate_wireguard.go
+--- a/cmd/sing-box/cmd_generate_wireguard.go
++++ b/cmd/sing-box/cmd_generate_wireguard.go
+@@ -1,3 +1,5 @@
++//go:build !with_fluxy
++
+ package main
+ 
+ import (
