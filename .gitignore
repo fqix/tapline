@@ -1,6 +1,6 @@
 node_modules/
 dist/
-core/
+/core/
 .build/
 *.vsix
 *.log
