@@ -10,5 +10,5 @@
         "lib": ["ES2022"],
         "types": ["node", "vscode"]
     },
-    "include": ["src", "tests", "esbuild.mjs", "vitest.config.mts"]
+    "include": ["src", "esbuild.mjs", "vitest.config.mts"]
 }

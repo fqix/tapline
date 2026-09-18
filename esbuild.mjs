@@ -1,7 +1,7 @@
 import { build, context } from 'esbuild'
 const watch = process.argv.includes('--watch')
 const options = {
-    entryPoints: { extension: 'src/extension/extension.ts', agent: 'src/agent/main.ts' },
+    entryPoints: { extension: 'src/extension.ts', agent: 'src/agent/main.ts' },
     bundle: true,
     platform: 'node',
     target: 'node20',

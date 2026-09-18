@@ -406,8 +406,8 @@
         "watch": "node esbuild.mjs --watch",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
-        "format": "prettier --write src tests scripts/*.mjs esbuild.mjs package.json",
-        "format:check": "prettier --check src tests scripts/*.mjs esbuild.mjs package.json",
+        "format": "prettier --write src scripts/*.mjs esbuild.mjs package.json",
+        "format:check": "prettier --check src scripts/*.mjs esbuild.mjs package.json",
         "package": "node scripts/package.mjs",
         "package:all": "node scripts/package.mjs --all"
     },

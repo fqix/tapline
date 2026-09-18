@@ -6,9 +6,9 @@ import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { pipePath } from '../src/agent/paths'
-import type { Message } from '../src/agent/protocol'
-import { defaultSettings } from '../src/shared/model'
+import { pipePath } from '../agent/paths'
+import type { Message } from '../agent/protocol'
+import { defaultSettings } from '../shared/model'
 import { CORE, freePort } from './helpers'
 
 const describeCore = existsSync(CORE) ? describe : describe.skip
@@ -50,7 +50,7 @@ describeCore('shared agent', () => {
 
     beforeAll(async () => {
         await build({
-            entryPoints: [join(__dirname, '../src/agent/main.ts')],
+            entryPoints: [join(__dirname, '../agent/main.ts')],
             bundle: true,
             platform: 'node',
             format: 'cjs',

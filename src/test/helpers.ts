@@ -6,10 +6,11 @@ import tls from 'node:tls'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Engine } from '../src/core/engine'
+import { Engine } from '../core/engine'
 
 export const CORE = join(
     __dirname,
+    '..',
     '..',
     'core',
     `${process.platform}-${process.arch}`,

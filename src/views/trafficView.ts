@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { Transaction } from '../shared/model'
-import type { AgentClient } from './client'
-import { bytes, duration, shortPath, statusLabel } from './format'
+import type { AgentClient } from '../client/agentClient'
+import { bytes, duration, shortPath, statusLabel } from '../utils/format'
 
 export type TrafficNode = { kind: 'host'; host: string } | { kind: 'transaction'; id: string }
 

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import type { AgentClient } from './client'
-import { captureEnvironment } from './format'
+import type { AgentClient } from '../client/agentClient'
+import { captureEnvironment } from '../utils/format'
 
 /**
  * Routes integrated terminals and debug sessions through the capture proxy while it

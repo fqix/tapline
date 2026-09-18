@@ -59,6 +59,22 @@ The root certificate lives in the extension's global storage (`Tapline: Copy Roo
 Certificate Path`). Only processes told to trust it (via the injected variables, or by
 importing it) accept intercepted connections; nothing is installed into the OS trust store.
 
+## Layout
+
+```
+src/
+├── extension.ts                 # activate/deactivate: commands, status bar, wiring
+├── client/agentClient.ts        # connects to (or spawns) the shared capture agent
+├── views/trafficView.ts         # sidebar TreeDataProvider
+├── providers/transactionDocuments.ts  # read-only tapline:/ virtual documents
+├── environment/captureEnvironment.ts  # terminal + debug env injection
+├── utils/format.ts              # rendering helpers (no vscode imports)
+├── agent/                       # shared daemon entry, socket protocol
+├── core/                        # sing-box controller, CA, capture engine
+├── shared/model.ts              # data contract (Transaction, HAR, cURL)
+└── test/                        # vitest suites and helpers
+```
+
 ## Development
 
 Prerequisites: Node 22+, Go 1.27+, git.
