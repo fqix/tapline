@@ -66,7 +66,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
-    port: 6070,
+    port: 3606,
     ssl: true,
     sslHosts: ['*'],
     maxEntries: 2000,

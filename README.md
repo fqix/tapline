@@ -40,7 +40,7 @@ sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
 
 ```
 VS Code window ─┐                              ┌─ sing-box (patched, bundled)
-VS Code window ─┼─ local socket ─▶ agent (Node) ─┤   fluxy-mixed inbound  :6070
+VS Code window ─┼─ local socket ─▶ agent (Node) ─┤   fluxy-mixed inbound  :3606
 VS Code window ─┘                    │           └─ fluxy-inspector service
                                      └─ Tapline root CA, transaction store
 ```
@@ -55,7 +55,7 @@ matched by `tapline.ssl.hosts` are tunnelled opaquely. See
 
 | Setting                                     | Default             | Purpose                                          |
 | ------------------------------------------- | ------------------- | ------------------------------------------------ |
-| `tapline.port`                              | `6070`              | Loopback port of the capture proxy               |
+| `tapline.port`                              | `3606`              | Loopback port of the capture proxy               |
 | `tapline.autoStart`                         | `false`             | Start capture when VS Code opens                 |
 | `tapline.terminal.inject`                   | `true`              | Inject proxy/CA variables into new terminals     |
 | `tapline.debug.inject`                      | `true`              | Inject them into launched debug sessions         |

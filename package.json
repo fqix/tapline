@@ -352,7 +352,7 @@
                     "type": "integer",
                     "minimum": 1024,
                     "maximum": 65535,
-                    "default": 6070,
+                    "default": 3606,
                     "description": "%config.port%"
                 },
                 "tapline.autoStart": {

@@ -41,7 +41,7 @@ function client(items: Transaction[]) {
         transactions: new Map(items.map((t) => [t.id, t])),
         onEvent: events.event,
         running: true,
-        port: 6070
+        port: 3606
     } as any
 }
 
