@@ -3,7 +3,7 @@ import type { Pair } from '../lib/http'
 export function PairsTable({ pairs, empty = '—' }: { pairs: Pair[]; empty?: string }) {
     if (!pairs.length) return <p className="muted">{empty}</p>
     return (
-        <table className="headers">
+        <table className="pairs">
             <tbody>
                 {pairs.map((p, i) => (
                     <tr key={`${p.name}-${i}`}>
