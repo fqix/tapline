@@ -70,6 +70,12 @@ src/
 ├── views/trafficView.ts         # sidebar TreeDataProvider (structure / sequence)
 ├── panels/detailPanel.ts        # webview panel host: transaction detail, host overview
 ├── webview/                     # React UI bundled to dist/webview.js (browser tsconfig)
+│   ├── main.tsx, App.tsx        #   entry and root component
+│   ├── components/              #   TransactionView, HostView, Overview, SideView, …
+│   ├── hooks/                   #   useHostMessages (host → panel message stream)
+│   ├── lib/                     #   vscode api bridge, i18n
+│   ├── styles/                  #   theme-aware CSS (VS Code variables)
+│   └── types/                   #   host ↔ panel message contract
 ├── providers/transactionDocuments.ts  # read-only tapline:/ virtual documents
 ├── environment/captureEnvironment.ts  # terminal + debug env injection
 ├── utils/format.ts              # rendering helpers (no vscode imports)

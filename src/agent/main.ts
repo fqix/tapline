@@ -86,12 +86,26 @@ async function handle(request: Request): Promise<unknown> {
     }
 }
 
+const path = pipePath(directory)
+
+/** Stop capture, remove the socket file and exit. */
+function shutdown(code: number) {
+    void engine.stop().finally(() => {
+        server.close()
+        if (process.platform !== 'win32') {
+            try {
+                unlinkSync(path)
+            } catch {}
+        }
+        process.exit(code)
+    })
+}
+
 function scheduleExit() {
     clearTimeout(exitTimer)
     // Grace period lets a window reload (extension host restart) reconnect.
     exitTimer = setTimeout(() => {
-        if (clients.size) return
-        void engine.stop().finally(() => process.exit(0))
+        if (!clients.size) shutdown(0)
     }, 3000)
 }
 
@@ -123,7 +137,6 @@ const server = net.createServer((socket) => {
         if (!clients.size) scheduleExit()
     })
 })
-const path = pipePath(directory)
 if (process.platform !== 'win32' && existsSync(path)) {
     // Never steal a live agent's socket; only reclaim a stale file.
     const probe = net.connect(path)
@@ -147,9 +160,8 @@ function listen() {
         scheduleExit()
     })
 }
-for (const signal of ['SIGINT', 'SIGTERM'] as const)
-    process.on(signal, () => void engine.stop().finally(() => process.exit(0)))
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => shutdown(0))
 process.on('uncaughtException', (error) => {
     process.stderr.write(`agent crashed: ${error.stack ?? error}\n`)
-    void engine.stop().finally(() => process.exit(1))
+    shutdown(1)
 })

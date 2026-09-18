@@ -1,4 +1,4 @@
-import type { Transaction } from '../shared/model'
+import type { Transaction } from '../../shared/model'
 
 /** Summary rows for the host overview. */
 export interface HostSummary {
@@ -23,12 +23,3 @@ export type PanelMessage =
     | { type: 'open'; id: string }
 
 export type PanelState = { view?: HostMessage; tab?: string }
-
-interface VsCodeApi {
-    postMessage(message: PanelMessage): void
-    getState(): PanelState | undefined
-    setState(state: PanelState): void
-}
-declare function acquireVsCodeApi(): VsCodeApi
-
-export const vscode = acquireVsCodeApi()

@@ -1,6 +1,8 @@
-import { bytes, duration } from '../shared/model'
-import { t } from './strings'
-import { vscode, type HostSummary } from './vscode'
+import { bytes, duration } from '../../shared/model'
+import { t } from '../lib/i18n'
+import { vscode } from '../lib/vscode'
+import type { HostSummary } from '../types/messages'
+import { StatusBadge } from './StatusBadge'
 
 export function HostView({ summary }: { summary: HostSummary }) {
     const items = summary.transactions
