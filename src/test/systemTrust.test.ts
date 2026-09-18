@@ -157,12 +157,13 @@ describe('system trust store', () => {
     describe('Linux', () => {
         it('runs the anchor install through sudo in a terminal', async () => {
             const { runner, shells } = fake('linux')
-            const store = systemTrustStore(certificate, runner, undefined, () => true)
+            // The script is quoted for sh, so use a path without backslashes even on Windows.
+            const store = systemTrustStore('/tmp/ca.pem', runner, undefined, () => true)
             expect(store.location).toBe('/usr/local/share/ca-certificates/tapline-root-ca.crt')
             await store.trust()
             expect(shells[0].file).toBe('sudo')
             expect(shells[0].args.slice(0, 2)).toEqual(['sh', '-c'])
-            expect(shells[0].args[2]).toContain(`cp "${certificate}"`)
+            expect(shells[0].args[2]).toContain('cp "/tmp/ca.pem"')
             expect(shells[0].args[2]).toMatch(
                 /update-ca-certificates|update-ca-trust|trust extract-compat/
             )
