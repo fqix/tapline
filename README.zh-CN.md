@@ -16,6 +16,9 @@
   下方或右侧。详情包含带时序瀑布图的概览、请求与响应页（Headers、Query、Cookies、
   Form、Trailers，内容支持格式化 JSON / 文本 / 十六进制），WebSocket 帧和 SSE 事件
   实时刷新。
+- **gRPC 解码** — 从 length-prefixed 的 body 中拆出每条消息（支持 gzip/deflate 与 gRPC-Web），
+  用工作区的 `.proto`（`tapline.grpc.protoFiles`）解出字段名，没有 schema 时按字段编号解码；
+  `grpc-status` 决定状态颜色，方法列显示为 _gRPC_。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……可配置）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）。
@@ -23,6 +26,8 @@
   CA 未被信任时不会开始抓包。
 - **复制为 cURL、导出 HAR、重放**，状态栏控制，中英文界面。
 - **共享核心** — 所有 VS Code 窗口共用一个抓包代理，最后关闭的窗口负责关停。
+- **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等 MCP 客户端可以列出、搜索、读取、
+  重放和发送抓到的请求（见下文）。
 
 ## 设置
 
@@ -34,6 +39,8 @@
 | `tapline.debug.inject` / `debug.types`      | `true` / node, … | 向启动的调试会话注入变量   |
 | `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | 解密哪些主机               |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的事务数与正文字节数   |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点  |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema  |
 
 ## 根证书
 
@@ -49,6 +56,19 @@ CA 位于插件的全局存储目录（`Tapline: 复制根证书路径`）。开
 
 Firefox 和 snap/flatpak 浏览器使用自己的证书存储，需要手动导入。将
 `tapline.ssl.enabled` 设为 `false` 可在不解密、不安装证书的情况下抓包。
+
+## MCP 服务器
+
+抓包代理内置一个 [MCP](https://modelcontextprotocol.io) 端点 `http://127.0.0.1:3607/mcp`
+（Streamable HTTP，端口和开关见 `tapline.mcp.*`），让 AI 助手直接基于真实流量工作：
+`status`、`list_requests`、`search`、`get_request`、`get_body`、`replay`、`send`、
+`export_har`，以及 `start_capture` / `stop_capture` / `set_recording` / `clear` / `delete`
+和 `tapline://requests/{id}` 资源。
+
+运行 _Tapline: 配置 MCP 服务器…_（流量视图的 `…` 菜单里也有）可一键安装到 Cursor、复制
+URL、复制 `mcp.json` 用的 JSON 片段或 `claude mcp add` 命令。只要有任一窗口加载了
+Tapline，端点就在线——不需要额外进程，也不依赖 PATH 中的 `node`；和代理一样只监听本地
+回环地址。
 
 ## 工作原理
 
