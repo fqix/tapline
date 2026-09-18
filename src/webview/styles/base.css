@@ -13,6 +13,9 @@
     --bad: var(--vscode-errorForeground, #f14c4c);
     --row: 22px;
     --radius: 4px;
+    /* Text follows the workbench font; only panel titles, badges and pane headers use the
+       11px VS Code reserves for those. Code-like values use the editor font instead. */
+    --font-size-small: 11px;
 }
 * {
     box-sizing: border-box;
@@ -28,6 +31,7 @@ body,
 body {
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size, 13px);
+    font-weight: var(--vscode-font-weight, normal);
     color: var(--vscode-foreground);
     background: var(--vscode-editor-background);
     -webkit-font-smoothing: antialiased;
@@ -45,6 +49,7 @@ pre,
 code {
     font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, Consolas, monospace);
     font-size: var(--vscode-editor-font-size, 12px);
+    font-weight: var(--vscode-editor-font-weight, normal);
 }
 .muted {
     color: var(--vscode-descriptionForeground);
@@ -119,9 +124,6 @@ button {
     background: none;
     color: var(--vscode-icon-foreground, var(--vscode-foreground));
 }
-.icon-button .label {
-    font-size: 11px;
-}
 .icon-button:hover {
     background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
 }
@@ -156,7 +158,6 @@ button {
     border: none;
     border-right: 1px solid var(--border);
     background: none;
-    font-size: 11px;
     color: var(--vscode-descriptionForeground);
 }
 .segmented button:last-child {
@@ -181,7 +182,6 @@ button {
     border: 1px solid transparent;
     border-radius: 10px;
     background: none;
-    font-size: 11px;
     line-height: 1;
     color: var(--vscode-descriptionForeground);
     white-space: nowrap;
@@ -197,6 +197,7 @@ button {
 }
 .chip.host {
     font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size, 12px);
     padding-right: 2px;
 }
 .chip.host .icon-button {
@@ -276,7 +277,7 @@ button {
 }
 .method {
     font-family: var(--vscode-editor-font-family);
-    font-size: 11px;
+    font-size: var(--vscode-editor-font-size, 12px);
     font-weight: 600;
     letter-spacing: 0.02em;
 }
