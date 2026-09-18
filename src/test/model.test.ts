@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { matchHost, toCurl, toHAR, type Transaction } from '../src/shared/model'
-import { bodyExtension, captureEnvironment, renderTransaction } from '../src/extension/format'
+import { matchHost, toCurl, toHAR, type Transaction } from '../shared/model'
+import { bodyExtension, captureEnvironment, renderTransaction } from '../utils/format'
 
 const base: Transaction = {
     id: 'a',

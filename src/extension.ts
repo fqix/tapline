@@ -1,11 +1,11 @@
 import * as vscode from 'vscode'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { toCurl, toHAR, type Transaction } from '../shared/model'
-import { AgentClient } from './client'
-import { TransactionDocuments } from './documents'
-import { CaptureEnvironment } from './environment'
-import { TrafficView, type TrafficNode } from './traffic-view'
+import { toCurl, toHAR, type Transaction } from './shared/model'
+import { AgentClient } from './client/agentClient'
+import { TransactionDocuments } from './providers/transactionDocuments'
+import { CaptureEnvironment } from './environment/captureEnvironment'
+import { TrafficView, type TrafficNode } from './views/trafficView'
 
 let client: AgentClient | undefined
 

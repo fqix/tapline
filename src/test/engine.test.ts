@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
-import { Engine } from '../src/core/engine'
+import { Engine } from '../core/engine'
 import {
     CORE,
     httpServer,

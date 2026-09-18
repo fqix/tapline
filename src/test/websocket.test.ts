@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
-import { Engine } from '../src/core/engine'
+import { Engine } from '../core/engine'
 import { CORE, settled, startEngine } from './helpers'
 
 const describeCore = existsSync(CORE) ? describe : describe.skip

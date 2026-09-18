@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
 import type { Transaction } from '../shared/model'
 import { pretty } from '../shared/model'
-import type { AgentClient } from './client'
-import { bodyExtension, renderTransaction } from './format'
+import type { AgentClient } from '../client/agentClient'
+import { bodyExtension, renderTransaction } from '../utils/format'
 
 export const SCHEME = 'tapline'
 
