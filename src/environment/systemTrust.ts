@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, posix } from 'node:path'
 
 /**
  * Operating-system trust for the Tapline root CA. Per-process variables cover curl,
@@ -164,7 +164,8 @@ function linux(certificate: string, runner: Runner, exists: (path: string) => bo
         throw new Error(
             `No system CA anchor directory found (${LINUX_ANCHORS.map((a) => a.directory).join(', ')}); import ${certificate} manually.`
         )
-    const target = join(anchor.directory, anchor.file)
+    // Anchor paths are always POSIX, even when the tests run on Windows.
+    const target = posix.join(anchor.directory, anchor.file)
     const run = async (title: string, script: string) => {
         const argv = ['sh', '-c', script]
         const code =
