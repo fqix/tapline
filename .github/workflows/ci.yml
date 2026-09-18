@@ -43,7 +43,11 @@ jobs:
             third_party/sing-box/patches/**
 
       - name: Install dependencies
-        run: npm ci
+        # Keep the lockfile usable when npm's bundled resolver updates optional
+        # platform packages (esbuild publishes one package per runner platform).
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci
 
       - name: Check formatting
         run: npm run format:check
