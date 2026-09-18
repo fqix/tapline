@@ -20,7 +20,8 @@ const targets = values.all
     : values.target?.length
       ? values.target
       : [`${process.platform}-${process.arch}`]
-const run = (command, args) => execFileSync(command, args, { cwd: ROOT, stdio: 'inherit' })
+const run = (command, args, options = {}) =>
+    execFileSync(command, args, { cwd: ROOT, stdio: 'inherit', ...options })
 
 run('node', ['esbuild.mjs'])
 mkdirSync(join(ROOT, 'core'), { recursive: true })
@@ -33,7 +34,11 @@ for (const target of targets) {
             copyFileSync(join(source, name), join(ROOT, 'core', name))
             staged.push(join(ROOT, 'core', name))
         }
-        run('npx', ['vsce', 'package', '--no-dependencies', '--target', target])
+        // npx on Windows is npx.cmd; Node 18.17+ refuses to spawn .cmd without
+        // shell: true (CVE-2024-27980).
+        run('npx', ['vsce', 'package', '--no-dependencies', '--target', target], {
+            shell: true
+        })
     } finally {
         for (const path of staged) rmSync(path, { force: true })
     }
