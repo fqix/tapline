@@ -1,0 +1,430 @@
+diff --git a/cmd/sing-box/cmd_run.go b/cmd/sing-box/cmd_run.go
+--- a/cmd/sing-box/cmd_run.go
++++ b/cmd/sing-box/cmd_run.go
+@@ -155,22 +155,38 @@
+ 	}()
+ 	startCtx, finishStart := context.WithCancel(context.Background())
+ 	go func() {
+-		_, loaded := <-osSignals
+-		if loaded {
+-			cancel()
+-			closeMonitor(startCtx)
+-		}
++		select {
++		case _, loaded := <-osSignals:
++			if !loaded {
++				return
++			}
++		case <-ctx.Done():
++		}
++		cancel()
++		closeMonitor(startCtx)
+ 	}()
+ 	err = instance.Start()
+ 	finishStart()
+ 	if err != nil {
+ 		cancel()
++		// Release partially started listeners and TUN resources as well.
++		closeCtx, closed := context.WithCancel(context.Background())
++		go closeMonitor(closeCtx)
++		_ = instance.Close()
++		closed()
+ 		return nil, nil, E.Cause(err, "start service")
+ 	}
+ 	return instance, cancel, nil
+ }
+ 
+ func run() error {
++	ctx, stop, err := helperContext(globalCtx)
++	if err != nil {
++		return err
++	}
++	previousCtx := globalCtx
++	globalCtx = ctx
++	defer func() { stop(); globalCtx = previousCtx }()
+ 	optionsList, err := readConfig()
+ 	if err != nil {
+ 		return err
+@@ -193,7 +209,12 @@
+ 		}
+ 		runtimeDebug.FreeOSMemory()
+ 		for {
+-			osSignal := <-osSignals
++			var osSignal os.Signal
++			select {
++			case osSignal = <-osSignals:
++			case <-ctx.Done():
++				osSignal = syscall.SIGTERM
++			}
+ 			if osSignal == syscall.SIGHUP {
+ 				err = check()
+ 				if err != nil {
+diff --git a/cmd/sing-box/fluxy_helper.go b/cmd/sing-box/fluxy_helper.go
+new file mode 100644
+--- /dev/null
++++ b/cmd/sing-box/fluxy_helper.go
+@@ -0,0 +1,43 @@
++package main
++
++import (
++	"context"
++	"errors"
++	"io"
++	"os"
++	"strconv"
++	"time"
++)
++
++// helperContext closes the service when the owning Fluxy process disappears.
++// An unowned sing-box invocation retains the upstream lifecycle.
++func helperContext(parent context.Context) (context.Context, context.CancelFunc, error) {
++	ctx, cancel := context.WithCancel(parent)
++	if owner := os.Getenv("FLUXY_HELPER_PARENT"); owner != "" {
++		pid, err := strconv.Atoi(owner)
++		if err != nil || pid <= 1 || os.Getppid() != pid {
++			cancel()
++			return nil, nil, errors.New("helper parent is no longer alive")
++		}
++		go func() {
++			ticker := time.NewTicker(500 * time.Millisecond)
++			defer ticker.Stop()
++			for {
++				select {
++				case <-ctx.Done():
++					return
++				case <-ticker.C:
++					if os.Getppid() != pid {
++						cancel()
++						return
++					}
++				}
++			}
++		}()
++	}
++	// Pipe EOF also detects helper crashes on Windows.
++	if os.Getenv("FLUXY_HELPER_STDIN") == "1" {
++		go func() { _, _ = io.Copy(io.Discard, os.Stdin); cancel() }()
++	}
++	return ctx, cancel, nil
++}
+diff --git a/include/fluxy_inspect.go b/include/fluxy_inspect.go
+new file mode 100644
+--- /dev/null
++++ b/include/fluxy_inspect.go
+@@ -0,0 +1,75 @@
++package include
++
++import (
++	"context"
++	"errors"
++	"net"
++	"net/http"
++	"os"
++
++	"github.com/sagernet/sing-box/adapter"
++	"github.com/sagernet/sing-box/adapter/outbound"
++	"github.com/sagernet/sing-box/common/dialer"
++	"github.com/sagernet/sing-box/log"
++	"github.com/sagernet/sing-box/option"
++	M "github.com/sagernet/sing/common/metadata"
++	N "github.com/sagernet/sing/common/network"
++	sHTTP "github.com/sagernet/sing/protocol/http"
++)
++
++// The private CONNECT hop preserves client identity across the sing-box ingress.
++// All policy, TLS interception and upstream selection remain in fluxy-proxy.
++type inspectOptions struct {
++	ServerPort uint16 `json:"server_port"`
++	Token      string `json:"token"`
++}
++
++type inspectOutbound struct {
++	outbound.Adapter
++	dialer N.Dialer
++	server M.Socksaddr
++	token  string
++}
++
++func newInspectOutbound(ctx context.Context, _ adapter.Router, _ log.ContextLogger, tag string, options inspectOptions) (adapter.Outbound, error) {
++	if options.ServerPort == 0 || len(options.Token) < 32 {
++		return nil, errors.New("inspection endpoint requires a port and private token")
++	}
++	d, err := dialer.New(ctx, option.DialerOptions{}, false)
++	if err != nil {
++		return nil, err
++	}
++	return &inspectOutbound{
++		Adapter: outbound.NewAdapterWithDialerOptions("fluxy-inspect", tag, []string{N.NetworkTCP}, option.DialerOptions{}),
++		dialer:  d,
++		server:  M.ParseSocksaddrHostPort("127.0.0.1", options.ServerPort),
++		token:   options.Token,
++	}, nil
++}
++
++func (h *inspectOutbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
++	if network != N.NetworkTCP {
++		return nil, os.ErrInvalid
++	}
++	metadata := adapter.ContextFrom(ctx)
++	if metadata == nil || !metadata.Source.IsValid() {
++		return nil, errors.New("inspection connection is missing its source")
++	}
++	headers := http.Header{
++		"X-Fluxy-Token":  []string{h.token},
++		"X-Fluxy-Source": []string{metadata.Source.String()},
++	}
++	if metadata.InboundType == "fluxy-mixed" && metadata.Protocol == "http" {
++		headers.Set("X-Fluxy-Protocol", "http")
++	}
++	client := sHTTP.NewClient(sHTTP.Options{
++		Dialer:  h.dialer,
++		Server:  h.server,
++		Headers: headers,
++	})
++	return client.DialContext(ctx, network, destination)
++}
++
++func (h *inspectOutbound) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
++	return nil, os.ErrInvalid
++}
+diff --git a/include/fluxy_inspect_test.go b/include/fluxy_inspect_test.go
+new file mode 100644
+--- /dev/null
++++ b/include/fluxy_inspect_test.go
+@@ -0,0 +1,72 @@
++package include
++
++import (
++	"bufio"
++	"context"
++	"fmt"
++	"net"
++	"net/http"
++	"testing"
++	"time"
++
++	"github.com/sagernet/sing-box/adapter"
++	"github.com/sagernet/sing-box/adapter/outbound"
++	M "github.com/sagernet/sing/common/metadata"
++	N "github.com/sagernet/sing/common/network"
++)
++
++// Test the actual CONNECT wire: it must carry the original source separately
++// from its destination, with no DNS lookup for the destination at the ingress.
++func TestInspectPreservesSource(t *testing.T) {
++	listener, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer listener.Close()
++	received := make(chan *http.Request, 1)
++	go func() {
++		conn, err := listener.Accept()
++		if err != nil {
++			return
++		}
++		defer conn.Close()
++		_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
++		req, err := http.ReadRequest(bufio.NewReader(conn))
++		if err != nil {
++			return
++		}
++		received <- req
++		_, _ = fmt.Fprint(conn, "HTTP/1.1 200 Connection Established\r\n\r\n")
++	}()
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++	defer cancel()
++	ctx = adapter.WithContext(ctx, &adapter.InboundContext{Source: M.ParseSocksaddr("127.0.0.1:32123")})
++	bridge := &inspectOutbound{
++		Adapter: outbound.NewAdapter("fluxy-inspect", "inspect", []string{N.NetworkTCP}, nil),
++		dialer:  testDialer{}, server: M.SocksaddrFromNet(listener.Addr()), token: "private-token",
++	}
++	conn, err := bridge.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr("unresolved.invalid:443"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	select {
++	case req := <-received:
++		if req.Method != "CONNECT" || req.Host != "unresolved.invalid:443" ||
++			req.Header.Get("X-Fluxy-Source") != "127.0.0.1:32123" ||
++			req.Header.Get("X-Fluxy-Token") != "private-token" {
++			t.Fatalf("incorrect inspection request: %#v", req)
++		}
++	case <-ctx.Done():
++		t.Fatal(ctx.Err())
++	}
++}
++
++type testDialer struct{}
++
++func (testDialer) DialContext(ctx context.Context, network string, address M.Socksaddr) (net.Conn, error) {
++	return (&net.Dialer{}).DialContext(ctx, network, address.String())
++}
++func (testDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn, error) {
++	return nil, net.ErrClosed
++}
+diff --git a/include/fluxy_proxy_inbound.go b/include/fluxy_proxy_inbound.go
+new file mode 100644
+--- /dev/null
++++ b/include/fluxy_proxy_inbound.go
+@@ -0,0 +1,89 @@
++package include
++
++import (
++	"context"
++	"errors"
++	"io"
++	"net"
++	"time"
++
++	"github.com/sagernet/sing-box/adapter"
++	"github.com/sagernet/sing-box/adapter/inbound"
++	"github.com/sagernet/sing-box/common/listener"
++	"github.com/sagernet/sing-box/log"
++	"github.com/sagernet/sing-box/option"
++	"github.com/sagernet/sing-box/protocol/socks"
++	"github.com/sagernet/sing/common"
++	"github.com/sagernet/sing/common/buf"
++	"github.com/sagernet/sing/common/bufio"
++	M "github.com/sagernet/sing/common/metadata"
++	N "github.com/sagernet/sing/common/network"
++)
++
++// SOCKS is handled by sing-box. HTTP is transported intact to the inspector:
++// a second HTTP proxy would normalize Upgrade/streaming and cancellation.
++type proxyInbound struct {
++	inbound.Adapter
++	listener *listener.Listener
++	socks    adapter.TCPInjectableInbound
++	router   adapter.Router
++}
++
++func newProxyInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SocksInboundOptions) (adapter.Inbound, error) {
++	socksInbound, err := socks.NewInbound(ctx, router, logger, tag, options)
++	if err != nil {
++		return nil, err
++	}
++	// Upstream asserts *socks.Inbound satisfies this, but not that NewInbound keeps
++	// returning that type. Fail the configuration instead of panicking at startup.
++	injectable, ok := socksInbound.(adapter.TCPInjectableInbound)
++	if !ok {
++		return nil, errors.New("upstream SOCKS inbound no longer accepts injected connections")
++	}
++	h := &proxyInbound{
++		Adapter: inbound.NewAdapter("fluxy-mixed", tag),
++		socks:   injectable, router: router,
++	}
++	h.listener = listener.New(listener.Options{
++		Context: ctx, Logger: logger, Network: []string{N.NetworkTCP},
++		Listen: options.ListenOptions, ConnectionHandler: h,
++	})
++	return h, nil
++}
++
++func (h *proxyInbound) Start(stage adapter.StartStage) error {
++	if stage == adapter.StartStateStart {
++		return h.listener.Start()
++	}
++	return nil
++}
++
++func (h *proxyInbound) Close() error { return common.Close(h.listener, h.socks) }
++
++func (h *proxyInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
++	if err := conn.SetReadDeadline(time.Now().Add(15 * time.Second)); err != nil {
++		N.CloseOnHandshakeFailure(conn, onClose, err)
++		return
++	}
++	var first [1]byte
++	if _, err := io.ReadFull(conn, first[:]); err != nil {
++		N.CloseOnHandshakeFailure(conn, onClose, err)
++		return
++	}
++	if err := conn.SetReadDeadline(time.Time{}); err != nil {
++		N.CloseOnHandshakeFailure(conn, onClose, err)
++		return
++	}
++	conn = bufio.NewCachedConn(conn, buf.As(first[:]))
++	if first[0] == 4 || first[0] == 5 {
++		h.socks.NewConnection(ctx, conn, metadata, onClose)
++		return
++	}
++	metadata.Inbound = h.Tag()
++	metadata.InboundType = h.Type()
++	metadata.Protocol = "http"
++	// Only the private inspection outbound handles this marker. It never resolves
++	// or dials it: the original HTTP request retains the actual destination.
++	metadata.Destination = M.ParseSocksaddr("http.fluxy.invalid:80")
++	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
++}
+diff --git a/include/registry.go b/include/registry.go
+--- a/include/registry.go
++++ b/include/registry.go
+@@ -60,6 +60,7 @@
+ 	socks.RegisterInbound(registry)
+ 	http.RegisterInbound(registry)
+ 	mixed.RegisterInbound(registry)
++	inbound.Register[option.SocksInboundOptions](registry, "fluxy-mixed", newProxyInbound)
+ 
+ 	shadowsocks.RegisterInbound(registry)
+ 	snell.RegisterInbound(registry)
+@@ -81,6 +82,7 @@
+ 	registry := outbound.NewRegistry()
+ 
+ 	direct.RegisterOutbound(registry)
++	outbound.Register[inspectOptions](registry, "fluxy-inspect", newInspectOutbound)
+ 	bridge.RegisterOutbound(registry)
+ 
+ 	block.RegisterOutbound(registry)
+diff --git a/include/fluxy_registry_test.go b/include/fluxy_registry_test.go
+new file mode 100644
+--- /dev/null
++++ b/include/fluxy_registry_test.go
+@@ -0,0 +1,46 @@
++package include
++
++import (
++	"context"
++	"fmt"
++	"testing"
++
++	"github.com/sagernet/sing-box/option"
++	"github.com/sagernet/sing/common/json"
++)
++
++func TestCoreContextSupportsCaptureProfile(t *testing.T) {
++	data := []byte(`{
++        "dns":{"servers":[{"type":"local","tag":"local"},{"type":"fakeip","tag":"fakeip","inet4_range":"198.19.0.0/16","inet6_range":"fd7a:115c:a1e0::/48"}]},
++        "inbounds":[
++            {"type":"tun","tag":"capture","address":["172.31.255.1/30"],"stack":"gvisor","auto_route":true,"dns_mode":"disabled"},
++            {"type":"http","tag":"egress","listen":"127.0.0.1","listen_port":19092},
++            {"type":"socks","tag":"test","listen":"127.0.0.1","listen_port":19093},
++            {"type":"fluxy-mixed","tag":"proxy","listen":"127.0.0.1","listen_port":19094}
++        ],
++        "outbounds":[{"type":"direct","tag":"direct"},
++            {"type":"http","tag":"inspect","server":"127.0.0.1","server_port":19091},
++            {"type":"socks","tag":"upstream","server":"127.0.0.1","server_port":7897},
++            {"type":"fluxy-inspect","tag":"private-inspect","server_port":19095,"token":"01234567890123456789012345678901"}],
++        "route":{"default_domain_resolver":"local","find_process":true,"final":"direct", "rules":[
++            {"inbound":["egress"],"action":"route","outbound":"direct"},
++            {"action":"sniff","sniffer":["http","tls"],"timeout":"300ms"},
++            {"network":"tcp","protocol":["http"],"action":"route","outbound":"inspect"}
++        ]}
++    }`)
++	_, err := json.UnmarshalExtendedContext[option.Options](Context(context.Background()), data)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestContextRetainsUpstreamProtocols(t *testing.T) {
++	for _, protocol := range []string{"vmess", "vless", "shadowsocks", "trojan", "hysteria2", "tuic", "ssh", "anytls", "selector"} {
++		t.Run(protocol, func(t *testing.T) {
++			data := []byte(fmt.Sprintf(`{"outbounds":[{"type":%q,"tag":"upstream"}]}`, protocol))
++			if _, err := json.UnmarshalExtendedContext[option.Options](Context(context.Background()), data); err != nil {
++				t.Fatalf("upstream protocol %q was rejected: %v", protocol, err)
++			}
++		})
++	}
++}

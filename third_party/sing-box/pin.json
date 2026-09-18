@@ -1,0 +1,5 @@
+{
+  "version": "1.14.0",
+  "revision": "0b8995879f29a9b98ee027bc17b75e101445b238",
+  "toolchain": "go1.27.1"
+}

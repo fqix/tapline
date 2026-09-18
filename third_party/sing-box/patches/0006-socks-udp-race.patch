@@ -1,0 +1,170 @@
+diff --git a/protocol/socks/inbound.go b/protocol/socks/inbound.go
+index 0f570b5..ea7f1a8 100644
+--- a/protocol/socks/inbound.go
++++ b/protocol/socks/inbound.go
+@@ -13,9 +13,13 @@ import (
+ 	C "github.com/sagernet/sing-box/constant"
+ 	"github.com/sagernet/sing-box/log"
+ 	"github.com/sagernet/sing-box/option"
++	"github.com/sagernet/sing/common"
+ 	"github.com/sagernet/sing/common/auth"
++	"github.com/sagernet/sing/common/bufio"
++	"github.com/sagernet/sing/common/canceler"
+ 	E "github.com/sagernet/sing/common/exceptions"
+ 	"github.com/sagernet/sing/common/logger"
++	M "github.com/sagernet/sing/common/metadata"
+ 	N "github.com/sagernet/sing/common/network"
+ 	"github.com/sagernet/sing/protocol/socks"
+ )
+@@ -97,6 +101,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
+ }
+ 
+ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
++	conn = bindPacketClient(conn)
+ 	metadata.Inbound = h.Tag()
+ 	metadata.InboundType = h.Type()
+ 	user, loaded := auth.UserFromContext[string](ctx)
+@@ -117,3 +122,33 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
+ 	}
+ 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
+ }
++
++// The handshake has already read the first UDP packet. Bind replies to that
++// client's address before routing starts concurrent reads and writes: sing's
++// serverPacketConn otherwise rewrites its unsynchronized remoteAddr on every read.
++// Preserve the cached first packet, timeout accounting and TCP ownership.
++func bindPacketClient(conn N.PacketConn) N.PacketConn {
++	switch c := conn.(type) {
++	case *bufio.CachedPacketConn:
++		c.PacketConn = bindPacketClient(c.PacketConn)
++	case *canceler.TimeoutPacketConn:
++		c.PacketConn = bindPacketClient(c.PacketConn)
++	case *canceler.TimerPacketConn:
++		c.PacketConn = bindPacketClient(c.PacketConn)
++	case *socks.AssociatePacketConn:
++		server, ok := c.Upstream().(interface {
++			net.Conn
++			common.WithUpstream
++		})
++		if !ok {
++			return conn
++		}
++		packets, ok := server.Upstream().(net.PacketConn)
++		if !ok {
++			return conn
++		}
++		bound := bufio.NewBindPacketConn(packets, M.SocksaddrFromNet(server.RemoteAddr()).UDPAddr())
++		return socks.NewAssociatePacketConn(bound, M.Socksaddr{}, c)
++	}
++	return conn
++}
+diff --git a/protocol/socks/inbound_test.go b/protocol/socks/inbound_test.go
+new file mode 100644
+index 0000000..6f54ae2
+--- /dev/null
++++ b/protocol/socks/inbound_test.go
+@@ -0,0 +1,104 @@
++package socks
++
++import (
++	"fmt"
++	"net"
++	"testing"
++	"time"
++
++	"github.com/sagernet/sing/common/buf"
++	"github.com/sagernet/sing/common/bufio"
++	"github.com/sagernet/sing/common/canceler"
++	M "github.com/sagernet/sing/common/metadata"
++	"github.com/sagernet/sing/protocol/socks"
++)
++
++func TestBindPacketClient(t *testing.T) {
++	server, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { _ = server.Close() })
++	client, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { _ = client.Close() })
++	if err := server.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
++		t.Fatal(err)
++	}
++	if err := client.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
++		t.Fatal(err)
++	}
++	// SOCKS5 UDP header for 127.0.0.1:443, followed by a one-byte payload.
++	wire := []byte{0, 0, 0, 1, 127, 0, 0, 1, 1, 187, 'x'}
++	if _, err := client.WriteTo(wire, server.LocalAddr()); err != nil {
++		t.Fatal(err)
++	}
++	control, peer := net.Pipe()
++	t.Cleanup(func() { _ = peer.Close() })
++	associate := socks.NewAssociatePacketConn(bufio.NewServerPacketConn(server), M.Socksaddr{}, control)
++	t.Cleanup(func() { _ = associate.Close() })
++	first := buf.NewPacket()
++	destination, err := associate.ReadPacket(first)
++	if err != nil {
++		first.Release()
++		t.Fatal(err)
++	}
++	_, timed := canceler.NewTimeoutPacketConn(t.Context(), associate, 5*time.Second)
++	cached := bufio.NewCachedPacketConn(timed, first, destination)
++	bound := bindPacketClient(cached)
++	t.Cleanup(func() { _ = bound.Close() })
++	if bound != cached || cached.PacketConn != timed || timed.Timeout() != 5*time.Second {
++		t.Fatal("binding replaced the cache or timeout wrapper")
++	}
++	packets := bufio.NewNetPacketConn(bound)
++	data := make([]byte, 64)
++	n, addr, err := packets.ReadFrom(data)
++	if err != nil || string(data[:n]) != "x" || M.SocksaddrFromNet(addr) != destination {
++		t.Fatalf("cached first packet lost: n=%d addr=%v err=%v", n, addr, err)
++	}
++	// Exercise independent readers and writers, as QUIC does. With the old
++	// serverPacketConn, -race reports remoteAddr writes racing with replies.
++	const count = 100
++	results := make(chan error, 4)
++	for _, action := range []func() error{
++		func() error { _, err := client.WriteTo(wire, server.LocalAddr()); return err },
++		func() error {
++			data := make([]byte, 64)
++			n, _, err := packets.ReadFrom(data)
++			if err == nil && string(data[:n]) != "x" {
++				return fmt.Errorf("invalid request: %q", data[:n])
++			}
++			return err
++		},
++		func() error { _, err := packets.WriteTo([]byte("x"), destination); return err },
++		func() error {
++			data := make([]byte, 64)
++			n, _, err := client.ReadFrom(data)
++			if err == nil && string(data[:n]) != string(wire) {
++				return fmt.Errorf("invalid reply: %x", data[:n])
++			}
++			return err
++		},
++	} {
++		go func() {
++			for range count {
++				if err := action(); err != nil {
++					results <- err
++					return
++				}
++			}
++			results <- nil
++		}()
++	}
++	for range 4 {
++		if err := <-results; err != nil {
++			t.Error(err)
++		}
++	}
++	_ = bound.Close()
++	if _, err := peer.Write([]byte("closed")); err == nil {
++		t.Fatal("binding lost TCP control connection ownership")
++	}
++}
