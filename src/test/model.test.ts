@@ -95,12 +95,12 @@ describe('format', () => {
     })
     it('builds the capture environment per runtime profile', () => {
         const target = {
-            port: 6070,
+            port: 3606,
             certificatePath: '/tmp/ca.pem',
             truststorePath: '/Users/me/Application Support/ca.p12'
         }
         const generic = captureEnvironment(target, ['openssl', 'git'])
-        expect(generic.HTTPS_PROXY).toBe('http://127.0.0.1:6070')
+        expect(generic.HTTPS_PROXY).toBe('http://127.0.0.1:3606')
         expect(generic.NO_PROXY).toContain('localhost')
         expect(generic.SSL_CERT_FILE).toBe('/tmp/ca.pem')
         expect(generic.GIT_SSL_CAINFO).toBe('/tmp/ca.pem')
@@ -112,7 +112,7 @@ describe('format', () => {
         expect(node.PIP_CERT).toBeUndefined()
         expect(node.JAVA_TOOL_OPTIONS).toBeUndefined()
         const java = captureEnvironment(target, ['java']).JAVA_TOOL_OPTIONS
-        expect(java).toContain('-Dhttps.proxyPort=6070')
+        expect(java).toContain('-Dhttps.proxyPort=3606')
         expect(java).toContain('-Djavax.net.ssl.trustStore="/Users/me/Application Support/ca.p12"')
         expect(java).toContain('-Djavax.net.ssl.trustStoreType=PKCS12')
         expect(
