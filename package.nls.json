@@ -20,9 +20,8 @@
     "command.showLogs": "Show Logs",
     "config.port": "Loopback port for the capture proxy. Keep it different from the Tapline desktop app (6060) when both run.",
     "config.autoStart": "Start capture when VS Code opens.",
-    "config.terminal.inject": "While capture runs, set HTTP(S)_PROXY and CA environment variables in new integrated terminals.",
-    "config.debug.inject": "While capture runs, add proxy and CA environment variables to launched debug sessions.",
-    "config.debug.types": "Debug configuration types that receive proxy environment variables.",
+    "config.terminal.inject": "While capture runs, route new integrated terminals through Tapline (proxy variables plus the profiles below).",
+    "config.debug.inject": "While capture runs, add proxy and trust variables to launched debug sessions according to tapline.debug.runtimes.",
     "config.ssl.enabled": "Decrypt HTTPS for hosts matching tapline.ssl.hosts.",
     "config.ssl.hosts": "Host patterns whose TLS traffic is decrypted (wildcards allowed).",
     "config.maxEntries": "Maximum live transactions kept in memory.",
@@ -31,5 +30,7 @@
     "command.openText": "Open as Text",
     "command.openSequence": "Open Sequence View",
     "view.welcome.stopped": "Capture is stopped.\n[Start Capture](command:tapline.start)\nOnce running, new integrated terminals and debug sessions are routed through Tapline automatically.",
-    "view.welcome.running": "Capture is running; no requests yet.\n[New Captured Terminal](command:tapline.openTerminal)\nRun any curl, npm, pip or git command there, or start a debug session — requests appear here as they happen.\n[Copy Root Certificate Path](command:tapline.copyCertificatePath) for tools that need the CA configured manually."
+    "view.welcome.running": "Capture is running; no requests yet.\n[New Captured Terminal](command:tapline.openTerminal)\nRun any curl, npm, pip or git command there, or start a debug session — requests appear here as they happen.\n[Copy Root Certificate Path](command:tapline.copyCertificatePath) for tools that need the CA configured manually.",
+    "config.terminal.profiles": "Trust-store variable profiles injected into every new terminal. Keep this generic; use \"New Captured Terminal\" to open a terminal for a specific runtime (Node, Python, Java, …). Profiles: openssl (SSL_CERT_FILE, CURL_CA_BUNDLE), git, node, python, java, rust, deno, grpc.",
+    "config.debug.runtimes": "Profiles injected per debug configuration type (proxy variables are always included). Types not listed are left untouched; an empty list injects the proxy only."
 }

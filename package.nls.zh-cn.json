@@ -20,9 +20,8 @@
     "command.showLogs": "显示日志",
     "config.port": "抓包代理监听的回环端口。与 Tapline 桌面版（6060）同时运行时请保持不同。",
     "config.autoStart": "VS Code 启动时自动开始抓包。",
-    "config.terminal.inject": "抓包运行期间，为新建的集成终端注入 HTTP(S)_PROXY 与 CA 证书环境变量。",
-    "config.debug.inject": "抓包运行期间，为启动的调试会话注入代理与 CA 证书环境变量。",
-    "config.debug.types": "会被注入代理环境变量的调试配置类型。",
+    "config.terminal.inject": "抓包运行期间，让新开的集成终端经由 Tapline（代理变量 + 下方的 profile）。",
+    "config.debug.inject": "抓包运行期间，按 tapline.debug.runtimes 为启动的调试会话注入代理与信任变量。",
     "config.ssl.enabled": "对匹配 tapline.ssl.hosts 的主机解密 HTTPS。",
     "config.ssl.hosts": "需要解密 TLS 流量的主机模式（支持通配符）。",
     "config.maxEntries": "内存中保留的最大请求条数。",
@@ -31,5 +30,7 @@
     "command.openText": "以文本方式打开",
     "command.openSequence": "打开时序视图",
     "view.welcome.stopped": "抓包已停止。\n[开始抓包](command:tapline.start)\n开始后，新开的集成终端和调试会话会自动经由 Tapline 代理。",
-    "view.welcome.running": "抓包运行中，暂无请求。\n[新建抓包终端](command:tapline.openTerminal)\n在其中执行任意 curl、npm、pip、git 命令，或启动调试会话，请求会实时出现在这里。\n[复制根证书路径](command:tapline.copyCertificatePath)，用于需要手动配置 CA 的工具。"
+    "view.welcome.running": "抓包运行中，暂无请求。\n[新建抓包终端](command:tapline.openTerminal)\n在其中执行任意 curl、npm、pip、git 命令，或启动调试会话，请求会实时出现在这里。\n[复制根证书路径](command:tapline.copyCertificatePath)，用于需要手动配置 CA 的工具。",
+    "config.terminal.profiles": "注入到每个新终端的信任库变量 profile。建议保持通用；需要特定运行时（Node、Python、Java…）时用\"新建抓包终端\"按运行时单独注入。可选：openssl（SSL_CERT_FILE、CURL_CA_BUNDLE）、git、node、python、java、rust、deno、grpc。",
+    "config.debug.runtimes": "按调试配置类型注入的 profile（代理变量总是包含）。未列出的类型不做任何改动；空列表表示只注入代理。"
 }

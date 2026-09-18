@@ -265,11 +265,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     command('tapline.openTerminal', async () => {
         if (!client!.running) await client!.start()
-        const terminal = vscode.window.createTerminal({
-            name: 'Tapline',
-            iconPath: new vscode.ThemeIcon('broadcast')
-        })
-        terminal.show()
+        await environment.openTerminal()
     })
     command('tapline.copyCertificatePath', async () => {
         if (!client!.connected) await client!.connect()

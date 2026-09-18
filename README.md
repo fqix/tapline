@@ -111,6 +111,12 @@ npm run package             # VSIX for this platform; `npm run package:all` for 
 Press F5 in VS Code to launch the extension development host. `npm run core:test` runs
 the Go tests of the patched packages.
 
+[GitHub Actions CI](https://github.com/fqix/tapline/actions/workflows/ci.yml) runs on
+pushes, pull requests and manual dispatches. On Linux with Node 22 and the Go version
+from `third_party/sing-box/pin.json`, it checks formatting and types, builds the core,
+runs the patched Go tests (with race detection and vet) and Vitest suites, and packages
+the extension. The `tapline-linux-x64` VSIX artifact is retained for 14 days.
+
 ## Licence
 
 Tapline is MIT licensed. The bundled sing-box core is GPL-3.0; its source revision,
