@@ -284,6 +284,7 @@ function panelStrings(): Record<string, string> {
         clearFilters: vscode.l10n.t('Clear filters'),
         layoutStacked: vscode.l10n.t('Inspector below'),
         layoutSide: vscode.l10n.t('Inspector to the right'),
+        'col.sequence': '#',
         'col.status': vscode.l10n.t('Code'),
         'col.method': vscode.l10n.t('Method'),
         'col.host': vscode.l10n.t('Host'),

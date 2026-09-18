@@ -93,4 +93,6 @@ export interface PanelState {
     ratio?: number
     collapsed?: string[]
     bodyView?: Record<string, string>
+    /** Sequence table column widths in px, keyed by column. */
+    columns?: Record<string, number>
 }
