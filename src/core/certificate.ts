@@ -94,7 +94,8 @@ async function generate(directory: string): Promise<RootIdentity> {
 function trustStoreAsn1(certs: string[], password: string) {
     const { asn1, pki, util, random, md, hmac } = forge
     const { Class, Type, create } = asn1
-    const oid = (value: string) => create(Class.UNIVERSAL, Type.OID, false, asn1.oidToDer(value).getBytes())
+    const oid = (value: string) =>
+        create(Class.UNIVERSAL, Type.OID, false, asn1.oidToDer(value).getBytes())
     const octets = (bytes: string) => create(Class.UNIVERSAL, Type.OCTETSTRING, false, bytes)
     const bags = certs.map((cert, index) =>
         create(Class.UNIVERSAL, Type.SEQUENCE, true, [
@@ -109,7 +110,12 @@ function trustStoreAsn1(certs: string[], password: string) {
                 create(Class.UNIVERSAL, Type.SEQUENCE, true, [
                     oid(pki.oids.friendlyName),
                     create(Class.UNIVERSAL, Type.SET, true, [
-                        create(Class.UNIVERSAL, Type.BMPSTRING, false, util.encodeUtf8(`tapline-${index}`).replace(/./g, (c) => '\0' + c))
+                        create(
+                            Class.UNIVERSAL,
+                            Type.BMPSTRING,
+                            false,
+                            util.encodeUtf8(`tapline-${index}`).replace(/./g, (c) => '\0' + c)
+                        )
                     ])
                 ]),
                 // Oracle trusted-certificate marker: anyExtendedKeyUsage
@@ -129,13 +135,23 @@ function trustStoreAsn1(certs: string[], password: string) {
     const safeBytes = asn1.toDer(authenticatedSafe).getBytes()
     const salt = random.getBytesSync(8)
     const iterations = 2048
-    const key = forge.pkcs12.generateKey(password, util.createBuffer(salt), 3, iterations, 20, md.sha1.create())
+    const key = forge.pkcs12.generateKey(
+        password,
+        util.createBuffer(salt),
+        3,
+        iterations,
+        20,
+        md.sha1.create()
+    )
     const mac = hmac.create()
     mac.start('sha1', key)
     mac.update(safeBytes)
     const macData = create(Class.UNIVERSAL, Type.SEQUENCE, true, [
         create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-            create(Class.UNIVERSAL, Type.SEQUENCE, true, [oid(pki.oids.sha1), create(Class.UNIVERSAL, Type.NULL, false, '')]),
+            create(Class.UNIVERSAL, Type.SEQUENCE, true, [
+                oid(pki.oids.sha1),
+                create(Class.UNIVERSAL, Type.NULL, false, '')
+            ]),
             octets(mac.digest().getBytes())
         ]),
         octets(salt),
@@ -143,7 +159,10 @@ function trustStoreAsn1(certs: string[], password: string) {
     ])
     return create(Class.UNIVERSAL, Type.SEQUENCE, true, [
         create(Class.UNIVERSAL, Type.INTEGER, false, asn1.integerToDer(3).getBytes()),
-        create(Class.UNIVERSAL, Type.SEQUENCE, true, [oid(pki.oids.data), create(Class.CONTEXT_SPECIFIC, 0, true, [octets(safeBytes)])]),
+        create(Class.UNIVERSAL, Type.SEQUENCE, true, [
+            oid(pki.oids.data),
+            create(Class.CONTEXT_SPECIFIC, 0, true, [octets(safeBytes)])
+        ]),
         macData
     ])
 }

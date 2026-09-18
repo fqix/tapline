@@ -14,8 +14,18 @@ concurrency:
 
 jobs:
   test:
-    name: Build, test and package
-    runs-on: ubuntu-latest
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: linux-x64
+          - runner: macos-13
+            target: darwin-x64
+          - runner: windows-latest
+            target: win32-x64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -31,7 +41,7 @@ jobs:
 
       - name: Read pinned Go version
         id: go
-        run: node -e 'const { toolchain } = require("./third_party/sing-box/pin.json"); console.log("version=" + toolchain.replace(/^go/, ""))' >> "$GITHUB_OUTPUT"
+        run: node -e "const fs=require('fs'), p=require('./third_party/sing-box/pin.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + p.toolchain.slice(2) + '\\n')"
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -56,7 +66,7 @@ jobs:
         run: npm run typecheck
 
       - name: Build patched core
-        run: npm run core:build
+        run: npm run core:build -- --target ${{ matrix.target }}
 
       - name: Test and vet patched Go packages (race detector enabled)
         run: npm run core:test
@@ -67,13 +77,13 @@ jobs:
       - name: Run unit and integration tests
         run: npm test
 
-      - name: Package Linux VSIX
-        run: npm run package
+      - name: Package VSIX
+        run: npm run package -- --target ${{ matrix.target }}
 
-      - name: Upload Linux VSIX
+      - name: Upload VSIX
         uses: actions/upload-artifact@v7
         with:
-          name: tapline-linux-x64
-          path: tapline-linux-x64-*.vsix
+          name: tapline-${{ matrix.target }}
+          path: tapline-${{ matrix.target }}-*.vsix
           if-no-files-found: error
           retention-days: 14

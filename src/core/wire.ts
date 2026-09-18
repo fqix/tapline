@@ -20,14 +20,17 @@ export class Wire extends EventEmitter {
             if (Buffer.isBuffer(value)) return { $bytes: value.toString('base64') }
             if (Array.isArray(value)) return value.map(encode)
             if (value && typeof value === 'object')
-                return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, encode(item)]))
+                return Object.fromEntries(
+                    Object.entries(value).map(([key, item]) => [key, encode(item)])
+                )
             return value
         }
         const body = Buffer.from(JSON.stringify(encode(message)))
         if (body.length > MAX_MESSAGE) throw new Error('Core IPC message exceeds the size limit')
         const header = Buffer.allocUnsafe(4)
         header.writeUInt32BE(body.length)
-        if (this.output.writable && !this.output.destroyed) this.output.write(Buffer.concat([header, body]))
+        if (this.output.writable && !this.output.destroyed)
+            this.output.write(Buffer.concat([header, body]))
     }
 
     receive(data: Buffer) {
@@ -40,7 +43,8 @@ export class Wire extends EventEmitter {
                 offset += count
                 if (this.headerUsed < 4) return
                 const length = this.header.readUInt32BE(0)
-                if (!length || length > MAX_MESSAGE) throw new Error('Invalid core IPC frame length')
+                if (!length || length > MAX_MESSAGE)
+                    throw new Error('Invalid core IPC frame length')
                 this.body = Buffer.allocUnsafe(length)
                 this.bodyUsed = 0
             }
@@ -50,7 +54,9 @@ export class Wire extends EventEmitter {
             offset += count
             if (this.bodyUsed < this.body.length) return
             const message = JSON.parse(this.body.toString(), (_key, value) =>
-                value && typeof value.$bytes === 'string' ? Buffer.from(value.$bytes, 'base64') : value
+                value && typeof value.$bytes === 'string'
+                    ? Buffer.from(value.$bytes, 'base64')
+                    : value
             )
             this.body = undefined
             this.headerUsed = 0

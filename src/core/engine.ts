@@ -4,7 +4,12 @@ import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 import net from 'node:net'
 import tls from 'node:tls'
-import { certificatePaths, ensureRootIdentity, ensureTruststore, type RootIdentity } from './certificate'
+import {
+    certificatePaths,
+    ensureRootIdentity,
+    ensureTruststore,
+    type RootIdentity
+} from './certificate'
 import { Inspector, verifyCore, type Client, type Handlers } from './inspector'
 import {
     defaultSettings,
@@ -152,7 +157,9 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         await inspector.start()
         this.inspector = inspector
         this.running = true
-        this.log(`Capture listening on 127.0.0.1:${this.settings.port} (sing-box ${manifest.version})`)
+        this.log(
+            `Capture listening on 127.0.0.1:${this.settings.port} (sing-box ${manifest.version})`
+        )
     }
 
     async stop() {
@@ -167,12 +174,20 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     private intercepts(host: string) {
-        return this.settings.ssl && this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
+        return (
+            this.settings.ssl && this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
+        )
     }
 
     // ---- inspector handlers ------------------------------------------------
 
-    private create(id: string, method: string, url: string, client: Client, scheme?: string): Transaction | undefined {
+    private create(
+        id: string,
+        method: string,
+        url: string,
+        client: Client,
+        scheme?: string
+    ): Transaction | undefined {
         if (!this.recording) return undefined
         const target = new URL(url)
         const t: Transaction = {
@@ -219,7 +234,10 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         if (!t) return
         let captures = this.captures.get(id)
         if (!captures) {
-            captures = { request: { chunks: [], retained: 0, total: 0 }, response: { chunks: [], retained: 0, total: 0 } }
+            captures = {
+                request: { chunks: [], retained: 0, total: 0 },
+                response: { chunks: [], retained: 0, total: 0 }
+            }
             this.captures.set(id, captures)
         }
         const c = captures[side]
@@ -254,7 +272,13 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     connect(id: string, host: string, port: number, client: Client) {
         const intercept = this.intercepts(host)
         if (!intercept) {
-            const t = this.create(id, 'CONNECT', `https://${net.isIPv6(host) ? `[${host}]` : host}:${port}/`, client, 'connect')
+            const t = this.create(
+                id,
+                'CONNECT',
+                `https://${net.isIPv6(host) ? `[${host}]` : host}:${port}/`,
+                client,
+                'connect'
+            )
             if (t) {
                 t.path = `${host}:${port}`
                 t.tls = false
@@ -350,7 +374,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     async compose(input: ComposeRequest): Promise<Transaction> {
         if (!this.running || !this.root) throw new Error('Start capture before replaying requests')
         const target = new URL(input.url)
-        if (!/^https?:$/.test(target.protocol)) throw new Error('Only HTTP and HTTPS URLs can be replayed')
+        if (!/^https?:$/.test(target.protocol))
+            throw new Error('Only HTTP and HTTPS URLs can be replayed')
         const proxy = await new Promise<net.Socket>((resolve, reject) => {
             const socket = net.connect(this.settings.port, '127.0.0.1')
             socket.once('connect', () => resolve(socket))
@@ -377,7 +402,15 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         })
         const headers: Headers = {}
         for (const [name, value] of Object.entries(input.headers))
-            if (!['content-length', 'transfer-encoding', 'host', 'connection', 'proxy-connection'].includes(name.toLowerCase()))
+            if (
+                ![
+                    'content-length',
+                    'transfer-encoding',
+                    'host',
+                    'connection',
+                    'proxy-connection'
+                ].includes(name.toLowerCase())
+            )
                 headers[name] = value
         const body = Buffer.from(input.body ?? '')
         if (body.length) headers['content-length'] = String(body.length)
@@ -394,13 +427,20 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
                     const end = buffer.indexOf('\r\n\r\n')
                     if (end < 0) return
                     proxy.off('data', onData)
-                    if (!/^HTTP\/1\.[01] 200/.test(buffer)) return reject(new Error(`Proxy refused CONNECT: ${buffer.split('\r\n')[0]}`))
+                    if (!/^HTTP\/1\.[01] 200/.test(buffer))
+                        return reject(
+                            new Error(`Proxy refused CONNECT: ${buffer.split('\r\n')[0]}`)
+                        )
                     resolve()
                 }
                 proxy.on('data', onData)
                 proxy.once('error', reject)
             })
-            socket = tls.connect({ socket: proxy, servername: target.hostname, ca: [this.root.certificate] })
+            socket = tls.connect({
+                socket: proxy,
+                servername: target.hostname,
+                ca: [this.root.certificate]
+            })
         }
         const request = http.request({
             createConnection: () => socket as net.Socket,
