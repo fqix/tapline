@@ -10,6 +10,7 @@ import {
     ensureTruststore,
     type RootIdentity
 } from './certificate'
+import { GrpcDecoder } from './grpc'
 import { SSEParser } from './sse'
 import { Inspector, verifyCore, type Client, type Handlers } from './inspector'
 import {
@@ -57,6 +58,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     private captures = new Map<string, { request: Capture; response: Capture }>()
     private eventStreams = new WeakMap<Transaction, SSEParser>()
     private started = new Map<string, number>()
+    private grpc = new GrpcDecoder((message, level) => this.log(message, level))
 
     constructor(
         readonly directory: string,
@@ -256,10 +258,10 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         else t.responseBytes = c.total
     }
 
-    private seal(id: string, side: 'request' | 'response') {
+    private seal(id: string, side: 'request' | 'response'): Buffer | undefined {
         const t = this.transactions.get(id)
         const c = this.captures.get(id)?.[side]
-        if (!t || !c) return
+        if (!t || !c) return undefined
         const body = Buffer.concat(c.chunks)
         const text = isUtf8(body)
         if (side === 'request') {
@@ -270,6 +272,12 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
             t.responseBinary = !text
         }
         c.chunks = []
+        return body
+    }
+
+    /** Reload the gRPC schema from `settings.protoFiles`. */
+    reloadProtos() {
+        return this.grpc.load(this.settings.protoFiles)
     }
 
     connect(id: string, host: string, port: number, client: Client) {
@@ -306,9 +314,19 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         this.capture(id, 'request', chunk)
     }
     requestEnd(id: string) {
-        this.seal(id, 'request')
+        const body = this.seal(id, 'request')
         const t = this.transactions.get(id)
-        if (t) this.publish(t)
+        if (!t) return
+        if (body) this.decodeGrpc(t, 'request', body)
+        this.publish(t)
+    }
+
+    private decodeGrpc(t: Transaction, side: 'request' | 'response', body: Buffer) {
+        try {
+            this.grpc.decorate(t, side, body)
+        } catch (error) {
+            this.log(`gRPC decode failed for ${t.path}: ${error}`, 'warn')
+        }
     }
     response(id: string, info: Parameters<Handlers['response']>[1]) {
         const t = this.transactions.get(id)
@@ -365,10 +383,11 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         this.publish(t)
     }
     responseEnd(id: string, trailers: Headers) {
-        this.seal(id, 'response')
+        const body = this.seal(id, 'response')
         const t = this.transactions.get(id)
         if (!t) return
         if (Object.keys(trailers).length) t.responseTrailers = trailers
+        if (body) this.decodeGrpc(t, 'response', body)
         this.captures.delete(id)
         this.finish(t)
     }

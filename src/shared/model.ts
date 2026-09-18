@@ -31,6 +31,54 @@ export interface Timings {
 
 export type TransactionState = 'pending' | 'completed' | 'error'
 
+/** One length-prefixed gRPC message, decoded with the schema when one matched. */
+export interface GrpcMessage {
+    index: number
+    size: number
+    compressed: boolean
+    /** Fully qualified protobuf type when decoded from a schema. */
+    type?: string
+    /** Decoded fields: names from the schema, or field numbers without one. */
+    body?: unknown
+    error?: string
+}
+
+export interface GrpcInfo {
+    service: string
+    method: string
+    /** gRPC-Web (trailers travel in the body). */
+    web: boolean
+    encoding?: string
+    requestType?: string
+    responseType?: string
+    request: GrpcMessage[]
+    response: GrpcMessage[]
+    /** From `grpc-status` in the trailers (or headers for trailers-only responses). */
+    status?: number
+    statusMessage?: string
+}
+
+export const grpcStatusNames = [
+    'OK',
+    'CANCELLED',
+    'UNKNOWN',
+    'INVALID_ARGUMENT',
+    'DEADLINE_EXCEEDED',
+    'NOT_FOUND',
+    'ALREADY_EXISTS',
+    'PERMISSION_DENIED',
+    'RESOURCE_EXHAUSTED',
+    'FAILED_PRECONDITION',
+    'ABORTED',
+    'OUT_OF_RANGE',
+    'UNIMPLEMENTED',
+    'INTERNAL',
+    'UNAVAILABLE',
+    'DATA_LOSS',
+    'UNAUTHENTICATED'
+]
+export const grpcStatusName = (code: number) => grpcStatusNames[code] ?? String(code)
+
 export interface Transaction {
     id: string
     sequence: number
@@ -66,6 +114,8 @@ export interface Transaction {
     /** Present for text/event-stream responses, including streams awaiting their first event. */
     events?: ServerEvent[]
     eventsTruncated?: boolean
+    /** Present for gRPC and gRPC-Web calls; messages decoded from the retained bodies. */
+    grpc?: GrpcInfo
     replayOf?: string
 }
 
@@ -75,6 +125,8 @@ export interface Settings {
     sslHosts: string[]
     maxEntries: number
     maxBodyBytes: number
+    /** Absolute paths of .proto files used to decode gRPC messages. */
+    protoFiles: string[]
 }
 
 export const defaultSettings: Settings = {
@@ -82,7 +134,8 @@ export const defaultSettings: Settings = {
     ssl: true,
     sslHosts: ['*'],
     maxEntries: 2000,
-    maxBodyBytes: 512 * 1024
+    maxBodyBytes: 512 * 1024,
+    protoFiles: []
 }
 
 export interface LogEntry {

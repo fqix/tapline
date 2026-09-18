@@ -25,6 +25,8 @@ export type Row = Pick<
     contentType: string
     websocket: boolean
     events: number | undefined
+    grpc: boolean
+    grpcStatus: number | undefined
 }
 
 /** Row projection shared by the extension host and tests. */
@@ -52,7 +54,9 @@ export function toRow(t: Transaction): Row {
         replayOf: t.replayOf,
         contentType: (type ?? '').split(';')[0].trim().toLowerCase(),
         websocket: t.frames.length > 0 || t.status === 101 || t.scheme.startsWith('ws'),
-        events: t.events?.length
+        events: t.events?.length,
+        grpc: t.grpc !== undefined,
+        grpcStatus: t.grpc?.status
     }
 }
 

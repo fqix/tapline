@@ -51,6 +51,7 @@ async function handle(request: Request): Promise<unknown> {
             const restart = engine.running && request.settings.port !== engine.settings.port
             engine.settings = { ...engine.settings, ...request.settings }
             engine.enforceEntryLimit()
+            void engine.reloadProtos()
             if (restart) {
                 await engine.stop()
                 await engine.start()

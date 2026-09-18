@@ -206,13 +206,29 @@ pre.body.hex {
     font-style: italic;
 }
 
+/* ---- gRPC messages ---- */
+.grpc-message + .grpc-message {
+    margin-top: 8px;
+}
+.grpc-message-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 0 4px;
+    font-size: 11px;
+}
+.grpc-message-head .ellipsis {
+    flex: 1;
+    text-align: right;
+}
+
 /* ---- overview ---- */
 .overview {
     padding: 8px 12px;
 }
 .overview h3 {
     margin: 14px 0 6px;
-    font-size: 11px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;

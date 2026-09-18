@@ -1,4 +1,4 @@
-import { bytes, duration, type Transaction } from '../../shared/model'
+import { bytes, duration, grpcStatusName, type Transaction } from '../../shared/model'
 import { t } from '../lib/i18n'
 import type { Row } from '../types/messages'
 
@@ -28,6 +28,26 @@ export function Overview({ x, onFocus }: { x: Transaction; onFocus(id: string): 
             `${bytes(x.requestBytes)} ${t('sent')} · ${bytes(x.responseBytes)} ${t('received')}`
         ]
     ]
+    if (x.grpc)
+        rows.splice(4, 0, [
+            'gRPC',
+            <>
+                <span className="mono">
+                    {x.grpc.service}/{x.grpc.method}
+                </span>
+                {x.grpc.status !== undefined && (
+                    <>
+                        {' · '}
+                        <span className={x.grpc.status ? 'error-text' : ''}>
+                            {x.grpc.status} {grpcStatusName(x.grpc.status)}
+                            {x.grpc.statusMessage ? `: ${x.grpc.statusMessage}` : ''}
+                        </span>
+                    </>
+                )}
+                {x.grpc.encoding ? ` · ${x.grpc.encoding}` : ''}
+                {x.grpc.web ? ' · gRPC-Web' : ''}
+            </>
+        ])
     if (x.error) rows.push([t('error'), <span className="error-text">{x.error}</span>])
     if (x.replayOf)
         rows.push([

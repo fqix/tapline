@@ -219,6 +219,12 @@ function panelStrings(): Record<string, string> {
         headers: vscode.l10n.t('Headers'),
         trailers: vscode.l10n.t('Trailers'),
         body: vscode.l10n.t('Body'),
+        messages: vscode.l10n.t('Messages'),
+        compressed: vscode.l10n.t('compressed'),
+        grpcNoSchema: vscode.l10n.t(
+            'Decoded by field number. Add the .proto files to the workspace (tapline.grpc.protoFiles) to see field names.'
+        ),
+        grpcUndecodable: vscode.l10n.t('Not a valid protobuf message'),
         pretty: vscode.l10n.t('Pretty'),
         text: vscode.l10n.t('Text'),
         hex: vscode.l10n.t('Hex'),
