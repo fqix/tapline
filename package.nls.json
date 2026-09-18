@@ -19,7 +19,6 @@
     "command.copyCertificatePath": "Copy Root Certificate Path",
     "command.revealCertificate": "Reveal Root Certificate",
     "command.showLogs": "Show Logs",
-    "command.toggleGroupByHost": "Group by Host",
     "config.port": "Loopback port for the capture proxy. Keep it different from the Tapline desktop app (6060) when both run.",
     "config.autoStart": "Start capture when VS Code opens.",
     "config.terminal.inject": "While capture runs, set HTTP(S)_PROXY and CA environment variables in new integrated terminals.",
@@ -28,6 +27,12 @@
     "config.ssl.enabled": "Decrypt HTTPS for hosts matching tapline.ssl.hosts.",
     "config.ssl.hosts": "Host patterns whose TLS traffic is decrypted (wildcards allowed).",
     "config.maxEntries": "Maximum live transactions kept in memory.",
-    "config.groupByHost": "Group the traffic view by host.",
-    "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated."
+    "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",
+    "command.openHost": "Open Host Overview",
+    "command.openText": "Open as Text",
+    "command.viewStructure": "View as Structure (by host)",
+    "command.viewSequence": "View as Sequence (by time)",
+    "config.viewMode": "How the traffic view lists requests.",
+    "config.viewMode.structure": "Group by host, then by path (like Charles).",
+    "config.viewMode.sequence": "Flat list, newest first."
 }
