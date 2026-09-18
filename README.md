@@ -115,8 +115,8 @@ the Go tests of the patched packages.
 pushes, pull requests and manual dispatches. On Linux with Node 22 and the Go version
 from `third_party/sing-box/pin.json`, it checks formatting and types, builds the core,
 runs the patched Go tests (with race detection and vet) and Vitest suites on Linux,
-macOS and Windows, and packages the extension for each platform. Platform-specific
-VSIX artifacts are retained for 14 days.
+macOS and Windows, and packages x64 and arm64 VSIX artifacts for each platform.
+Platform-specific VSIX artifacts are retained for 14 days.
 
 ## Licence
 
