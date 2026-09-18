@@ -9,6 +9,7 @@
 !media/**
 !syntaxes/**
 !README.md
+!CHANGELOG.md
 !package.nls*.json
 !l10n/**
 !LICENSE
