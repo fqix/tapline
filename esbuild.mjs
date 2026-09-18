@@ -19,6 +19,9 @@ const web = {
     target: 'es2022',
     format: 'iife',
     outdir: 'dist',
+    // codicon.css references codicon.ttf; emit it next to webview.css under its own name.
+    loader: { '.ttf': 'file' },
+    assetNames: '[name]',
     sourcemap: true,
     minify: !watch,
     logLevel: 'info',

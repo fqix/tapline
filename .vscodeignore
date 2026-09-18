@@ -3,6 +3,7 @@
 !dist/agent.js
 !dist/webview.js
 !dist/webview.css
+!dist/codicon.ttf
 !core/sing-box*
 !core/LICENSE
 !media/**
