@@ -131,6 +131,7 @@ describeCore('engine with the bundled core', () => {
         expect(replayed.replayOf).toBe(original.id)
         expect(JSON.parse(replayed.responseBody).body).toBe('body')
         expect(replayed.requestHeaders['x-test']).toBe('a')
+        expect(replayed.url).toBe(url)
     })
 
     it('truncates retained bodies beyond the limit while forwarding in full', async () => {
