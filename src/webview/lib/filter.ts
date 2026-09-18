@@ -14,8 +14,9 @@ export interface Filters {
 export const defaultFilters: Filters = { text: '', quick: 'all', hideTunnels: false }
 
 export type Column =
-    'status' | 'method' | 'host' | 'path' | 'timestamp' | 'duration' | 'responseBytes'
+    'sequence' | 'status' | 'method' | 'host' | 'path' | 'timestamp' | 'duration' | 'responseBytes'
 export const columns: Column[] = [
+    'sequence',
     'status',
     'method',
     'host',

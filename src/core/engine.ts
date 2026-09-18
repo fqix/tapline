@@ -107,6 +107,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     clear() {
         this.transactions.clear()
         this.captures.clear()
+        // Sequence numbers are display order only, so a cleared session restarts at 1.
+        this.sequence = 0
         this.emit('event', { type: 'reset' })
     }
 

@@ -1,18 +1,40 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { bytes, duration } from '../../shared/model'
 import { columns, toggleSort, type Column, type Sort } from '../lib/filter'
 import { t } from '../lib/i18n'
-import { vscode } from '../lib/vscode'
+import { saveState, state, vscode } from '../lib/vscode'
 import type { Row } from '../types/messages'
 import { IconButton } from './IconButton'
-import { methodClass, StatusBadge } from './StatusBadge'
+import { methodClass, methodLabel, StatusBadge } from './StatusBadge'
 import { VirtualList } from './VirtualList'
 
 export const ROW_HEIGHT = 22
 
-const numeric: Column[] = ['timestamp', 'duration', 'responseBytes']
+const numeric: Column[] = ['sequence', 'timestamp', 'duration', 'responseBytes']
+type Widths = Record<Exclude<Column, 'path'>, number>
+/** Monospace columns scale with the editor font so a large font never clips them. */
+const editorScale = () => {
+    const size = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-font-size')
+    )
+    return Number.isFinite(size) && size > 0 ? Math.max(1, size / 12) : 1
+}
+const defaultWidths = (): Widths => {
+    const k = editorScale()
+    return {
+        sequence: Math.round(48 * k),
+        status: 68,
+        method: Math.round(66 * k),
+        host: Math.round(170 * k),
+        timestamp: Math.round(96 * k),
+        duration: 80,
+        responseBytes: 80
+    }
+}
+const MIN_WIDTH = 40
 /** Cell classes let narrow panes drop columns via container queries in table.css. */
 const columnClass: Record<Column, string> = {
+    sequence: 'seq',
     status: 'status',
     method: 'method',
     host: 'host',
@@ -28,6 +50,15 @@ const clock = new Intl.DateTimeFormat(undefined, {
     second: '2-digit',
     hour12: false
 })
+
+const pathIcon = (row: Row) =>
+    row.replayOf
+        ? 'debug-restart'
+        : row.websocket
+          ? 'plug'
+          : row.events !== undefined
+            ? 'radio-tower'
+            : undefined
 
 const RowView = memo(function RowView({
     row,
@@ -46,24 +77,29 @@ const RowView = memo(function RowView({
             onClick={() => onSelect(row.id)}
             onDoubleClick={() => vscode.postMessage({ type: 'openText', id: row.id })}
         >
-            <span role="gridcell">
-                <StatusBadge x={row} />
+            <span role="gridcell" className="mono num seq c-seq">
+                {row.sequence}
             </span>
-            <span role="gridcell" className={methodClass(row.method)}>
-                {row.method}
+            <span role="gridcell">
+                <StatusBadge x={{ ...row, grpcStatus: row.grpcStatus }} />
+            </span>
+            <span role="gridcell" className={methodClass(methodLabel(row))}>
+                {methodLabel(row)}
             </span>
             <span role="gridcell" className="mono ellipsis c-host" title={row.host}>
-                {row.tls && <span className="codicon codicon-lock dim" aria-hidden="true" />}
+                {/* Always reserve the icon slot so host names line up across rows. */}
+                <span
+                    className={`codicon codicon-lock dim ${row.tls ? '' : 'slot-empty'}`}
+                    aria-hidden="true"
+                />
                 {row.host}
             </span>
             <span role="gridcell" className="mono ellipsis path" title={row.url}>
-                {row.replayOf && (
-                    <span className="codicon codicon-debug-restart dim" aria-hidden="true" />
-                )}
-                {row.websocket && <span className="codicon codicon-plug dim" aria-hidden="true" />}
-                {row.events !== undefined && (
-                    <span className="codicon codicon-radio-tower dim" aria-hidden="true" />
-                )}
+                {/* One icon slot per row (replay, WebSocket or SSE) so paths line up. */}
+                <span
+                    className={`codicon codicon-${pathIcon(row) ?? 'circle-filled slot-empty'} dim`}
+                    aria-hidden="true"
+                />
                 {row.scheme === 'connect' ? row.path : row.path || '/'}
             </span>
             <span role="gridcell" className="mono num c-start">
@@ -153,6 +189,46 @@ export function SequenceTable({
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
     }, [rows, index, selected, onSelect, onClearFilters])
+    const [widths, setWidths] = useState<Widths>(() => ({
+        ...defaultWidths(),
+        ...(state().columns as Partial<Widths> | undefined)
+    }))
+    /** Drag the handle at a header's right edge; double-click restores the default. */
+    const startResize = useCallback(
+        (column: keyof Widths, event: React.PointerEvent) => {
+            event.preventDefault()
+            event.stopPropagation()
+            // Capturing keeps every event (including the final click) on the handle, so
+            // releasing over another header never toggles its sort.
+            const handle = event.currentTarget as HTMLElement
+            handle.setPointerCapture(event.pointerId)
+            const origin = event.clientX
+            const initial = widths[column]
+            let latest = initial
+            const move = (e: PointerEvent) => {
+                latest = Math.max(MIN_WIDTH, Math.round(initial + e.clientX - origin))
+                setWidths((w) => ({ ...w, [column]: latest }))
+            }
+            const up = () => {
+                handle.removeEventListener('pointermove', move)
+                handle.removeEventListener('pointerup', up)
+                document.body.classList.remove('resizing-column')
+                saveState({ columns: { ...widths, [column]: latest } })
+            }
+            document.body.classList.add('resizing-column')
+            handle.addEventListener('pointermove', move)
+            handle.addEventListener('pointerup', up)
+        },
+        [widths]
+    )
+    const resetWidth = (column: keyof Widths) => {
+        const next = { ...widths, [column]: defaultWidths()[column] }
+        setWidths(next)
+        saveState({ columns: next })
+    }
+    const style = Object.fromEntries(
+        Object.entries(widths).map(([c, w]) => [`--w-${columnClass[c as Column]}`, `${w}px`])
+    ) as React.CSSProperties
     const header = (
         <div className="grid-head" role="row">
             {columns.map((c) => (
@@ -169,13 +245,26 @@ export function SequenceTable({
                             aria-hidden="true"
                         />
                     )}
+                    {c !== 'path' && (
+                        <span
+                            className="col-resize"
+                            role="separator"
+                            aria-orientation="vertical"
+                            onPointerDown={(e) => startResize(c, e)}
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation()
+                                resetWidth(c)
+                            }}
+                        />
+                    )}
                 </span>
             ))}
             <span role="columnheader" />
         </div>
     )
     return (
-        <div className="sequence" role="grid" aria-rowcount={rows.length}>
+        <div className="sequence" role="grid" aria-rowcount={rows.length} style={style}>
             <VirtualList
                 items={rows}
                 rowHeight={ROW_HEIGHT}

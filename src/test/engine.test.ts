@@ -202,4 +202,12 @@ describeCore('engine with the bundled core', () => {
             engine.settings.maxEntries = 2000
         }
     })
+
+    it('restarts sequence numbers at 1 after clear', async () => {
+        engine.clear()
+        expect(engine.transactions.size).toBe(0)
+        await viaProxy(engine.settings.port, `http://127.0.0.1:${plain.port}/fresh`)
+        await settled(engine, (t) => t.path === '/fresh')
+        expect([...engine.transactions.values()].map((t) => t.sequence)).toEqual([1])
+    })
 })
