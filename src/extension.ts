@@ -159,13 +159,16 @@ export async function activate(context: vscode.ExtensionContext) {
         const pick = await vscode.window.showQuickPick(picks, { title: 'Tapline' })
         await pick?.run()
     })
-    command('tapline.open', async (node?: TrafficNode) => {
+    command('tapline.open', (node?: TrafficNode) => {
         const t = one(node)
-        if (!t) return
-        await vscode.window.showTextDocument(TransactionDocuments.uri(t, 'detail'), {
-            preview: true,
-            preserveFocus: false
-        })
+        if (t) panel.showTransaction(t.id)
+    })
+    command('tapline.openHost', (node?: TrafficNode) => {
+        if (node?.kind === 'host') panel.showHost(node.host)
+    })
+    command('tapline.openText', async (node?: TrafficNode) => {
+        const t = one(node)
+        if (t) await openText(t)
     })
     command('tapline.openRequestBody', async (node?: TrafficNode) => {
         const t = one(node)

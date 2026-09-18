@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import type { AgentClient } from '../client/agentClient'
-import type { HostMessage, PanelMessage } from '../webview/vscode'
+import type { HostMessage, PanelMessage } from '../webview/types/messages'
 
 /**
  * One reusable webview showing either a transaction (Overview / Request /
