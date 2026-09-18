@@ -370,28 +370,6 @@
                     "default": true,
                     "description": "%config.debug.inject%"
                 },
-                "tapline.debug.types": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "default": [
-                        "node",
-                        "pwa-node",
-                        "node-terminal",
-                        "python",
-                        "debugpy",
-                        "go",
-                        "java",
-                        "lldb",
-                        "cppdbg",
-                        "dart",
-                        "php",
-                        "ruby",
-                        "rdbg"
-                    ],
-                    "description": "%config.debug.types%"
-                },
                 "tapline.ssl.enabled": {
                     "type": "boolean",
                     "default": true,
@@ -420,6 +398,110 @@
                     "maximum": 4096,
                     "default": 512,
                     "description": "%config.maxBodyKiB%"
+                },
+                "tapline.terminal.profiles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "openssl",
+                            "git",
+                            "node",
+                            "python",
+                            "java",
+                            "rust",
+                            "deno",
+                            "grpc"
+                        ]
+                    },
+                    "default": [
+                        "openssl",
+                        "git"
+                    ],
+                    "description": "%config.terminal.profiles%"
+                },
+                "tapline.debug.runtimes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "openssl",
+                                "git",
+                                "node",
+                                "python",
+                                "java",
+                                "rust",
+                                "deno",
+                                "grpc"
+                            ]
+                        }
+                    },
+                    "default": {
+                        "node": [
+                            "node",
+                            "grpc"
+                        ],
+                        "pwa-node": [
+                            "node",
+                            "grpc"
+                        ],
+                        "node-terminal": [
+                            "node",
+                            "grpc"
+                        ],
+                        "bun": [
+                            "node"
+                        ],
+                        "deno": [
+                            "deno"
+                        ],
+                        "python": [
+                            "python",
+                            "openssl",
+                            "grpc"
+                        ],
+                        "debugpy": [
+                            "python",
+                            "openssl",
+                            "grpc"
+                        ],
+                        "go": [
+                            "openssl",
+                            "grpc"
+                        ],
+                        "java": [
+                            "java"
+                        ],
+                        "kotlin": [
+                            "java"
+                        ],
+                        "lldb": [
+                            "openssl",
+                            "grpc"
+                        ],
+                        "cppdbg": [
+                            "openssl",
+                            "grpc"
+                        ],
+                        "cargo-test": [
+                            "openssl",
+                            "rust"
+                        ],
+                        "dart": [],
+                        "php": [
+                            "openssl"
+                        ],
+                        "ruby": [
+                            "openssl"
+                        ],
+                        "rdbg": [
+                            "openssl"
+                        ],
+                        "coreclr": []
+                    },
+                    "description": "%config.debug.runtimes%"
                 }
             }
         }

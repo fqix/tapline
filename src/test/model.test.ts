@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { matchHost, toCurl, toHAR, type Transaction } from '../shared/model'
-import { bodyExtension, captureEnvironment, renderTransaction } from '../utils/format'
+import { bodyExtension, renderTransaction } from '../utils/format'
+import { captureEnvironment, defaultDebugRuntimes, PROFILES } from '../utils/environment'
 
 const base: Transaction = {
     id: 'a',
@@ -92,20 +93,40 @@ describe('format', () => {
             '(pending)'
         )
     })
-    it('builds the capture environment', () => {
-        const env = captureEnvironment(6070, '/tmp/ca.pem')
-        expect(env.HTTPS_PROXY).toBe('http://127.0.0.1:6070')
-        expect(env.NODE_EXTRA_CA_CERTS).toBe('/tmp/ca.pem')
-        expect(env.PIP_CERT).toBe('/tmp/ca.pem')
-        expect(env.NO_PROXY).toContain('localhost')
-        expect(env.JAVA_TOOL_OPTIONS).toBeUndefined()
-        const java = captureEnvironment(
-            6070,
-            '/tmp/ca.pem',
-            '/Users/me/Application Support/ca.p12'
-        ).JAVA_TOOL_OPTIONS
+    it('builds the capture environment per runtime profile', () => {
+        const target = {
+            port: 6070,
+            certificatePath: '/tmp/ca.pem',
+            truststorePath: '/Users/me/Application Support/ca.p12'
+        }
+        const generic = captureEnvironment(target, ['openssl', 'git'])
+        expect(generic.HTTPS_PROXY).toBe('http://127.0.0.1:6070')
+        expect(generic.NO_PROXY).toContain('localhost')
+        expect(generic.SSL_CERT_FILE).toBe('/tmp/ca.pem')
+        expect(generic.GIT_SSL_CAINFO).toBe('/tmp/ca.pem')
+        expect(generic.NODE_EXTRA_CA_CERTS).toBeUndefined()
+        expect(generic.JAVA_TOOL_OPTIONS).toBeUndefined()
+        const node = captureEnvironment(target, defaultDebugRuntimes.node)
+        expect(node.NODE_EXTRA_CA_CERTS).toBe('/tmp/ca.pem')
+        expect(node.NODE_USE_ENV_PROXY).toBe('1')
+        expect(node.PIP_CERT).toBeUndefined()
+        expect(node.JAVA_TOOL_OPTIONS).toBeUndefined()
+        const java = captureEnvironment(target, ['java']).JAVA_TOOL_OPTIONS
         expect(java).toContain('-Dhttps.proxyPort=6070')
         expect(java).toContain('-Djavax.net.ssl.trustStore="/Users/me/Application Support/ca.p12"')
         expect(java).toContain('-Djavax.net.ssl.trustStoreType=PKCS12')
+        expect(
+            captureEnvironment({ ...target, truststorePath: undefined }, ['java']).JAVA_TOOL_OPTIONS
+        ).toBeUndefined()
+        expect(Object.keys(captureEnvironment(target, [])).sort()).toEqual([
+            'HTTPS_PROXY',
+            'HTTP_PROXY',
+            'NO_PROXY',
+            'http_proxy',
+            'https_proxy',
+            'no_proxy'
+        ])
+        for (const profiles of Object.values(defaultDebugRuntimes))
+            for (const p of profiles) expect(PROFILES).toContain(p)
     })
 })

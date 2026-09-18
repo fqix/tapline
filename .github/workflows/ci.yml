@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Read pinned Go version
+        id: go
+        run: node -e 'const { toolchain } = require("./third_party/sing-box/pin.json"); console.log("version=" + toolchain.replace(/^go/, ""))' >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          # The Go module is fetched by core:build; pin + patches define its dependencies.
+          cache-dependency-path: |
+            third_party/sing-box/pin.json
+            third_party/sing-box/patches/**
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Build patched core
+        run: npm run core:build
+
+      - name: Test and vet patched Go packages (race detector enabled)
+        run: npm run core:test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Run unit and integration tests
+        run: npm test
+
+      - name: Package Linux VSIX
+        run: npm run package
+
+      - name: Upload Linux VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: tapline-linux-x64
+          path: tapline-linux-x64-*.vsix
+          if-no-files-found: error
+          retention-days: 14
