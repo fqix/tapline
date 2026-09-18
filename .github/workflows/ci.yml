@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          submodules: recursive
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -49,7 +50,7 @@ jobs:
 
       - name: Read pinned Go version
         id: go
-        run: node -e "const fs=require('fs'), p=require('./third_party/sing-box/pin.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + p.toolchain.slice(2).split('.').slice(0,2).join('.') + String.fromCharCode(10))"
+        run: node -e "const fs=require('fs'), p=require('./third_party/patches/sing-box/pin.json'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + p.toolchain.slice(2).split('.').slice(0,2).join('.') + String.fromCharCode(10))"
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -57,8 +58,8 @@ jobs:
           go-version: ${{ steps.go.outputs.version }}
           # The Go module is fetched by core:build; pin + patches define its dependencies.
           cache-dependency-path: |
-            third_party/sing-box/pin.json
-            third_party/sing-box/patches/**
+            third_party/patches/sing-box/pin.json
+            third_party/patches/sing-box/**
 
       - name: Install dependencies
         # Keep the lockfile usable when npm's bundled resolver updates optional

@@ -49,7 +49,7 @@ VS Code window ─┘                    │           └─ fluxy-inspector se
 with leaf certificates minted from the Tapline root CA and streams request and response
 bodies through the agent, which records them and passes them back unchanged. Hosts not
 matched by `tapline.ssl.hosts` are tunnelled opaquely. See
-[third_party/sing-box/README.md](third_party/sing-box/README.md) for the core build.
+[third_party/patches/sing-box/README.md](third_party/patches/sing-box/README.md) for the core build.
 
 ## Settings
 
@@ -100,8 +100,13 @@ src/
 Prerequisites: Node 22+, Go 1.27+, git.
 
 ```sh
+git clone --recurse-submodules https://github.com/fqix/tapline.git
+cd tapline
+# if you already cloned without --recurse-submodules:
+git submodule update --init --recursive
+
 npm ci
-npm run core:build          # clones sing-box at the pinned tag, applies patches, builds core/<platform>-<arch>/
+npm run core:build          # applies patches to the sing-box submodule, builds core/<platform>-<arch>/
 npm run build               # esbuild → dist/extension.js + dist/agent.js
 npm test                    # vitest: protocol, engine, WebSocket relay, shared agent (uses the built core)
 npm run typecheck
@@ -113,7 +118,7 @@ the Go tests of the patched packages.
 
 [GitHub Actions CI](https://github.com/fqix/tapline/actions/workflows/ci.yml) runs on
 pushes, pull requests and manual dispatches. On Linux with Node 22 and the Go version
-from `third_party/sing-box/pin.json`, it checks formatting and types, builds the core,
+from `third_party/patches/sing-box/pin.json`, it checks formatting and types, builds the core,
 runs the patched Go tests (with race detection and vet) and Vitest suites on Linux,
 macOS and Windows, and packages x64 and arm64 VSIX artifacts for each platform.
 Platform-specific VSIX artifacts are retained for 14 days.
