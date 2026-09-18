@@ -1,0 +1,74 @@
+name: Release
+
+# Publishing runs only when a GitHub release is published; CI never uploads to a store.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The Marketplace identity's federated credential is bound to this environment.
+    environment: marketplace-publish
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Check release tag matches package.json version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$version" != "${TAG#v}" ]; then
+            echo "::error::release tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Download platform VSIX packages
+        uses: actions/download-artifact@v7
+        with:
+          pattern: tapline-*
+          path: dist
+          merge-multiple: true
+
+      # Azure DevOps retires global PATs on 2026-12-01; the Marketplace accepts a
+      # managed identity through workload identity federation instead (no secret).
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Publish to VS Code Marketplace
+        run: npx --yes @vscode/vsce@3 publish --azure-credential --packagePath dist/*.vsix
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --yes ovsx@1 publish dist/*.vsix
+
+      - name: Attach VSIX packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/*.vsix --clobber
