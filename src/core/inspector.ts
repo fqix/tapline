@@ -39,7 +39,12 @@ export interface Handlers {
     response(id: string, info: ResponseInfo): void
     responseData(id: string, chunk: Buffer): void
     responseEnd(id: string, trailers: Record<string, string>): void
-    websocket(id: string, url: string, headers: Record<string, string | string[]>, client: Client): void
+    websocket(
+        id: string,
+        url: string,
+        headers: Record<string, string | string[]>,
+        client: Client
+    ): void
     frame(id: string, fromServer: boolean, data: Buffer, binary: boolean): void
     closed(id: string, aborted: boolean): void
     failure(id: string, error: string): void
@@ -78,8 +83,11 @@ export function coreConfig(host: string, port: number) {
 /** Verify the bundled core against its build manifest before executing it. */
 export async function verifyCore(corePath: string) {
     const manifest = JSON.parse(await readFile(corePath + '.build.json', 'utf8'))
-    const hash = createHash('sha256').update(await readFile(corePath)).digest('hex')
-    if (manifest.sha256 !== hash) throw new Error('Bundled sing-box core failed its integrity check')
+    const hash = createHash('sha256')
+        .update(await readFile(corePath))
+        .digest('hex')
+    if (manifest.sha256 !== hash)
+        throw new Error('Bundled sing-box core failed its integrity check')
     return manifest as { version: string; target: string }
 }
 
@@ -121,7 +129,11 @@ export class Inspector {
     }
 
     /** Relay `<id>:<phase>:in` to `<id>:<phase>:out`, tapping every chunk. */
-    private async relay(id: string, phase: 'request' | 'response', source: Readable & { trailers?: Record<string, string> }) {
+    private async relay(
+        id: string,
+        phase: 'request' | 'response',
+        source: Readable & { trailers?: Record<string, string> }
+    ) {
         const handlers = this.handlers
         const tap = new Transform({
             transform(chunk: Buffer, _encoding, done) {
@@ -140,7 +152,10 @@ export class Inspector {
     }
 
     private client(socket: any): Client {
-        return { remoteAddress: String(socket?.remoteAddress ?? ''), remotePort: Number(socket?.remotePort ?? 0) }
+        return {
+            remoteAddress: String(socket?.remoteAddress ?? ''),
+            remotePort: Number(socket?.remotePort ?? 0)
+        }
     }
 
     private async message(message: any) {
@@ -152,7 +167,12 @@ export class Inspector {
                 this.send({ type: 'certificate-result', id })
                 return
             case 'quic':
-                this.send({ type: 'quic-result', id, inspect: this.options.intercept(message.host), route: '' })
+                this.send({
+                    type: 'quic-result',
+                    id,
+                    inspect: this.options.intercept(message.host),
+                    route: ''
+                })
                 return
             case 'connect': {
                 const target = new URL(`https://${message.request?.url ?? ''}`)
@@ -182,8 +202,12 @@ export class Inspector {
                     socket.pipe(upstream)
                     upstream.pipe(socket)
                 })
-                socket.on('data', (chunk: Buffer) => this.handlers.tunnelBytes(id, 'send', chunk.length))
-                upstream.on('data', (chunk: Buffer) => this.handlers.tunnelBytes(id, 'receive', chunk.length))
+                socket.on('data', (chunk: Buffer) =>
+                    this.handlers.tunnelBytes(id, 'send', chunk.length)
+                )
+                upstream.on('data', (chunk: Buffer) =>
+                    this.handlers.tunnelBytes(id, 'receive', chunk.length)
+                )
                 upstream.once('error', (error) => {
                     if (!upstream.connecting) return
                     socket.end('HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n')
@@ -249,7 +273,12 @@ export class Inspector {
                 return
             case 'websocket':
                 this.sessions.add(id)
-                this.handlers.websocket(id, message.url, message.headers ?? {}, this.client(message.socket))
+                this.handlers.websocket(
+                    id,
+                    message.url,
+                    message.headers ?? {},
+                    this.client(message.socket)
+                )
                 this.send({
                     type: 'websocket-result',
                     id,
@@ -259,8 +288,18 @@ export class Inspector {
                 return
             case 'frame': {
                 const data = Buffer.from(message.data ?? [])
-                this.handlers.frame(message.session ?? id, !!message.fromServer, data, !!message.binary)
-                this.send({ type: 'frame-result', id: message.frameId, data, binary: !!message.binary })
+                this.handlers.frame(
+                    message.session ?? id,
+                    !!message.fromServer,
+                    data,
+                    !!message.binary
+                )
+                this.send({
+                    type: 'frame-result',
+                    id: message.frameId,
+                    data,
+                    binary: !!message.binary
+                })
                 return
             }
         }
@@ -275,7 +314,11 @@ export class Inspector {
         const child = (this.child = spawn(corePath, ['run', '-c', config], {
             stdio: ['pipe', 'pipe', 'pipe'],
             windowsHide: true,
-            env: { ...process.env, FLUXY_HELPER_STDIN: '1', FLUXY_HELPER_PARENT: String(process.pid) }
+            env: {
+                ...process.env,
+                FLUXY_HELPER_STDIN: '1',
+                FLUXY_HELPER_PARENT: String(process.pid)
+            }
         }))
         const wire = (this.wire = new Wire(child.stdin!))
         this.streams = new Streams((message) => this.send(message))
@@ -292,10 +335,14 @@ export class Inspector {
             }
             const fatal = (error: Error) => {
                 finish(error)
-                if (this.child === child && coreReady && inspectorReady) this.exitHandlers.forEach((h) => h(error))
+                if (this.child === child && coreReady && inspectorReady)
+                    this.exitHandlers.forEach((h) => h(error))
                 void this.stop().catch(() => {})
             }
-            const timer = setTimeout(() => fatal(new Error(`sing-box startup timed out: ${log}`)), 15000)
+            const timer = setTimeout(
+                () => fatal(new Error(`sing-box startup timed out: ${log}`)),
+                15000
+            )
             child.stdout!.on('data', (data: Buffer) => {
                 try {
                     wire.receive(data)
@@ -306,7 +353,12 @@ export class Inspector {
             child.stderr!.on('data', (data: Buffer) => {
                 const text = String(data)
                 log = (log + text).slice(-8000)
-                for (const line of text.split('\n')) if (line.trim()) this.handlers.log(`core: ${line.trim()}`, line.includes('ERROR') || line.includes('FATAL') ? 'error' : 'info')
+                for (const line of text.split('\n'))
+                    if (line.trim())
+                        this.handlers.log(
+                            `core: ${line.trim()}`,
+                            line.includes('ERROR') || line.includes('FATAL') ? 'error' : 'info'
+                        )
                 if (log.includes('sing-box started (')) coreReady = true
                 if (coreReady && inspectorReady) finish()
             })

@@ -57,7 +57,11 @@ export class Streams {
                 for (let offset = 0; offset < buffer.length; offset += CHUNK) {
                     await new Promise<void>((resolve) => {
                         this.credits.set(id, resolve)
-                        this.send({ type: 'chunk', stream: id, data: buffer.subarray(offset, offset + CHUNK) })
+                        this.send({
+                            type: 'chunk',
+                            stream: id,
+                            data: buffer.subarray(offset, offset + CHUNK)
+                        })
                     })
                     if (state.cancelled) return
                 }
@@ -100,7 +104,8 @@ export class Streams {
                 release()
                 this.credits.delete(id)
             }
-        for (const id of this.acknowledgements.keys()) if (id.startsWith(prefix)) this.acknowledgements.delete(id)
+        for (const id of this.acknowledgements.keys())
+            if (id.startsWith(prefix)) this.acknowledgements.delete(id)
     }
 
     close() {
