@@ -1,33 +1,79 @@
-import { useEffect, useState } from 'react'
-import type { Transaction } from '../shared/model'
-import { HostView } from './components/HostView'
-import { SequenceView, useSequenceState } from './components/SequenceView'
-import { TransactionView } from './components/TransactionView'
-import { useHostMessages } from './hooks/useHostMessages'
+import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { HostOverview } from './components/Overview'
+import { Inspector } from './components/Inspector'
+import { SequenceTable } from './components/SequenceTable'
+import { SplitPane } from './components/SplitPane'
+import { Toolbar } from './components/Toolbar'
+import { useTraffic } from './hooks/useTraffic'
+import { defaultFilters, defaultSort, matches, sortRows, type Sort } from './lib/filter'
 import { t } from './lib/i18n'
-import type { Row } from './types/messages'
+import { saveState, state } from './lib/vscode'
+import type { Layout } from './types/messages'
 
 export function App() {
-    const { view, detail } = useHostMessages()
-    const { selected, select, setSelected } = useSequenceState()
-    const [rows, setRows] = useState<Row[]>([])
-    useEffect(() => {
-        if (view?.type === 'sequence') setRows(view.rows)
-    }, [view])
-    useEffect(() => {
-        if (detail?.select) setSelected(detail.transaction.id)
-    }, [detail, setSelected])
-    if (!view) return <div className="empty">…</div>
-    if (view.type === 'gone') return <div className="empty">{t('gone')}</div>
-    if (view.type === 'host') return <HostView summary={view.summary} />
-    if (view.type === 'sequence')
-        return (
-            <SequenceView
-                rows={rows}
-                detail={detail?.transaction}
-                selected={selected}
-                onSelect={select}
+    const { rows, detail, selected, select, filters, setFilters, focus } = useTraffic()
+    const [layout, setLayoutState] = useState<Layout>(() => state().layout ?? 'stacked')
+    const [sort, setSort] = useState<Sort>(defaultSort)
+    const deferred = useDeferredValue(filters)
+    const visible = useMemo(
+        () =>
+            sortRows(
+                [...rows.values()].filter((row) => matches(row, deferred)),
+                sort
+            ),
+        [rows, deferred, sort]
+    )
+    const hostRows = useMemo(
+        () => (deferred.host ? [...rows.values()].filter((r) => r.host === deferred.host) : []),
+        [rows, deferred.host]
+    )
+    const setLayout = (next: Layout) => {
+        setLayoutState(next)
+        saveState({ layout: next })
+    }
+    const clearFilters = useCallback(() => setFilters(defaultFilters), [setFilters])
+    const focusRow = useCallback(
+        (id: string) => {
+            if (!rows.has(id)) return
+            select(id)
+        },
+        [rows, select]
+    )
+    const inspector = detail ? (
+        <Inspector x={detail} onFocus={focusRow} />
+    ) : selected && rows.has(selected) ? (
+        <div className="empty">…</div>
+    ) : filters.host ? (
+        <HostOverview host={filters.host} rows={hostRows} />
+    ) : (
+        <div className="empty">{t('selectRow')}</div>
+    )
+    return (
+        <div className="app">
+            <Toolbar
+                filters={filters}
+                onChange={setFilters}
+                visible={visible.length}
+                total={rows.size}
+                layout={layout}
+                onLayout={setLayout}
             />
-        )
-    return <TransactionView transaction={view.transaction as Transaction} />
+            <SplitPane
+                layout={layout}
+                first={
+                    <SequenceTable
+                        rows={visible}
+                        total={rows.size}
+                        selected={selected}
+                        onSelect={select}
+                        sort={sort}
+                        onSort={setSort}
+                        focus={focus}
+                        onClearFilters={clearFilters}
+                    />
+                }
+                second={inspector}
+            />
+        </div>
+    )
 }

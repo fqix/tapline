@@ -1,0 +1,188 @@
+/* Toolbar, split layout and the windowed sequence grid. */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    flex: none;
+    min-height: 34px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+}
+.toolbar .chips {
+    display: inline-flex;
+    gap: 2px;
+}
+.toolbar .count {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+/* ---- split ---- */
+.split {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+.split.stacked {
+    flex-direction: column;
+}
+.split.side {
+    flex-direction: row;
+}
+.split-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+.split-divider {
+    position: relative;
+    flex: 0 0 4px;
+    z-index: 2;
+}
+.split-divider::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    transition: background 0.1s;
+}
+.split.stacked .split-divider {
+    cursor: row-resize;
+}
+.split.stacked .split-divider::before {
+    inset: 1px 0 2px;
+}
+.split.side .split-divider {
+    cursor: col-resize;
+}
+.split.side .split-divider::before {
+    inset: 0 2px 0 1px;
+}
+.split-divider:hover::before,
+body.resizing .split-divider::before {
+    inset: 0;
+    background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder));
+}
+
+/* ---- sequence grid ---- */
+.sequence {
+    flex: 1;
+    min-height: 0;
+    container-type: inline-size;
+    --cols: 68px 62px minmax(110px, 1fr) minmax(160px, 3fr) 76px 70px 70px 52px;
+}
+/* Narrow panes (inspector on the right) drop the least useful columns instead of scrolling. */
+@container (max-width: 640px) {
+    .sequence {
+        --cols: 68px 62px minmax(120px, 1fr) 76px 70px 52px;
+    }
+    .sequence .c-host,
+    .sequence .c-size {
+        display: none;
+    }
+}
+@container (max-width: 440px) {
+    .sequence {
+        --cols: 68px 62px minmax(100px, 1fr) 70px 52px;
+    }
+    .sequence .c-start {
+        display: none;
+    }
+}
+.virtual {
+    height: 100%;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+}
+.virtual-body {
+    position: relative;
+}
+.grid-head,
+.grid-row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    height: var(--row);
+    line-height: var(--row);
+}
+.grid-head > span,
+.grid-row > span {
+    min-width: 0;
+    padding: 0 6px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.grid-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--vscode-editor-background);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    user-select: none;
+}
+.grid-head > span {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+}
+.grid-head > span.num {
+    justify-content: flex-end;
+}
+.grid-head > span:hover,
+.grid-head > span.sorted {
+    color: var(--vscode-foreground);
+}
+.grid-head .codicon {
+    font-size: 12px;
+}
+.grid-row {
+    cursor: default;
+}
+.grid-row:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+.grid-row.selected {
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+}
+.grid-row.selected .method,
+.grid-row.selected .status .mono,
+.grid-row.selected .icon-button {
+    color: inherit;
+}
+.grid-row.error .path {
+    color: var(--bad);
+}
+.grid-row.selected.error .path {
+    color: inherit;
+}
+.grid-row .dim {
+    font-size: 12px;
+    margin-right: 4px;
+}
+.grid-row .row-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 4px;
+    opacity: 0;
+}
+.grid-row:hover .row-actions,
+.grid-row.selected .row-actions {
+    opacity: 1;
+}
+.grid-row .row-actions .icon-button {
+    height: 18px;
+    min-width: 20px;
+}
+.grid-row .row-actions .codicon {
+    font-size: 13px;
+}
