@@ -1,41 +1,52 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import type { AgentClient } from '../client/agentClient'
-import type { HostMessage, PanelMessage } from '../webview/types/messages'
+import type { Transaction } from '../shared/model'
+import { rowKeys, type HostMessage, type PanelMessage, type Row } from '../webview/types/messages'
+
+export interface PanelActions {
+    copyCurl(id: string): Promise<void>
+    replay(id: string): Promise<Transaction>
+    openText(id: string): Promise<void>
+    openBody(id: string, side: 'request' | 'response'): Promise<void>
+    delete(ids: string[]): Promise<void>
+}
+
+type Current =
+    { kind: 'transaction'; id: string } | { kind: 'host'; host: string } | { kind: 'sequence' }
+
+const toRow = (t: Transaction): Row => Object.fromEntries(rowKeys.map((k) => [k, t[k]])) as Row
 
 /**
- * One reusable webview showing either a transaction (Overview / Request /
- * Response) or a host summary, kept live from agent events.
+ * A reusable webview showing a transaction (Overview / Contents / Frames), a host
+ * summary, or the Charles-style sequence table; content stays live from agent events.
  */
 export class DetailPanel implements vscode.Disposable {
     private panel?: vscode.WebviewPanel
-    private current?: { kind: 'transaction'; id: string } | { kind: 'host'; host: string }
+    private current?: Current
+    private selected?: string
+    private rowsTimer?: NodeJS.Timeout
     private disposables: vscode.Disposable[] = []
 
     constructor(
         private context: vscode.ExtensionContext,
         private client: AgentClient,
-        private actions: {
-            copyCurl(id: string): Promise<void>
-            replay(id: string): Promise<void>
-            openText(id: string): Promise<void>
-            openBody(id: string, side: 'request' | 'response'): Promise<void>
-        }
+        private actions: PanelActions,
+        private viewType = 'tapline.detail'
     ) {
         this.disposables.push(
             client.onEvent((event) => {
                 if (!this.panel || !this.current) return
                 if (event.type === 'transaction') {
-                    if (
-                        this.current.kind === 'transaction' &&
-                        event.transaction.id === this.current.id
-                    )
-                        this.post({ type: 'transaction', transaction: event.transaction })
-                    else if (
-                        this.current.kind === 'host' &&
-                        event.transaction.host === this.current.host
-                    )
+                    const t = event.transaction
+                    if (this.current.kind === 'transaction' && t.id === this.current.id)
+                        this.post({ type: 'transaction', transaction: t })
+                    else if (this.current.kind === 'host' && t.host === this.current.host)
                         this.postHost(this.current.host)
+                    else if (this.current.kind === 'sequence') {
+                        this.scheduleRows()
+                        if (t.id === this.selected) this.post({ type: 'detail', transaction: t })
+                    }
                 } else if (event.type === 'state') this.replay()
             })
         )
@@ -53,15 +64,35 @@ export class DetailPanel implements vscode.Disposable {
         this.replay()
     }
 
+    showSequence(column = vscode.ViewColumn.Active) {
+        this.current = { kind: 'sequence' }
+        this.ensure(column)
+        this.replay()
+    }
+
+    /** Select a row in the sequence view (used after replaying from it). */
+    select(id: string) {
+        if (this.current?.kind !== 'sequence') return
+        this.selected = id
+        const t = this.client.transactions.get(id)
+        if (t) this.post({ type: 'detail', transaction: t, select: true })
+    }
+
     private replay() {
-        if (!this.current) return
+        if (!this.current || !this.panel) return
         if (this.current.kind === 'transaction') {
             const t = this.client.transactions.get(this.current.id)
             if (t) {
-                this.panel!.title = `${t.method} ${t.host}${t.path.split('?')[0]}`.slice(0, 80)
+                this.panel.title = `${t.method} ${t.host}${t.path.split('?')[0]}`.slice(0, 80)
                 this.post({ type: 'transaction', transaction: t })
             } else this.post({ type: 'gone' })
-        } else this.postHost(this.current.host)
+        } else if (this.current.kind === 'host') this.postHost(this.current.host)
+        else {
+            this.panel.title = vscode.l10n.t('Tapline Sequence')
+            this.postRows()
+            const t = this.selected ? this.client.transactions.get(this.selected) : undefined
+            if (t) this.post({ type: 'detail', transaction: t })
+        }
     }
 
     private postHost(host: string) {
@@ -70,6 +101,17 @@ export class DetailPanel implements vscode.Disposable {
             .filter((t) => t.host === host)
             .sort((a, b) => b.sequence - a.sequence)
         this.post({ type: 'host', summary: { host, transactions } })
+    }
+
+    private postRows() {
+        clearTimeout(this.rowsTimer)
+        this.rowsTimer = undefined
+        this.post({ type: 'sequence', rows: [...this.client.transactions.values()].map(toRow) })
+    }
+
+    private scheduleRows() {
+        if (this.rowsTimer) return
+        this.rowsTimer = setTimeout(() => this.postRows(), 150)
     }
 
     private post(message: HostMessage) {
@@ -82,7 +124,7 @@ export class DetailPanel implements vscode.Disposable {
             return
         }
         const panel = (this.panel = vscode.window.createWebviewPanel(
-            'tapline.detail',
+            this.viewType,
             'Tapline',
             { viewColumn: column, preserveFocus: true },
             {
@@ -95,6 +137,7 @@ export class DetailPanel implements vscode.Disposable {
         panel.webview.html = this.html(panel.webview)
         panel.webview.onDidReceiveMessage((message: PanelMessage) => void this.receive(message))
         panel.onDidDispose(() => {
+            clearTimeout(this.rowsTimer)
             this.panel = undefined
             this.current = undefined
         })
@@ -112,14 +155,26 @@ export class DetailPanel implements vscode.Disposable {
                     return
                 case 'copyCurl':
                     return this.actions.copyCurl(message.id)
-                case 'replay':
-                    return this.actions.replay(message.id)
+                case 'replay': {
+                    const replayed = await this.actions.replay(message.id)
+                    if (this.current?.kind === 'sequence') this.select(replayed.id)
+                    else this.showTransaction(replayed.id)
+                    return
+                }
                 case 'openText':
                     return this.actions.openText(message.id)
                 case 'openBody':
                     return this.actions.openBody(message.id, message.side)
                 case 'open':
                     return this.showTransaction(message.id)
+                case 'select': {
+                    this.selected = message.id
+                    const t = this.client.transactions.get(message.id)
+                    if (t) this.post({ type: 'detail', transaction: t })
+                    return
+                }
+                case 'delete':
+                    return this.actions.delete(message.ids)
             }
         } catch (error) {
             void vscode.window.showErrorMessage(
@@ -139,47 +194,7 @@ export class DetailPanel implements vscode.Disposable {
         const style = webview.asWebviewUri(
             vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.css')
         )
-        const strings = JSON.stringify({
-            overview: vscode.l10n.t('Overview'),
-            request: vscode.l10n.t('Request'),
-            response: vscode.l10n.t('Response'),
-            frames: vscode.l10n.t('Frames'),
-            headers: vscode.l10n.t('Headers'),
-            body: vscode.l10n.t('Body'),
-            raw: vscode.l10n.t('Raw'),
-            pretty: vscode.l10n.t('Pretty'),
-            copy: vscode.l10n.t('Copy'),
-            copyCurl: vscode.l10n.t('Copy as cURL'),
-            replay: vscode.l10n.t('Replay'),
-            openText: vscode.l10n.t('Open as Text'),
-            openEditor: vscode.l10n.t('Open in Editor'),
-            pending: vscode.l10n.t('Waiting for response…'),
-            noBody: vscode.l10n.t('No body'),
-            binary: vscode.l10n.t('Binary body ({0} bytes)'),
-            truncated: vscode.l10n.t(
-                'Body truncated to the retained limit; the full body was forwarded.'
-            ),
-            tunnel: vscode.l10n.t('TLS was not decrypted for this host (see tapline.ssl.hosts).'),
-            gone: vscode.l10n.t('This request is no longer available.'),
-            url: vscode.l10n.t('URL'),
-            method: vscode.l10n.t('Method'),
-            status: vscode.l10n.t('Status'),
-            protocol: vscode.l10n.t('Protocol'),
-            client: vscode.l10n.t('Client'),
-            time: vscode.l10n.t('Time'),
-            duration: vscode.l10n.t('Duration'),
-            sizes: vscode.l10n.t('Size'),
-            sent: vscode.l10n.t('sent'),
-            received: vscode.l10n.t('received'),
-            timing: vscode.l10n.t('Timing'),
-            error: vscode.l10n.t('Error'),
-            requests: vscode.l10n.t('Requests'),
-            hostTitle: vscode.l10n.t('Host overview'),
-            statusCodes: vscode.l10n.t('Status codes'),
-            totalReceived: vscode.l10n.t('Total received'),
-            totalSent: vscode.l10n.t('Total sent'),
-            replayOf: vscode.l10n.t('Replay of an earlier request')
-        })
+        const strings = JSON.stringify(panelStrings())
         return `<!DOCTYPE html>
 <html lang="${vscode.env.language}">
 <head>
@@ -198,7 +213,73 @@ export class DetailPanel implements vscode.Disposable {
     }
 
     dispose() {
+        clearTimeout(this.rowsTimer)
         this.panel?.dispose()
         for (const d of this.disposables) d.dispose()
+    }
+}
+
+/** Localised strings handed to the webview; keys match `t()` calls in src/webview. */
+function panelStrings(): Record<string, string> {
+    return {
+        overview: vscode.l10n.t('Overview'),
+        contents: vscode.l10n.t('Contents'),
+        frames: vscode.l10n.t('Frames'),
+        'sub.headers': vscode.l10n.t('Headers'),
+        'sub.text': vscode.l10n.t('Text'),
+        'sub.json': 'JSON',
+        'sub.raw': vscode.l10n.t('Raw'),
+        'sub.hex': vscode.l10n.t('Hex'),
+        'sub.query': vscode.l10n.t('Query String'),
+        'sub.cookies': vscode.l10n.t('Cookies'),
+        'sub.form': vscode.l10n.t('Form'),
+        copy: vscode.l10n.t('Copy'),
+        copyCurl: vscode.l10n.t('Copy as cURL'),
+        replay: vscode.l10n.t('Replay'),
+        openText: vscode.l10n.t('Open as Text'),
+        openEditor: vscode.l10n.t('Open in Editor'),
+        pending: vscode.l10n.t('Waiting for response…'),
+        pendingShort: vscode.l10n.t('pending'),
+        noBody: vscode.l10n.t('No body'),
+        binary: vscode.l10n.t('Binary body ({0} bytes)'),
+        truncated: vscode.l10n.t(
+            'Body truncated to the retained limit; the full body was forwarded.'
+        ),
+        tunnel: vscode.l10n.t('TLS was not decrypted for this host (see tapline.ssl.hosts).'),
+        gone: vscode.l10n.t('This request is no longer available.'),
+        url: vscode.l10n.t('URL'),
+        method: vscode.l10n.t('Method'),
+        status: vscode.l10n.t('Status'),
+        protocol: vscode.l10n.t('Protocol'),
+        client: vscode.l10n.t('Client'),
+        time: vscode.l10n.t('Time'),
+        duration: vscode.l10n.t('Duration'),
+        sizes: vscode.l10n.t('Size'),
+        sent: vscode.l10n.t('sent'),
+        received: vscode.l10n.t('received'),
+        timing: vscode.l10n.t('Timing'),
+        error: vscode.l10n.t('Error'),
+        requests: vscode.l10n.t('Requests'),
+        hostTitle: vscode.l10n.t('Host overview'),
+        statusCodes: vscode.l10n.t('Status codes'),
+        contentTypes: vscode.l10n.t('Content types'),
+        protocols: vscode.l10n.t('Protocols'),
+        durationSummary: vscode.l10n.t('Durations'),
+        total: vscode.l10n.t('total'),
+        average: vscode.l10n.t('average'),
+        max: vscode.l10n.t('max'),
+        totalReceived: vscode.l10n.t('Total received'),
+        totalSent: vscode.l10n.t('Total sent'),
+        replayOf: vscode.l10n.t('Replay of an earlier request'),
+        filterPlaceholder: vscode.l10n.t('Filter by URL, method or status…'),
+        rowsCount: vscode.l10n.t('{0} of {1}'),
+        selectRow: vscode.l10n.t('Select a request to see its details'),
+        'col.status': vscode.l10n.t('Code'),
+        'col.method': vscode.l10n.t('Method'),
+        'col.host': vscode.l10n.t('Host'),
+        'col.path': vscode.l10n.t('Path'),
+        'col.timestamp': vscode.l10n.t('Start'),
+        'col.duration': vscode.l10n.t('Duration'),
+        'col.responseBytes': vscode.l10n.t('Size')
     }
 }

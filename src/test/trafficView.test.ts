@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '../shared/model'
 
 vi.mock('vscode', () => import('./vscodeMock'))
@@ -46,9 +46,6 @@ function client(items: Transaction[]) {
 }
 
 describe('TrafficView structure mode', () => {
-    beforeEach(() => {
-        mock.config.viewMode = 'structure'
-    })
     const items = [
         make(1, 'https://api.example.com/v1/users?page=1'),
         make(2, 'https://api.example.com/v1/users/42'),
@@ -127,14 +124,5 @@ describe('TrafficView structure mode', () => {
                 .sort()
         ).toEqual(['t1', 't2', 't5'])
         expect(view.selected({ kind: 'host', host: 'api.example.com' })).toHaveLength(4)
-    })
-
-    it('sequence mode lists newest first', () => {
-        mock.config.viewMode = 'sequence'
-        const view = new TrafficView(client(items))
-        expect(view.getChildren().map((n) => (n as any).id)).toEqual(['t5', 't4', 't3', 't2', 't1'])
-        expect(view.getTreeItem({ kind: 'transaction', id: 't1' }).label).toBe(
-            '200  GET  api.example.com/v1/users?page=1'
-        )
     })
 })

@@ -41,7 +41,7 @@ export class MarkdownString {
         public supportThemeIcons?: boolean
     ) {}
 }
-export const config: Record<string, unknown> = { viewMode: 'structure' }
+export const config: Record<string, unknown> = {}
 export const workspace = {
     getConfiguration: () => ({
         get: <T>(key: string, fallback: T) => (config[key] as T) ?? fallback

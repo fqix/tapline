@@ -6,7 +6,7 @@ import { AgentClient } from './client/agentClient'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
 import { TrafficView, type TrafficNode } from './views/trafficView'
-import { DetailPanel } from './panels/detailPanel'
+import { DetailPanel, type PanelActions } from './panels/detailPanel'
 
 let client: AgentClient | undefined
 
@@ -28,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const replay = async (t: Transaction) => {
         if (t.scheme === 'connect' || t.frames.length || t.status === 101 || t.requestBinary)
             throw new Error(vscode.l10n.t('Only HTTP requests with text bodies can be replayed'))
-        const replayed = await vscode.window.withProgress(
+        return vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
                 title: vscode.l10n.t('Replaying {0} {1}', t.method, t.path)
@@ -42,9 +42,8 @@ export async function activate(context: vscode.ExtensionContext) {
                     replayOf: t.id
                 })
         )
-        panel.showTransaction(replayed.id)
     }
-    const panel = new DetailPanel(context, client, {
+    const actions: PanelActions = {
         copyCurl: async (id) => {
             await vscode.env.clipboard.writeText(toCurl(byId(id)))
             void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
@@ -55,8 +54,11 @@ export async function activate(context: vscode.ExtensionContext) {
             void (await vscode.window.showTextDocument(
                 TransactionDocuments.uri(byId(id), `${side}-body`),
                 { preview: true, viewColumn: vscode.ViewColumn.Beside }
-            ))
-    })
+            )),
+        delete: (ids) => client!.delete(ids)
+    }
+    const panel = new DetailPanel(context, client, actions)
+    const sequence = new DetailPanel(context, client, actions, 'tapline.sequence')
     const status = vscode.window.createStatusBarItem(
         'tapline.status',
         vscode.StatusBarAlignment.Left,
@@ -64,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     status.name = 'Tapline'
     status.command = 'tapline.status'
-    context.subscriptions.push(client, view, documents, environment, panel, status)
+    context.subscriptions.push(client, view, documents, environment, panel, sequence, status)
 
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
@@ -196,8 +198,9 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     command('tapline.replay', async (node?: TrafficNode) => {
         const t = one(node)
-        if (t) await replay(t)
+        if (t) panel.showTransaction((await replay(t)).id)
     })
+    command('tapline.openSequence', () => sequence.showSequence())
     command('tapline.delete', async (node?: TrafficNode) => {
         const ids = view.selected(node).map((t) => t.id)
         if (ids.length) await client!.delete(ids)
@@ -247,16 +250,6 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     })
     command('tapline.showLogs', () => client!.output.show())
-    command('tapline.viewStructure', () =>
-        vscode.workspace
-            .getConfiguration('tapline')
-            .update('viewMode', 'structure', vscode.ConfigurationTarget.Global)
-    )
-    command('tapline.viewSequence', () =>
-        vscode.workspace
-            .getConfiguration('tapline')
-            .update('viewMode', 'sequence', vscode.ConfigurationTarget.Global)
-    )
 
     // Connect lazily so a broken core never blocks activation; autoStart opts in.
     void client
