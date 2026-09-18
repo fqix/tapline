@@ -1,13 +1,15 @@
 # Tapline
 
+English | [简体中文](README.zh-CN.md)
+
 Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC, WebSocket and Server-Sent
 Events traffic without leaving VS Code. Tapline routes the integrated terminal and debug
 sessions through a local capture proxy, decrypts TLS with its own root CA, and shows
 every request in the sidebar — no system proxy; the only thing that changes outside
 VS Code is the root certificate you choose to trust (and can remove with one click).
 
-在 VS Code 内捕获并检查集成终端与调试会话发出的 HTTP/HTTPS/HTTP2/HTTP3/gRPC/WebSocket/SSE 流量。
-不修改系统代理；唯一的系统级改动是安装根证书，随时可一键卸载。
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
+or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 
 ## Features
 
@@ -107,6 +109,7 @@ src/
 │   └── types/                   #   host ↔ panel message contract
 ├── providers/transactionDocuments.ts  # read-only tapline:/ virtual documents
 ├── environment/captureEnvironment.ts  # terminal + debug env injection
+├── environment/systemTrust.ts   # install / trust / uninstall the CA in the OS store
 ├── utils/format.ts              # rendering helpers (no vscode imports)
 ├── agent/                       # shared daemon entry, socket protocol
 ├── core/                        # sing-box controller, CA, capture engine
@@ -136,11 +139,24 @@ Press F5 in VS Code to launch the extension development host. `npm run core:test
 the Go tests of the patched packages.
 
 [GitHub Actions CI](https://github.com/fqix/tapline/actions/workflows/ci.yml) runs on
-pushes, pull requests and manual dispatches. On Linux with Node 22 and the Go version
-from `third_party/patches/sing-box/pin.json`, it checks formatting and types, builds the core,
-runs the patched Go tests (with race detection and vet) and Vitest suites on Linux,
-macOS and Windows, and packages x64 and arm64 VSIX artifacts for each platform.
-Platform-specific VSIX artifacts are retained for 14 days.
+pushes, pull requests and manual dispatches. With Node 22 and the Go version from
+`third_party/patches/sing-box/pin.json`, it checks formatting and types, builds the core,
+runs the patched Go tests (with race detection and vet) and the Vitest suites on Linux,
+macOS and Windows, and packages x64 and arm64 VSIX artifacts for each platform
+(retained for 14 days).
+
+## Releasing
+
+CI never publishes. Bump the version, push the tag, then publish a GitHub release for it:
+
+```sh
+npm version patch && git push --follow-tags
+```
+
+The [release workflow](.github/workflows/release.yml) rebuilds all six platform packages,
+publishes them to the VS Code Marketplace (signing in to Azure with a managed identity
+over OIDC — no personal access token) and Open VSX, and attaches the VSIX files to the
+release. It checks that the release tag matches `package.json`.
 
 ## Licence
 
