@@ -54,6 +54,9 @@ describeCore('websocket relay', () => {
                 `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
             )
             const parser = new FrameParser()
+            // The proxy may reset the upstream socket after the close handshake
+            // (ECONNRESET on Windows); without a listener that is an uncaught exception.
+            socket.on('error', () => undefined)
             socket.on('data', (data: Buffer) => {
                 if ((data[0] & 0x0f) === 0x8) return socket.end()
                 for (const text of parser.push(data)) socket.write(frame(`echo:${text}`, false))
