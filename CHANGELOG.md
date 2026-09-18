@@ -3,6 +3,33 @@
 All notable changes to Tapline are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- MCP endpoint served by the capture agent at `http://127.0.0.1:3607/mcp` (Streamable
+  HTTP, `tapline.mcp.enabled` / `tapline.mcp.port`) exposing captured traffic to AI
+  assistants: `status`, `list_requests`, `search`, `get_request`, `get_body`, `replay`,
+  `send`, `export_har`, `start_capture`, `stop_capture`, `set_recording`, `clear`,
+  `delete` and `tapline://requests/{id}` resources.
+- _Tapline: Configure MCP Server…_ offers Cursor one-click install, the URL, an
+  `mcp.json` snippet and a `claude mcp add` command.
+- gRPC decoding: request and response bodies are split into their length-prefixed
+  messages (gzip/deflate and gRPC-Web trailers handled) and decoded with the workspace's
+  `.proto` files (`tapline.grpc.protoFiles`, watched for changes) or by field number when
+  no schema matches. The inspector gets a _Messages_ body view, `grpc-status` colours the
+  status dot and appears in Overview and the tree, the method column reads _gRPC_, and
+  the text document and MCP `get_request` include the decoded messages.
+- Sequence table: a `#` column with the capture sequence number, and draggable column
+  widths (double-click a handle to reset); widths are remembered.
+
+### Changed
+
+- Clearing the session restarts sequence numbers at 1.
+- A window running a newer build replaces the shared capture agent automatically
+  (restoring capture if it was running), so updates and rebuilds take effect without
+  closing every window.
+
 ## [0.2.0] - 2026-09-18
 
 ### Changed

@@ -17,6 +17,10 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
   overview with timing waterfall, request and response pages (headers, query, cookies,
   form, trailers, body as Pretty JSON / Text / Hex), WebSocket frames and SSE events
   streamed live.
+- **gRPC decoding** — messages are split out of the length-prefixed body (gzip/deflate
+  and gRPC-Web included) and decoded with the workspace's `.proto` files
+  (`tapline.grpc.protoFiles`) or, without a schema, by field number; `grpc-status` drives
+  the status colour and the method column reads _gRPC_.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, … configurable) get `HTTP(S)_PROXY` and the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
@@ -26,6 +30,8 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 - **Copy as cURL, export HAR, replay**, status-bar controls, English and 简体中文 UI.
 - **Shared core** — all VS Code windows use one capture agent; the last one to
   close shuts it down.
+- **MCP server** — Copilot Chat, Claude Code, Cursor and other MCP clients can list,
+  search, read, replay and send captured requests (see below).
 
 ## Settings
 
@@ -37,6 +43,8 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 | `tapline.debug.inject` / `debug.types`      | `true` / node, … | Inject into launched debug sessions       |
 | `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | Which hosts are decrypted                 |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Transactions kept and body bytes retained |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants            |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages        |
 
 ## Root certificate
 
@@ -52,6 +60,19 @@ and status bar offer to install it, and `Tapline: Uninstall Root Certificate` re
 
 Firefox and snap/flatpak browsers keep their own stores and need a manual import.
 Set `tapline.ssl.enabled` to `false` to capture without decryption or any certificate.
+
+## MCP server
+
+The capture agent serves an [MCP](https://modelcontextprotocol.io) endpoint at
+`http://127.0.0.1:3607/mcp` (Streamable HTTP; port and on/off in `tapline.mcp.*`) so AI
+assistants can work from real traffic: `status`, `list_requests`, `search`, `get_request`,
+`get_body`, `replay`, `send`, `export_har`, plus `start_capture` / `stop_capture` /
+`set_recording` / `clear` / `delete`, and `tapline://requests/{id}` resources.
+
+Run _Tapline: Configure MCP Server…_ (also in the traffic view's `…` menu) for a one-click
+install in Cursor, the URL, an `mcp.json` snippet, or a `claude mcp add` command. The
+endpoint is up while any window with Tapline is open — no extra process, no `node` on
+`PATH` — and, like the proxy, listens on the loopback interface only.
 
 ## How it works
 
