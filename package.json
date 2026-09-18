@@ -57,7 +57,13 @@
         "viewsWelcome": [
             {
                 "view": "tapline.traffic",
-                "contents": "%view.welcome%"
+                "contents": "%view.welcome.stopped%",
+                "when": "!tapline.running"
+            },
+            {
+                "view": "tapline.traffic",
+                "contents": "%view.welcome.running%",
+                "when": "tapline.running"
             }
         ],
         "languages": [

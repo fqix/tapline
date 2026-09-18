@@ -2,7 +2,6 @@
     "extension.description": "Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC and WebSocket traffic from VS Code terminals and debug sessions.",
     "view.traffic": "Traffic",
     "view.traffic.title": "Tapline Traffic",
-    "view.welcome": "Capture is stopped.\n[Start Capture](command:tapline.start)\nTerminals opened while capture runs are routed through Tapline automatically.",
     "command.start": "Start Capture",
     "command.stop": "Stop Capture",
     "command.toggleRecording": "Pause/Resume Recording",
@@ -30,5 +29,7 @@
     "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",
     "command.openHost": "Open Host Overview",
     "command.openText": "Open as Text",
-    "command.openSequence": "Open Sequence View"
+    "command.openSequence": "Open Sequence View",
+    "view.welcome.stopped": "Capture is stopped.\n[Start Capture](command:tapline.start)\nOnce running, new integrated terminals and debug sessions are routed through Tapline automatically.",
+    "view.welcome.running": "Capture is running; no requests yet.\n[New Captured Terminal](command:tapline.openTerminal)\nRun any curl, npm, pip or git command there, or start a debug session — requests appear here as they happen.\n[Copy Root Certificate Path](command:tapline.copyCertificatePath) for tools that need the CA configured manually."
 }

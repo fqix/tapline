@@ -116,14 +116,48 @@ export async function activate(context: vscode.ExtensionContext) {
     const command = (name: string, fn: (...args: any[]) => unknown) =>
         context.subscriptions.push(vscode.commands.registerCommand(name, guarded(fn)))
 
+    const started = async () => {
+        const choice = await vscode.window.showInformationMessage(
+            vscode.l10n.t(
+                'Tapline is capturing on 127.0.0.1:{0}. New terminals and debug sessions are routed through it automatically.',
+                client!.port
+            ),
+            vscode.l10n.t('New Captured Terminal'),
+            vscode.l10n.t('Show Traffic')
+        )
+        if (choice === vscode.l10n.t('New Captured Terminal'))
+            await vscode.commands.executeCommand('tapline.openTerminal')
+        else if (choice === vscode.l10n.t('Show Traffic'))
+            await vscode.commands.executeCommand('tapline.traffic.focus')
+    }
     command('tapline.start', async () => {
-        await client!.start()
-        void vscode.window.setStatusBarMessage(
-            vscode.l10n.t('Tapline capturing on 127.0.0.1:{0}', client!.port),
-            4000
+        try {
+            await client!.start()
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            const choice = await vscode.window.showErrorMessage(
+                vscode.l10n.t('Tapline could not start capture: {0}', message),
+                vscode.l10n.t('Show Logs'),
+                ...(/port/i.test(message) ? [vscode.l10n.t('Change Port')] : [])
+            )
+            if (choice === vscode.l10n.t('Show Logs')) client!.output.show()
+            else if (choice === vscode.l10n.t('Change Port'))
+                await vscode.commands.executeCommand(
+                    'workbench.action.openSettings',
+                    'tapline.port'
+                )
+            return
+        }
+        void started()
+    })
+    command('tapline.stop', async () => {
+        await client!.stop()
+        void vscode.window.showInformationMessage(
+            vscode.l10n.t(
+                'Tapline capture stopped. Terminals opened from now on use the normal network.'
+            )
         )
     })
-    command('tapline.stop', () => client!.stop())
     command('tapline.toggleRecording', () => client!.setRecording(!client!.recording))
     command('tapline.clear', () => client!.clear())
     command('tapline.status', async () => {
