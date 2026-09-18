@@ -392,3 +392,15 @@ table.list tbody tr:hover td.row-actions button,
 table.list tbody tr.selected td.row-actions button {
     opacity: 1;
 }
+
+.server-events .frame > div {
+    min-width: 0;
+}
+.server-events .event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    overflow-wrap: anywhere;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 4px;
+}

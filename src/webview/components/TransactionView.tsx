@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { toCurl, type Transaction } from '../../shared/model'
 import { t } from '../lib/i18n'
 import { saveState, vscode } from '../lib/vscode'
+import { ServerEvents } from './ServerEvents'
 import { Frames } from './Frames'
 import { Overview } from './Overview'
 import { ContentsView } from './ContentsView'
 import { StatusBadge } from './StatusBadge'
 
-type Tab = 'overview' | 'contents' | 'frames'
+type Tab = 'overview' | 'contents' | 'frames' | 'events'
 
 export function TransactionView({
     transaction: x,
@@ -22,7 +23,13 @@ export function TransactionView({
         saveState({ tab: next })
     }
     const isWS = x.frames.length > 0 || x.status === 101 || x.scheme.startsWith('ws')
-    const tabs: Tab[] = ['overview', 'contents', ...(isWS ? (['frames'] as Tab[]) : [])]
+    const tabs: Tab[] = [
+        'overview',
+        'contents',
+        ...(isWS ? (['frames'] as Tab[]) : []),
+        ...(x.events ? (['events'] as Tab[]) : [])
+    ]
+    const active = tabs.includes(tab) ? tab : 'overview'
     return (
         <div className={compact ? 'page compact' : 'page'}>
             <header className="summary">
@@ -58,16 +65,17 @@ export function TransactionView({
                 {tabs.map((name) => (
                     <button
                         key={name}
-                        className={tab === name ? 'active' : ''}
+                        className={active === name ? 'active' : ''}
                         onClick={() => select(name)}
                     >
                         {t(name)}
                     </button>
                 ))}
             </nav>
-            {tab === 'overview' && <Overview x={x} />}
-            {tab === 'contents' && <ContentsView x={x} />}
-            {tab === 'frames' && <Frames x={x} />}
+            {active === 'overview' && <Overview x={x} />}
+            {active === 'contents' && <ContentsView x={x} />}
+            {active === 'frames' && <Frames x={x} />}
+            {active === 'events' && <ServerEvents x={x} />}
         </div>
     )
 }

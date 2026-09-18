@@ -90,5 +90,10 @@
     "Proxy plus curl/git/Go/Ruby trust (the default for new terminals)": "代理 + curl/git/Go/Ruby 的信任变量（新终端的默认值）",
     "Everything": "全部",
     "All profiles at once; JVMs print a \"Picked up JAVA_TOOL_OPTIONS\" line": "一次注入所有 profile；JVM 启动时会打印一行 \"Picked up JAVA_TOOL_OPTIONS\"",
-    "Captured terminal: which runtime will you use?": "抓包终端：你将使用哪种运行时？"
+    "Captured terminal: which runtime will you use?": "抓包终端：你将使用哪种运行时？",
+    "SSE Events": "SSE 事件",
+    "Waiting for events…": "等待事件…",
+    "No complete events were captured.": "未捕获到完整事件。",
+    "Only recent events within the capture limit are retained. Oversized events are omitted; all traffic is forwarded.": "仅保留抓包上限内的最近事件。超大事件已略过；所有流量均正常转发。",
+    "{0} events": "{0} 个事件"
 }

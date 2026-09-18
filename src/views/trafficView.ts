@@ -117,7 +117,7 @@ export class TrafficView implements vscode.TreeDataProvider<TrafficNode>, vscode
         const leaf = t.scheme === 'connect' ? t.path : (segments(t).pop() ?? '/')
         const item = new vscode.TreeItem(`${leaf}${query}`)
         item.id = t.id
-        item.description = `${t.method} · ${statusLabel(t)}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}`
+        item.description = `${t.method} · ${statusLabel(t)}${t.state === 'pending' ? '' : ` · ${duration(t.duration)}`}${t.events ? ` · ${vscode.l10n.t('{0} events', t.events.length)}` : ''}`
         item.tooltip = new vscode.MarkdownString(
             `**${t.method}** ${t.url}\n\n` +
                 `${t.status ?? ''} ${t.statusMessage ?? ''} · ${t.scheme}${t.httpVersion ? ' HTTP/' + t.httpVersion : ''}\n\n` +
@@ -181,6 +181,7 @@ function icon(t: Transaction): vscode.ThemeIcon {
         return new vscode.ThemeIcon('error', new vscode.ThemeColor('list.errorForeground'))
     if (t.frames.length || t.scheme.startsWith('ws') || t.status === 101)
         return new vscode.ThemeIcon('plug')
+    if (t.events) return new vscode.ThemeIcon('radio-tower')
     if (t.scheme === 'connect') return new vscode.ThemeIcon('lock')
     const status = t.status ?? 0
     if (status >= 500)
