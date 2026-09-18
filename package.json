@@ -57,6 +57,21 @@
         "viewsWelcome": [
             {
                 "view": "tapline.traffic",
+                "contents": "%view.welcome.certificate%",
+                "when": "!tapline.running && tapline.certificateStatus == 'missing'"
+            },
+            {
+                "view": "tapline.traffic",
+                "contents": "%view.welcome.certificateTrust%",
+                "when": "!tapline.running && tapline.certificateStatus == 'installed'"
+            },
+            {
+                "view": "tapline.traffic",
+                "contents": "%view.welcome.certificateTrusted%",
+                "when": "!tapline.running && tapline.certificateStatus == 'trusted'"
+            },
+            {
+                "view": "tapline.traffic",
                 "contents": "%view.welcome.stopped%",
                 "when": "!tapline.running"
             },
@@ -173,6 +188,29 @@
                 "category": "Tapline"
             },
             {
+                "command": "tapline.installCertificate",
+                "title": "%command.installCertificate%",
+                "category": "Tapline",
+                "icon": "$(shield)"
+            },
+            {
+                "command": "tapline.trustCertificate",
+                "title": "%command.trustCertificate%",
+                "category": "Tapline",
+                "icon": "$(verified)"
+            },
+            {
+                "command": "tapline.uninstallCertificate",
+                "title": "%command.uninstallCertificate%",
+                "category": "Tapline",
+                "icon": "$(workspace-untrusted)"
+            },
+            {
+                "command": "tapline.checkCertificate",
+                "title": "%command.checkCertificate%",
+                "category": "Tapline"
+            },
+            {
                 "command": "tapline.showLogs",
                 "title": "%command.showLogs%",
                 "category": "Tapline",
@@ -242,6 +280,31 @@
                     "command": "tapline.revealCertificate",
                     "when": "view == tapline.traffic",
                     "group": "3_cert@2"
+                },
+                {
+                    "command": "tapline.installCertificate",
+                    "when": "view == tapline.traffic && tapline.certificateStatus != 'trusted' && tapline.certificateStatus != 'installed'",
+                    "group": "navigation@0"
+                },
+                {
+                    "command": "tapline.trustCertificate",
+                    "when": "view == tapline.traffic && tapline.certificateStatus == 'installed'",
+                    "group": "navigation@0"
+                },
+                {
+                    "command": "tapline.uninstallCertificate",
+                    "when": "view == tapline.traffic && tapline.certificateStatus == 'trusted'",
+                    "group": "navigation@0"
+                },
+                {
+                    "command": "tapline.uninstallCertificate",
+                    "when": "view == tapline.traffic && tapline.certificateStatus == 'installed'",
+                    "group": "3_cert@5"
+                },
+                {
+                    "command": "tapline.checkCertificate",
+                    "when": "view == tapline.traffic",
+                    "group": "3_cert@6"
                 },
                 {
                     "command": "tapline.showLogs",

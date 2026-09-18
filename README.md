@@ -1,12 +1,13 @@
 # Tapline
 
-Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC and WebSocket traffic without
-leaving VS Code. Tapline routes the integrated terminal and debug sessions through a
-local capture proxy, decrypts TLS with its own root CA, and shows every request in the
-sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
+Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC, WebSocket and Server-Sent
+Events traffic without leaving VS Code. Tapline routes the integrated terminal and debug
+sessions through a local capture proxy, decrypts TLS with its own root CA, and shows
+every request in the sidebar — no system proxy; the only thing that changes outside
+VS Code is the root certificate you choose to trust (and can remove with one click).
 
-在 VS Code 内捕获并检查集成终端与调试会话发出的 HTTP/HTTPS/HTTP2/HTTP3/gRPC/WebSocket 流量。
-不修改系统代理，不需要管理员权限。
+在 VS Code 内捕获并检查集成终端与调试会话发出的 HTTP/HTTPS/HTTP2/HTTP3/gRPC/WebSocket/SSE 流量。
+不修改系统代理；唯一的系统级改动是安装根证书，随时可一键卸载。
 
 ## Features
 
@@ -28,9 +29,14 @@ sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
   `npm_config_cafile`, `CARGO_HTTP_CAINFO`, `DENO_CERT`,
   `GRPC_DEFAULT_SSL_ROOTS_FILE_PATH`, and `JAVA_TOOL_OPTIONS` (proxy system
   properties plus a PKCS#12 trust store holding the Mozilla roots and the Tapline
-  CA). Trust is per process — nothing is added to the OS trust store.
+  CA), so tools that ignore the OS store still trust the CA.
+- **One-click root certificate** — _Install_, _Trust_ and _Uninstall Root
+  Certificate_ commands manage the CA in the OS store on macOS (login keychain),
+  Windows (current-user Trusted Root) and Linux (distribution anchors via `sudo`).
+  Capture refuses to start until the certificate is trusted, so HTTPS decryption
+  never silently fails.
 - **Status bar control** — start/stop capture, pause recording, open a captured
-  terminal.
+  terminal, install or remove the certificate.
 - **Copy as cURL, export HAR, replay** — replays go through the proxy and are
   recorded like any other request.
 - **Shared core** — every VS Code window talks to one capture agent; the last window
@@ -65,12 +71,24 @@ matched by `tapline.ssl.hosts` are tunnelled opaquely. See
 | `tapline.maxEntries`                        | `2000`              | Live transactions kept in memory                 |
 | `tapline.maxBodyKiB`                        | `512`               | Retained body bytes per direction                |
 
+### Root certificate
+
 The root certificate lives in the extension's global storage (`Tapline: Copy Root
 Certificate Path`): `ca.pem`, the private key `ca.key` (0600) and `ca.p12`, a Java trust
-store (password `changeit`). Only processes told to trust it (via the injected variables,
-or by importing it) accept intercepted connections; nothing is installed into the OS
-trust store, so browsers and system frameworks (URLSession, .NET on macOS) are not captured
-unless you import the certificate yourself.
+store (password `changeit`). With `tapline.ssl.enabled` on, capture only starts once the
+operating system trusts the CA; the sidebar, the status-bar menu and the start command
+all offer to install it, and `Tapline: Uninstall Root Certificate` removes it again.
+
+| Platform | Install / Trust                                                                                                                                                                                        | Uninstall                                             |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| macOS    | `security add-certificates` / `add-trusted-cert -r trustRoot` in the login keychain (system password dialog)                                                                                           | `security remove-trusted-cert` + `delete-certificate` |
+| Windows  | `certutil -user -addstore Root` (Windows confirmation dialog)                                                                                                                                          | `certutil -user -delstore Root <sha1>`                |
+| Linux    | anchor in `/usr/local/share/ca-certificates`, `/etc/pki/ca-trust/source/anchors` or `/etc/ca-certificates/trust-source/anchors`, then the distribution's update command, run with `sudo` in a terminal | remove the anchor and rerun the update command        |
+
+On macOS _Install_ and _Trust_ are separate steps (a certificate can sit in the keychain
+untrusted); elsewhere installing implies trust. Firefox and snap/flatpak browsers keep
+their own stores and need a manual import. Set `tapline.ssl.enabled` to `false` to
+capture without decryption and without any certificate.
 
 ## Layout
 
