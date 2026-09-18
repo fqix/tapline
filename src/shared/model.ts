@@ -11,6 +11,15 @@ export interface Frame {
     data: string
 }
 
+export interface ServerEvent {
+    id: string
+    time: number
+    event: string
+    data: string
+    lastEventId: string
+    retry?: number
+}
+
 export interface Timings {
     dns?: number
     connect?: number
@@ -54,6 +63,9 @@ export interface Transaction {
     tls: boolean
     error?: string
     frames: Frame[]
+    /** Present for text/event-stream responses, including streams awaiting their first event. */
+    events?: ServerEvent[]
+    eventsTruncated?: boolean
     replayOf?: string
 }
 

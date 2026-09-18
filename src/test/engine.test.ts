@@ -22,6 +22,13 @@ describeCore('engine with the bundled core', () => {
 
     beforeAll(async () => {
         plain = await httpServer((req, res) => {
+            if (req.url === '/events') {
+                res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' })
+                res.write(': hello\ndata: one\n\n')
+                setTimeout(() => res.write('event: tick\nid: 2\ndata: two\ndata: lines\n\n'), 50)
+                setTimeout(() => res.end('data: unfinished'), 100)
+                return
+            }
             const chunks: Buffer[] = []
             req.on('data', (c) => chunks.push(c))
             req.on('end', () => {
@@ -132,6 +139,36 @@ describeCore('engine with the bundled core', () => {
         expect(JSON.parse(replayed.responseBody).body).toBe('body')
         expect(replayed.requestHeaders['x-test']).toBe('a')
         expect(replayed.url).toBe(url)
+    })
+
+    it('parses server-sent events as they stream', async () => {
+        const url = `http://127.0.0.1:${plain.port}/events`
+        const seen: number[] = []
+        const listener = (event: {
+            type: string
+            transaction?: { url: string; events?: unknown[] }
+        }) => {
+            if (event.type === 'transaction' && event.transaction?.url === url)
+                seen.push(event.transaction.events?.length ?? -1)
+        }
+        engine.on('event', listener)
+        try {
+            const reply = await viaProxy(engine.settings.port, url)
+            expect(reply.body).toContain('data: unfinished')
+            const t = await settled(engine, (t) => t.url === url)
+            expect(
+                t.events?.map((e) => ({ event: e.event, data: e.data, id: e.lastEventId }))
+            ).toEqual([
+                { event: 'message', data: 'one', id: '' },
+                { event: 'tick', data: 'two\nlines', id: '2' }
+            ])
+            expect(t.eventsTruncated).toBeFalsy()
+            expect(t.responseBody).toContain('data: unfinished')
+            // The first event was published before the second arrived.
+            expect(seen).toContain(1)
+        } finally {
+            engine.off('event', listener)
+        }
     })
 
     it('truncates retained bodies beyond the limit while forwarding in full', async () => {

@@ -10,6 +10,7 @@ import {
     ensureTruststore,
     type RootIdentity
 } from './certificate'
+import { SSEParser } from './sse'
 import { Inspector, verifyCore, type Client, type Handlers } from './inspector'
 import {
     defaultSettings,
@@ -54,6 +55,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     private sequence = 0
     private starting?: Promise<void>
     private captures = new Map<string, { request: Capture; response: Capture }>()
+    private eventStreams = new WeakMap<Transaction, SSEParser>()
     private started = new Map<string, number>()
 
     constructor(
@@ -224,6 +226,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         const started = this.started.get(t.id)
         if (started !== undefined) t.duration = Math.round((performance.now() - started) * 10) / 10
         this.started.delete(t.id)
+        this.eventStreams.delete(t)
         t.state = error ? 'error' : 'completed'
         if (error) t.error = error
         this.publish(t)
@@ -314,11 +317,52 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         t.statusMessage = info.statusMessage
         t.httpVersion = info.httpVersion ?? t.httpVersion
         t.responseHeaders = flatten(info.headers)
+        const contentType = Object.entries(t.responseHeaders).find(
+            ([name]) => name.toLowerCase() === 'content-type'
+        )?.[1]
+        if (contentType?.split(';')[0].trim().toLowerCase() === 'text/event-stream') {
+            t.events = []
+            let retained = 0
+            const sizes: number[] = []
+            const limit = this.settings.maxBodyBytes
+            this.eventStreams.set(
+                t,
+                new SSEParser(
+                    limit,
+                    (event) => {
+                        const size = Buffer.byteLength(event.data + event.event + event.lastEventId)
+                        if (size > limit) {
+                            t.eventsTruncated = true
+                            return
+                        }
+                        t.events!.push({ ...event, id: randomUUID(), time: Date.now() })
+                        sizes.push(size)
+                        retained += size
+                        while (t.events!.length > 500 || retained > limit) {
+                            t.events!.shift()
+                            retained -= sizes.shift()!
+                            t.eventsTruncated = true
+                        }
+                    },
+                    () => {
+                        t.eventsTruncated = true
+                    }
+                )
+            )
+        }
         if (info.timings) t.timings = info.timings
         this.publish(t)
     }
     responseData(id: string, chunk: Buffer) {
         this.capture(id, 'response', chunk)
+        const t = this.transactions.get(id)
+        const parser = t && this.eventStreams.get(t)
+        if (!t || !parser) return
+        parser.push(chunk)
+        const capture = this.captures.get(id)?.response
+        if (capture && t.responseBody.length < this.settings.maxBodyBytes)
+            t.responseBody = Buffer.concat(capture.chunks).toString('utf8')
+        this.publish(t)
     }
     responseEnd(id: string, trailers: Headers) {
         this.seal(id, 'response')

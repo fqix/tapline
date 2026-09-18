@@ -225,6 +225,12 @@ function panelStrings(): Record<string, string> {
         overview: vscode.l10n.t('Overview'),
         contents: vscode.l10n.t('Contents'),
         frames: vscode.l10n.t('Frames'),
+        events: vscode.l10n.t('SSE Events'),
+        eventsWaiting: vscode.l10n.t('Waiting for events…'),
+        eventsEmpty: vscode.l10n.t('No complete events were captured.'),
+        eventsTruncated: vscode.l10n.t(
+            'Only recent events within the capture limit are retained. Oversized events are omitted; all traffic is forwarded.'
+        ),
         'sub.headers': vscode.l10n.t('Headers'),
         'sub.text': vscode.l10n.t('Text'),
         'sub.json': 'JSON',

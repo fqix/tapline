@@ -16,7 +16,8 @@ sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
   per-row replay. A request's detail has _Overview_ (status, protocol, client, sizes,
   timing waterfall) and _Contents_ — request above, response below, each with
   Headers / Text / JSON / Raw / Hex sub-tabs plus Query String, Cookies and Form when
-  present — and _Frames_ for WebSockets. Clicking a host shows its summary (status
+  present — _Frames_ for WebSockets and _SSE Events_ for `text/event-stream`
+  responses, both filling in live while the connection is open. Clicking a host shows its summary (status
   codes, content types, protocols, durations, bytes) with a filterable request list.
   Bodies can also be opened as editor documents or the whole exchange as text.
 - **Terminal and debug capture** — while capture runs, new integrated terminals and
