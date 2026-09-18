@@ -167,6 +167,8 @@ export interface AgentState {
     coreVersion?: string
     /** Port the MCP endpoint is listening on, 0 when disabled or failed. */
     mcpPort?: number
+    /** Modification time of the agent script, so clients notice a stale agent. */
+    build?: number
 }
 
 export type Event =

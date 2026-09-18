@@ -4,7 +4,7 @@
 // sing-box down. The extension starts it with ELECTRON_RUN_AS_NODE=1.
 import { createInterface } from 'node:readline'
 import net from 'node:net'
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { Engine } from '../core/engine'
 import { McpEndpoint } from '../mcp/endpoint'
 import type { AgentState, Event } from '../shared/model'
@@ -17,6 +17,8 @@ if (!directory || !corePath) {
     process.exit(2)
 }
 mkdirSync(directory, { recursive: true, mode: 0o700 })
+/** Identifies this build; a client from a newer build asks this agent to shut down. */
+const build = statSync(process.argv[1]).mtimeMs
 const clients = new Set<net.Socket>()
 const engine = new Engine(directory, corePath)
 const mcp = new McpEndpoint(
@@ -40,7 +42,8 @@ function state(): AgentState {
         clients: clients.size,
         pid: process.pid,
         coreVersion: engine.coreVersion,
-        mcpPort: mcp.port
+        mcpPort: mcp.port,
+        build
     }
 }
 function send(socket: net.Socket, message: Message) {
@@ -100,6 +103,9 @@ async function handle(request: Request): Promise<unknown> {
             return engine.compose(request.request)
         case 'logs':
             return engine.logs
+        case 'shutdown':
+            setImmediate(() => shutdown(0))
+            return state()
     }
 }
 
