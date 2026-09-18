@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import net from 'node:net'
 import { join } from 'node:path'
 import { pipePath } from '../agent/paths'
@@ -52,6 +52,8 @@ export class AgentClient implements vscode.Disposable {
     private readonly events = new vscode.EventEmitter<Event>()
     readonly onEvent = this.events.event
     private disposed = false
+    /** Set while replacing a stale agent so the close handler does not race the respawn. */
+    private restarting = false
     /** Absolute .proto paths found in the workspace; pushed to the agent with the settings. */
     protoFiles: string[] = []
 
@@ -125,7 +127,16 @@ export class AgentClient implements vscode.Disposable {
         return this.ready
     }
 
-    private async establish() {
+    /** Build stamp of the bundled agent script; compared with the running agent's. */
+    private build() {
+        try {
+            return statSync(join(this.context.extensionPath, 'dist', 'agent.js')).mtimeMs
+        } catch {
+            return undefined
+        }
+    }
+
+    private async establish(replaced = false) {
         const directory = this.context.globalStorageUri.fsPath
         const path = pipePath(directory)
         let socket = await this.dial(path).catch(() => undefined)
@@ -145,6 +156,32 @@ export class AgentClient implements vscode.Disposable {
         }
         this.attach(socket)
         this.state = await this.call('hello', { settings: this.settings() })
+        // A window running a newer build (update or rebuild) replaces the shared agent so
+        // engine changes take effect without closing every window.
+        const build = this.build()
+        if (!replaced && build && this.state.build !== build) {
+            this.output.info(
+                `Capture agent (pid ${this.state.pid}) is from another build; replacing it`
+            )
+            const wasRunning = this.state.running
+            this.restarting = true
+            try {
+                const closed = new Promise<void>((resolve) => socket.once('close', resolve))
+                // Agents that predate the build stamp do not know `shutdown`; SIGTERM runs
+                // the same clean shutdown (they never survive the window on their own).
+                if (this.state.build) await this.call('shutdown', {}).catch(() => {})
+                else if (this.state.pid) process.kill(this.state.pid, 'SIGTERM')
+                await Promise.race([closed, new Promise((r) => setTimeout(r, 5000))])
+            } catch (error) {
+                this.output.warn(`Could not replace the capture agent: ${error}`)
+            } finally {
+                this.restarting = false
+            }
+            if (this.socket) return this.resync()
+            await this.establish(true)
+            if (wasRunning) await this.start()
+            return
+        }
         await this.resync()
     }
 
@@ -201,7 +238,7 @@ export class AgentClient implements vscode.Disposable {
         socket.on('close', () => {
             if (this.socket !== socket) return
             this.socket = undefined
-            this.ready = undefined
+            if (!this.restarting) this.ready = undefined
             for (const waiter of this.pending.values())
                 waiter.reject(
                     new Error(vscode.l10n.t('Lost connection to the Tapline capture agent'))
@@ -209,7 +246,8 @@ export class AgentClient implements vscode.Disposable {
             this.pending.clear()
             this.state = { ...this.state, running: false, clients: 0 }
             this.events.fire({ type: 'state', state: this.state })
-            if (!this.disposed) setTimeout(() => void this.connect().catch(() => {}), 1000)
+            if (!this.disposed && !this.restarting)
+                setTimeout(() => void this.connect().catch(() => {}), 1000)
         })
     }
 

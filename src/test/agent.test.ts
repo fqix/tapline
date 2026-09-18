@@ -108,4 +108,24 @@ describeCore('shared agent', () => {
         // Grace period is 3 s; sing-box must be gone with the agent.
         expect(await exited).toBe(0)
     }, 20000)
+
+    it('reports its build and exits on shutdown so a newer build can replace it', async () => {
+        const again = spawn(process.execPath, [script, directory, CORE], {
+            stdio: ['ignore', 'pipe', 'pipe']
+        })
+        const gone = new Promise<number | null>((resolve) => again.once('exit', resolve))
+        await new Promise<void>((resolve) =>
+            createInterface({ input: again.stdout! }).once('line', () => resolve())
+        )
+        const path = pipePath(directory)
+        const client = new TestClient()
+        await client.connect(path)
+        const hello = await client.call('hello', {
+            settings: { ...defaultSettings, port: await freePort(), mcpPort: 0 }
+        })
+        expect(hello.build).toBeTypeOf('number')
+        expect((await client.call('shutdown')).pid).toBe(again.pid)
+        expect(await gone).toBe(0)
+        if (process.platform !== 'win32') expect(existsSync(path)).toBe(false)
+    }, 20000)
 })

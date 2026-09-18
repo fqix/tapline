@@ -20,6 +20,8 @@ export type Request =
     | { method: 'delete'; ids: string[] }
     | { method: 'compose'; request: ComposeRequest }
     | { method: 'logs' }
+    /** Stop capture and exit so a newer build can take over; clients respawn it. */
+    | { method: 'shutdown' }
 
 export interface Responses {
     hello: AgentState
@@ -33,6 +35,7 @@ export interface Responses {
     delete: AgentState
     compose: Transaction
     logs: LogEntry[]
+    shutdown: AgentState
 }
 
 export type Message =
