@@ -65,7 +65,7 @@ jobs:
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --yes ovsx@1 publish dist/*.vsix
+        run: npx --yes ovsx@1 publish --packagePath dist/*.vsix
 
       - name: Attach VSIX packages to the release
         env:
