@@ -92,6 +92,8 @@ export interface AgentState {
     recording: boolean
     port: number
     certificatePath: string
+    /** PKCS#12 trust store (public roots + Tapline CA) for JVM clients. */
+    truststorePath: string
     clients: number
     pid: number
     coreVersion?: string

@@ -20,10 +20,14 @@ sidebar — no system proxy, no admin rights, nothing changes outside VS Code.
   codes, content types, protocols, durations, bytes) with a filterable request list.
   Bodies can also be opened as editor documents or the whole exchange as text.
 - **Terminal and debug capture** — while capture runs, new integrated terminals and
-  debug sessions (`node`, `python`, `go`, … configurable) receive `HTTP(S)_PROXY`
-  plus CA variables (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`,
-  `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`, …). Tools that honour those variables are
-  captured automatically; `NODE_USE_ENV_PROXY=1` covers Node 24+ `fetch`.
+  debug sessions (`node`, `python`, `go`, `java`, … configurable) receive
+  `HTTP(S)_PROXY` plus per-tool CA variables: `SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`
+  (+ `NODE_USE_ENV_PROXY` for Node 22.21+/24 `fetch`), `REQUESTS_CA_BUNDLE`,
+  `PIP_CERT`, `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`, `AWS_CA_BUNDLE`,
+  `npm_config_cafile`, `CARGO_HTTP_CAINFO`, `DENO_CERT`,
+  `GRPC_DEFAULT_SSL_ROOTS_FILE_PATH`, and `JAVA_TOOL_OPTIONS` (proxy system
+  properties plus a PKCS#12 trust store holding the Mozilla roots and the Tapline
+  CA). Trust is per process — nothing is added to the OS trust store.
 - **Status bar control** — start/stop capture, pause recording, open a captured
   terminal.
 - **Copy as cURL, export HAR, replay** — replays go through the proxy and are
@@ -61,8 +65,11 @@ matched by `tapline.ssl.hosts` are tunnelled opaquely. See
 | `tapline.maxBodyKiB`                        | `512`               | Retained body bytes per direction                |
 
 The root certificate lives in the extension's global storage (`Tapline: Copy Root
-Certificate Path`). Only processes told to trust it (via the injected variables, or by
-importing it) accept intercepted connections; nothing is installed into the OS trust store.
+Certificate Path`): `ca.pem`, the private key `ca.key` (0600) and `ca.p12`, a Java trust
+store (password `changeit`). Only processes told to trust it (via the injected variables,
+or by importing it) accept intercepted connections; nothing is installed into the OS
+trust store, so browsers and system frameworks (URLSession, .NET on macOS) are not captured
+unless you import the certificate yourself.
 
 ## Layout
 

@@ -34,7 +34,11 @@ export class CaptureEnvironment implements vscode.Disposable {
     }
 
     private variables() {
-        return captureEnvironment(this.client.port, this.client.certificatePath)
+        return captureEnvironment(
+            this.client.port,
+            this.client.certificatePath,
+            this.client.truststorePath
+        )
     }
 
     private apply() {

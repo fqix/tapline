@@ -38,6 +38,7 @@ export class AgentClient implements vscode.Disposable {
         recording: true,
         port: 0,
         certificatePath: '',
+        truststorePath: '',
         clients: 0,
         pid: 0
     }
@@ -87,6 +88,9 @@ export class AgentClient implements vscode.Disposable {
     }
     get certificatePath() {
         return this.state.certificatePath
+    }
+    get truststorePath() {
+        return this.state.truststorePath
     }
     get connected() {
         return !!this.socket && !this.socket.destroyed

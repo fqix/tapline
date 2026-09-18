@@ -96,6 +96,16 @@ describe('format', () => {
         const env = captureEnvironment(6070, '/tmp/ca.pem')
         expect(env.HTTPS_PROXY).toBe('http://127.0.0.1:6070')
         expect(env.NODE_EXTRA_CA_CERTS).toBe('/tmp/ca.pem')
+        expect(env.PIP_CERT).toBe('/tmp/ca.pem')
         expect(env.NO_PROXY).toContain('localhost')
+        expect(env.JAVA_TOOL_OPTIONS).toBeUndefined()
+        const java = captureEnvironment(
+            6070,
+            '/tmp/ca.pem',
+            '/Users/me/Application Support/ca.p12'
+        ).JAVA_TOOL_OPTIONS
+        expect(java).toContain('-Dhttps.proxyPort=6070')
+        expect(java).toContain('-Djavax.net.ssl.trustStore="/Users/me/Application Support/ca.p12"')
+        expect(java).toContain('-Djavax.net.ssl.trustStoreType=PKCS12')
     })
 })
