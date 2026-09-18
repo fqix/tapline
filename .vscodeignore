@@ -1,6 +1,8 @@
 **
 !dist/extension.js
 !dist/agent.js
+!dist/webview.js
+!dist/webview.css
 !core/sing-box*
 !core/LICENSE
 !media/**

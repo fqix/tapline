@@ -19,7 +19,6 @@
     "command.copyCertificatePath": "复制根证书路径",
     "command.revealCertificate": "在文件管理器中显示根证书",
     "command.showLogs": "显示日志",
-    "command.toggleGroupByHost": "按主机分组",
     "config.port": "抓包代理监听的回环端口。与 Tapline 桌面版（6060）同时运行时请保持不同。",
     "config.autoStart": "VS Code 启动时自动开始抓包。",
     "config.terminal.inject": "抓包运行期间，为新建的集成终端注入 HTTP(S)_PROXY 与 CA 证书环境变量。",
@@ -28,6 +27,12 @@
     "config.ssl.enabled": "对匹配 tapline.ssl.hosts 的主机解密 HTTPS。",
     "config.ssl.hosts": "需要解密 TLS 流量的主机模式（支持通配符）。",
     "config.maxEntries": "内存中保留的最大请求条数。",
-    "config.groupByHost": "流量视图按主机分组。",
-    "config.maxBodyKiB": "每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。"
+    "config.maxBodyKiB": "每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。",
+    "command.openHost": "打开域名概览",
+    "command.openText": "以文本方式打开",
+    "command.viewStructure": "结构视图（按域名）",
+    "command.viewSequence": "时序视图（按时间）",
+    "config.viewMode": "流量视图的列表方式。",
+    "config.viewMode.structure": "按域名再按路径分组（类似 Charles）。",
+    "config.viewMode.sequence": "平铺列表，最新在前。"
 }

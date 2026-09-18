@@ -1,6 +1,6 @@
 import { build, context } from 'esbuild'
 const watch = process.argv.includes('--watch')
-const options = {
+const node = {
     entryPoints: { extension: 'src/extension.ts', agent: 'src/agent/main.ts' },
     bundle: true,
     platform: 'node',
@@ -12,5 +12,18 @@ const options = {
     minify: !watch,
     logLevel: 'info'
 }
-if (watch) await (await context(options)).watch()
-else await build(options)
+const web = {
+    entryPoints: { webview: 'src/webview/main.tsx' },
+    bundle: true,
+    platform: 'browser',
+    target: 'es2022',
+    format: 'iife',
+    outdir: 'dist',
+    sourcemap: true,
+    minify: !watch,
+    logLevel: 'info',
+    define: { 'process.env.NODE_ENV': watch ? '"development"' : '"production"' }
+}
+if (watch)
+    await Promise.all([context(node).then((c) => c.watch()), context(web).then((c) => c.watch())])
+else await Promise.all([build(node), build(web)])

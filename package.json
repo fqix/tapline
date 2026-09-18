@@ -173,10 +173,27 @@
                 "icon": "$(output)"
             },
             {
-                "command": "tapline.toggleGroupByHost",
-                "title": "%command.toggleGroupByHost%",
+                "command": "tapline.openHost",
+                "title": "%command.openHost%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.openText",
+                "title": "%command.openText%",
+                "category": "Tapline",
+                "icon": "$(file-text)"
+            },
+            {
+                "command": "tapline.viewStructure",
+                "title": "%command.viewStructure%",
                 "category": "Tapline",
                 "icon": "$(list-tree)"
+            },
+            {
+                "command": "tapline.viewSequence",
+                "title": "%command.viewSequence%",
+                "category": "Tapline",
+                "icon": "$(list-flat)"
             }
         ],
         "menus": {
@@ -202,14 +219,19 @@
                     "group": "navigation@3"
                 },
                 {
+                    "command": "tapline.viewSequence",
+                    "when": "view == tapline.traffic && tapline.viewMode == 'structure'",
+                    "group": "navigation@5"
+                },
+                {
+                    "command": "tapline.viewStructure",
+                    "when": "view == tapline.traffic && tapline.viewMode == 'sequence'",
+                    "group": "navigation@5"
+                },
+                {
                     "command": "tapline.openTerminal",
                     "when": "view == tapline.traffic",
                     "group": "navigation@4"
-                },
-                {
-                    "command": "tapline.toggleGroupByHost",
-                    "when": "view == tapline.traffic",
-                    "group": "1_view@1"
                 },
                 {
                     "command": "tapline.exportHar",
@@ -249,6 +271,11 @@
                     "group": "1_open@1"
                 },
                 {
+                    "command": "tapline.openText",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "1_open@2"
+                },
+                {
                     "command": "tapline.openRequestBody",
                     "when": "view == tapline.traffic && viewItem == transaction",
                     "group": "1_open@2"
@@ -275,7 +302,7 @@
                 },
                 {
                     "command": "tapline.exportHar",
-                    "when": "view == tapline.traffic && viewItem =~ /transaction|host/",
+                    "when": "view == tapline.traffic && viewItem =~ /transaction|host|folder/",
                     "group": "3_act@2"
                 },
                 {
@@ -311,6 +338,14 @@
                 },
                 {
                     "command": "tapline.delete",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.openHost",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.openText",
                     "when": "false"
                 }
             ]
@@ -384,17 +419,25 @@
                     "default": 2000,
                     "description": "%config.maxEntries%"
                 },
-                "tapline.groupByHost": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "%config.groupByHost%"
-                },
                 "tapline.maxBodyKiB": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 4096,
                     "default": 512,
                     "description": "%config.maxBodyKiB%"
+                },
+                "tapline.viewMode": {
+                    "type": "string",
+                    "enum": [
+                        "structure",
+                        "sequence"
+                    ],
+                    "default": "structure",
+                    "enumDescriptions": [
+                        "%config.viewMode.structure%",
+                        "%config.viewMode.sequence%"
+                    ],
+                    "description": "%config.viewMode%"
                 }
             }
         }
@@ -404,7 +447,7 @@
         "core:test": "node scripts/build-core.mjs --test",
         "build": "node esbuild.mjs",
         "watch": "node esbuild.mjs --watch",
-        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/webview/tsconfig.json",
         "test": "vitest run",
         "format": "prettier --write src scripts/*.mjs esbuild.mjs package.json",
         "format:check": "prettier --check src scripts/*.mjs esbuild.mjs package.json",
@@ -414,11 +457,15 @@
     "devDependencies": {
         "@types/node": "^22.19.0",
         "@types/node-forge": "^1.3.11",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
         "@types/vscode": "^1.95.0",
         "@vscode/vsce": "^3.6.0",
         "esbuild": "^0.25.0",
         "node-forge": "^1.3.1",
         "prettier": "^3.6.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
         "typescript": "^5.9.0",
         "vitest": "^4.0.0"
     },

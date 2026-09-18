@@ -6,6 +6,7 @@ import { AgentClient } from './client/agentClient'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
 import { TrafficView, type TrafficNode } from './views/trafficView'
+import { DetailPanel } from './panels/detailPanel'
 
 let client: AgentClient | undefined
 
@@ -14,6 +15,48 @@ export async function activate(context: vscode.ExtensionContext) {
     const view = new TrafficView(client)
     const documents = new TransactionDocuments(client)
     const environment = new CaptureEnvironment(context, client)
+    const byId = (id: string) => {
+        const t = client!.transactions.get(id)
+        if (!t) throw new Error(vscode.l10n.t('This request is no longer available.'))
+        return t
+    }
+    const openText = (t: Transaction) =>
+        vscode.window.showTextDocument(TransactionDocuments.uri(t, 'detail'), {
+            preview: true,
+            viewColumn: vscode.ViewColumn.Beside
+        })
+    const replay = async (t: Transaction) => {
+        if (t.scheme === 'connect' || t.frames.length || t.status === 101 || t.requestBinary)
+            throw new Error(vscode.l10n.t('Only HTTP requests with text bodies can be replayed'))
+        const replayed = await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: vscode.l10n.t('Replaying {0} {1}', t.method, t.path)
+            },
+            () =>
+                client!.compose({
+                    url: t.url,
+                    method: t.method,
+                    headers: t.requestHeaders,
+                    body: t.requestBody,
+                    replayOf: t.id
+                })
+        )
+        panel.showTransaction(replayed.id)
+    }
+    const panel = new DetailPanel(context, client, {
+        copyCurl: async (id) => {
+            await vscode.env.clipboard.writeText(toCurl(byId(id)))
+            void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
+        },
+        replay: (id) => replay(byId(id)),
+        openText: async (id) => void (await openText(byId(id))),
+        openBody: async (id, side) =>
+            void (await vscode.window.showTextDocument(
+                TransactionDocuments.uri(byId(id), `${side}-body`),
+                { preview: true, viewColumn: vscode.ViewColumn.Beside }
+            ))
+    })
     const status = vscode.window.createStatusBarItem(
         'tapline.status',
         vscode.StatusBarAlignment.Left,
@@ -21,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     status.name = 'Tapline'
     status.command = 'tapline.status'
-    context.subscriptions.push(client, view, documents, environment, status)
+    context.subscriptions.push(client, view, documents, environment, panel, status)
 
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
@@ -150,26 +193,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     command('tapline.replay', async (node?: TrafficNode) => {
         const t = one(node)
-        if (!t) return
-        if (t.scheme === 'connect' || t.frames.length || t.status === 101 || t.requestBinary)
-            throw new Error(vscode.l10n.t('Only HTTP requests with text bodies can be replayed'))
-        const replayed = await vscode.window.withProgress(
-            {
-                location: vscode.ProgressLocation.Notification,
-                title: vscode.l10n.t('Replaying {0} {1}', t.method, t.path)
-            },
-            () =>
-                client!.compose({
-                    url: t.url,
-                    method: t.method,
-                    headers: t.requestHeaders,
-                    body: t.requestBody,
-                    replayOf: t.id
-                })
-        )
-        await vscode.window.showTextDocument(TransactionDocuments.uri(replayed, 'detail'), {
-            preview: true
-        })
+        if (t) await replay(t)
     })
     command('tapline.delete', async (node?: TrafficNode) => {
         const ids = view.selected(node).map((t) => t.id)
@@ -220,14 +244,16 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     })
     command('tapline.showLogs', () => client!.output.show())
-    command('tapline.toggleGroupByHost', async () => {
-        const config = vscode.workspace.getConfiguration('tapline')
-        await config.update(
-            'groupByHost',
-            !config.get<boolean>('groupByHost', false),
-            vscode.ConfigurationTarget.Global
-        )
-    })
+    command('tapline.viewStructure', () =>
+        vscode.workspace
+            .getConfiguration('tapline')
+            .update('viewMode', 'structure', vscode.ConfigurationTarget.Global)
+    )
+    command('tapline.viewSequence', () =>
+        vscode.workspace
+            .getConfiguration('tapline')
+            .update('viewMode', 'sequence', vscode.ConfigurationTarget.Global)
+    )
 
     // Connect lazily so a broken core never blocks activation; autoStart opts in.
     void client
