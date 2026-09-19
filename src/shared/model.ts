@@ -117,7 +117,106 @@ export interface Transaction {
     /** Present for gRPC and gRPC-Web calls; messages decoded from the retained bodies. */
     grpc?: GrpcInfo
     replayOf?: string
+    /** Set while a breakpoint holds the request or the response; cleared when it continues. */
+    paused?: RulePhase
+    /** Names of the rules that acted on this transaction, in the order they applied. */
+    rules?: string[]
+    /** The response was produced by Tapline (map local, block) instead of the server. */
+    local?: boolean
+    /** Where the request was actually sent when a rule changed its URL. */
+    upstreamUrl?: string
+    /** Content-Encoding the retained response body was decoded from. */
+    responseEncoding?: string
 }
+
+// ---- rules ---------------------------------------------------------------
+
+export type RulePhase = 'request' | 'response'
+export type RuleKind = 'breakpoint' | 'rewrite' | 'mapLocal' | 'mapRemote' | 'block' | 'throttle'
+export const ruleKinds: RuleKind[] = [
+    'breakpoint',
+    'rewrite',
+    'mapLocal',
+    'mapRemote',
+    'block',
+    'throttle'
+]
+
+/** Header, status, URL and body edits applied by a rewrite rule (or at a breakpoint). */
+export interface Edit {
+    method?: string
+    /** Regular-expression replacement over the whole URL. */
+    url?: { pattern: string; replacement: string }
+    status?: number
+    /** Header values to set; `null` removes the header. Names are case-insensitive. */
+    headers?: Record<string, string | null>
+    /** Replace the whole body (text). */
+    body?: string
+    /** Regular-expression replacement over a text body (`g` and `i` flags). */
+    bodyReplace?: { pattern: string; replacement: string }
+}
+
+interface RuleBase {
+    id: string
+    enabled: boolean
+    name?: string
+    /** Wildcard URL pattern (`*` matches any run of characters); empty matches every URL. */
+    url?: string
+    /** Comma-separated methods, case-insensitive; empty matches every method. */
+    method?: string
+}
+
+export type Rule = RuleBase &
+    (
+        | { kind: 'breakpoint'; request?: boolean; response?: boolean }
+        | { kind: 'rewrite'; request?: Edit; response?: Edit }
+        | {
+              kind: 'mapLocal'
+              /** Absolute file path served as the response; `body` is used when empty. */
+              file?: string
+              body?: string
+              status?: number
+              contentType?: string
+          }
+        | {
+              kind: 'mapRemote'
+              /** Origin (scheme://host[:port]) the request is sent to instead; a path prefix is kept. */
+              to: string
+          }
+        | { kind: 'block'; status?: number }
+        | { kind: 'throttle'; latencyMs?: number; kbps?: number }
+    )
+
+/** Fields a user can change while a transaction is held at a breakpoint. */
+export interface BreakpointEdit {
+    method?: string
+    url?: string
+    status?: number
+    headers?: Headers
+    /** Text body; omitted keeps the original bytes (binary bodies cannot be edited). */
+    body?: string
+}
+
+/** `*` matches any run of characters (including `/`); everything else is literal. */
+export function matchWildcard(pattern: string, value: string): boolean {
+    const p = pattern.trim()
+    if (!p || p === '*') return true
+    if (!p.includes('*')) return value === p || value.startsWith(p)
+    return new RegExp('^' + p.split('*').map(escape).join('.*') + '$', 'i').test(value)
+}
+
+export function ruleMatches(rule: Pick<Rule, 'url' | 'method'>, method: string, url: string) {
+    if (rule.method?.trim()) {
+        const wanted = rule.method
+            .split(',')
+            .map((m) => m.trim().toUpperCase())
+            .filter(Boolean)
+        if (wanted.length && !wanted.includes(method.toUpperCase())) return false
+    }
+    return matchWildcard(rule.url ?? '', url)
+}
+
+export const ruleLabel = (rule: Rule) => rule.name?.trim() || rule.kind
 
 export interface Settings {
     port: number
@@ -129,6 +228,8 @@ export interface Settings {
     mcpPort: number
     /** Absolute paths of .proto files used to decode gRPC messages. */
     protoFiles: string[]
+    /** Interception rules, applied in order. */
+    rules: Rule[]
 }
 
 export const defaultSettings: Settings = {
@@ -138,7 +239,8 @@ export const defaultSettings: Settings = {
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,
     mcpPort: 3607,
-    protoFiles: []
+    protoFiles: [],
+    rules: []
 }
 
 export interface LogEntry {

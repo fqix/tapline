@@ -3,14 +3,16 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { existsSync, statSync } from 'node:fs'
 import net from 'node:net'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { pipePath } from '../agent/paths'
 import type { Message, Request, Responses } from '../agent/protocol'
 import {
     defaultSettings,
     type AgentState,
+    type BreakpointEdit,
     type ComposeRequest,
     type Event,
+    type Rule,
     type Settings,
     type Transaction
 } from '../shared/model'
@@ -90,8 +92,39 @@ export class AgentClient implements vscode.Disposable {
             mcpPort: config.get<boolean>('mcp.enabled', true)
                 ? config.get<number>('mcp.port', defaultSettings.mcpPort)
                 : 0,
-            protoFiles: this.protoFiles
+            protoFiles: this.protoFiles,
+            rules: this.rules()
         }
+    }
+
+    /** Rules from `tapline.rules`, with map-local files resolved against the workspace. */
+    rules(): Rule[] {
+        const config = vscode.workspace.getConfiguration('tapline')
+        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+        return config
+            .get<Rule[]>('rules', [])
+            .filter((rule) => rule && typeof rule === 'object' && rule.kind)
+            .map((rule) => ({
+                ...rule,
+                id: rule.id || `${rule.kind}-${rule.url ?? ''}-${rule.name ?? ''}`,
+                enabled: rule.enabled !== false,
+                ...(rule.kind === 'mapLocal' && rule.file && !isAbsolute(rule.file) && root
+                    ? { file: join(root, rule.file) }
+                    : {})
+            }))
+    }
+
+    /** Persist rules to the user's settings; the change event pushes them to the agent. */
+    async saveRules(rules: Rule[]) {
+        const config = vscode.workspace.getConfiguration('tapline')
+        const inspected = config.inspect<Rule[]>('rules')
+        const target =
+            inspected?.workspaceFolderValue !== undefined
+                ? vscode.ConfigurationTarget.WorkspaceFolder
+                : inspected?.workspaceValue !== undefined
+                  ? vscode.ConfigurationTarget.Workspace
+                  : vscode.ConfigurationTarget.Global
+        await config.update('rules', rules, target)
     }
 
     get running() {
@@ -308,6 +341,12 @@ export class AgentClient implements vscode.Disposable {
     }
     compose(request: ComposeRequest) {
         return this.call('compose', { request })
+    }
+    resume(id: string, edit?: BreakpointEdit) {
+        return this.apply(this.call('resume', { id, edit }))
+    }
+    abort(id: string) {
+        return this.apply(this.call('abort', { id }))
     }
 
     dispose() {

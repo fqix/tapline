@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { isUtf8 } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import http from 'node:http'
 import net from 'node:net'
 import tls from 'node:tls'
@@ -12,15 +13,40 @@ import {
 } from './certificate'
 import { GrpcDecoder } from './grpc'
 import { SSEParser } from './sse'
-import { Inspector, verifyCore, type Client, type Handlers } from './inspector'
+import {
+    Inspector,
+    verifyCore,
+    type Client,
+    type Handlers,
+    type RequestDecision,
+    type RequestInfo,
+    type ResponseDecision,
+    type ResponseInfo,
+    type WireHeaders
+} from './inspector'
+import {
+    applyHeaderEdits,
+    decodeBody,
+    getHeader,
+    mimeFor,
+    mimeForBody,
+    regex,
+    remapUrl,
+    setHeader,
+    toWire
+} from './rules'
 import {
     defaultSettings,
     matchHost,
+    ruleLabel,
+    ruleMatches,
+    type BreakpointEdit,
     type ComposeRequest,
     type Event,
     type Frame,
     type Headers,
     type LogEntry,
+    type Rule,
     type Settings,
     type Transaction
 } from '../shared/model'
@@ -59,6 +85,10 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     private eventStreams = new WeakMap<Transaction, SSEParser>()
     private started = new Map<string, number>()
     private grpc = new GrpcDecoder((message, level) => this.log(message, level))
+    /** Rules that matched each in-flight session, so the response phase sees the same set. */
+    private matched = new Map<string, Rule[]>()
+    /** Transactions held at a breakpoint, resolved by `resume` / `abort`. */
+    private holds = new Map<string, (result: BreakpointEdit | 'abort') => void>()
 
     constructor(
         readonly directory: string,
@@ -105,6 +135,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     clear() {
+        for (const id of this.holds.keys()) this.release(id)
         this.transactions.clear()
         this.captures.clear()
         // Sequence numbers are display order only, so a cleared session restarts at 1.
@@ -114,6 +145,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
 
     delete(ids: string[]) {
         for (const id of ids) {
+            this.release(id)
             this.transactions.delete(id)
             this.captures.delete(id)
         }
@@ -172,6 +204,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         const inspector = this.inspector
         this.inspector = undefined
         this.running = false
+        for (const id of this.holds.keys()) this.release(id)
         await inspector?.stop()
         for (const t of this.transactions.values())
             if (t.state === 'pending') this.finish(t, 'Capture stopped')
@@ -265,16 +298,24 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         const c = this.captures.get(id)?.[side]
         if (!t || !c) return undefined
         const body = Buffer.concat(c.chunks)
-        const text = isUtf8(body)
-        if (side === 'request') {
-            t.requestBody = body.toString(text ? 'utf8' : 'base64')
-            t.requestBinary = !text
-        } else {
-            t.responseBody = body.toString(text ? 'utf8' : 'base64')
-            t.responseBinary = !text
-        }
+        this.retain(t, side, body)
         c.chunks = []
         return body
+    }
+
+    /** Store a body on the record, decoding Content-Encoding so the panel shows text. */
+    private retain(t: Transaction, side: 'request' | 'response', raw: Buffer) {
+        const headers = side === 'request' ? t.requestHeaders : t.responseHeaders
+        const { bytes, encoding } = decodeBody(raw, getHeader(headers, 'content-encoding'))
+        const text = isUtf8(bytes)
+        if (side === 'request') {
+            t.requestBody = bytes.toString(text ? 'utf8' : 'base64')
+            t.requestBinary = !text
+        } else {
+            t.responseBody = bytes.toString(text ? 'utf8' : 'base64')
+            t.responseBinary = !text
+            t.responseEncoding = encoding
+        }
     }
 
     /** Reload the gRPC schema from `settings.protoFiles`. */
@@ -305,13 +346,191 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         if (direction === 'send') t.requestBytes += count
         else t.responseBytes += count
     }
-    request(id: string, info: Parameters<Handlers['request']>[1]) {
+    async request(id: string, info: RequestInfo): Promise<RequestDecision | undefined> {
         const t = this.create(id, info.method, info.url, info.client)
-        if (!t) return
-        t.httpVersion = info.httpVersion
-        t.requestHeaders = flatten(info.headers)
-        this.publish(t)
+        if (t) {
+            t.httpVersion = info.httpVersion
+            t.requestHeaders = flatten(info.headers)
+            this.publish(t)
+        }
+        const rules = this.settings.rules.filter(
+            (r) => r.enabled && ruleMatches(r, info.method, info.url)
+        )
+        if (!rules.length) return undefined
+        this.matched.set(id, rules)
+        const decision: RequestDecision = {}
+        const applied: string[] = []
+        let method = info.method
+        let url = info.url
+        let headers: WireHeaders = { ...info.headers }
+        let body: Buffer | undefined
+        let hold = false
+        const decoded = async () =>
+            decodeBody(body ?? (await info.body()), getHeader(headers, 'content-encoding')).bytes
+        rules: for (const rule of rules) {
+            switch (rule.kind) {
+                case 'block':
+                    decision.local = {
+                        status: rule.status ?? 403,
+                        headers: { 'content-type': 'text/plain; charset=utf-8' },
+                        body: Buffer.from(`Blocked by Tapline rule "${ruleLabel(rule)}"\n`)
+                    }
+                    applied.push(ruleLabel(rule))
+                    break rules
+                case 'mapLocal':
+                    decision.local = await this.localResponse(rule)
+                    applied.push(ruleLabel(rule))
+                    break rules
+                case 'mapRemote':
+                    url = remapUrl(url, rule.to)
+                    setHeader(headers, 'host', new URL(url).host)
+                    applied.push(ruleLabel(rule))
+                    break
+                case 'rewrite': {
+                    const edit = rule.request
+                    if (!edit) break
+                    if (edit.method) method = edit.method.toUpperCase()
+                    if (edit.url) {
+                        const re = regex(edit.url.pattern)
+                        if (re) url = url.replace(re, edit.url.replacement)
+                        setHeader(headers, 'host', new URL(url).host)
+                    }
+                    if (edit.headers) applyHeaderEdits(headers, edit.headers)
+                    if (edit.body !== undefined) body = Buffer.from(edit.body)
+                    else if (edit.bodyReplace) {
+                        const re = regex(edit.bodyReplace.pattern, 'gi')
+                        if (re)
+                            body = Buffer.from(
+                                (await decoded())
+                                    .toString('utf8')
+                                    .replace(re, edit.bodyReplace.replacement)
+                            )
+                    }
+                    applied.push(ruleLabel(rule))
+                    break
+                }
+                case 'throttle':
+                    decision.throttle = { latencyMs: rule.latencyMs, kbps: rule.kbps }
+                    applied.push(ruleLabel(rule))
+                    break
+                case 'breakpoint':
+                    if (rule.request && t) hold = true
+                    break
+            }
+        }
+        if (hold && t && !decision.local) {
+            // Show the request as it stands after the rules above, then wait for the user.
+            const original = body ?? (await decoded())
+            this.describeRequest(t, method, url, headers)
+            this.retain(t, 'request', original)
+            t.paused = 'request'
+            this.publish(t)
+            const edit = await this.hold(id)
+            t.paused = undefined
+            applied.push('breakpoint')
+            if (edit === 'abort') {
+                decision.abort = 'Aborted at a Tapline breakpoint'
+                t.rules = applied
+                this.publish(t)
+                return decision
+            }
+            if (edit.method) method = edit.method.toUpperCase()
+            if (edit.url) {
+                url = edit.url
+                setHeader(headers, 'host', new URL(url).host)
+            }
+            if (edit.headers) headers = toWire(edit.headers)
+            if (edit.body !== undefined && !t.requestBinary) body = Buffer.from(edit.body)
+        }
+        if (body !== undefined) {
+            setHeader(headers, 'content-length', String(body.length))
+            setHeader(headers, 'transfer-encoding', null)
+            setHeader(headers, 'content-encoding', null)
+        }
+        if (t) {
+            this.describeRequest(t, method, url, headers)
+            t.rules = applied
+            if (decision.local) {
+                t.local = true
+                t.status = decision.local.status
+                t.statusMessage = http.STATUS_CODES[decision.local.status]
+                t.responseHeaders = flatten({
+                    ...decision.local.headers,
+                    'content-length': String(decision.local.body.length)
+                })
+                t.responseBytes = decision.local.body.length
+                this.retain(t, 'response', decision.local.body)
+                // The core never reports a response for local answers; finish on the
+                // client's body instead, which `requestEnd` seals.
+            }
+            this.publish(t)
+        }
+        if (method !== info.method) decision.method = method
+        if (url !== info.url) decision.url = url
+        decision.headers = headers
+        if (body !== undefined) decision.body = body
+        return decision
     }
+
+    /** Update the record's request line for a rewritten method, URL or header set. */
+    private describeRequest(t: Transaction, method: string, url: string, headers: WireHeaders) {
+        t.method = method
+        if (url !== t.url) {
+            t.upstreamUrl = url
+        }
+        t.requestHeaders = flatten(headers)
+    }
+
+    private async localResponse(rule: Extract<Rule, { kind: 'mapLocal' }>) {
+        const status = rule.status ?? 200
+        if (rule.file) {
+            try {
+                const body = await readFile(rule.file)
+                return {
+                    status,
+                    headers: { 'content-type': rule.contentType || mimeFor(rule.file) },
+                    body
+                }
+            } catch (error) {
+                this.log(`Map local: cannot read ${rule.file}: ${error}`, 'warn')
+                return {
+                    status: 404,
+                    headers: { 'content-type': 'text/plain; charset=utf-8' },
+                    body: Buffer.from(`Tapline: cannot read ${rule.file}\n`)
+                }
+            }
+        }
+        const body = rule.body ?? ''
+        return {
+            status,
+            headers: { 'content-type': rule.contentType || mimeForBody(body) },
+            body: Buffer.from(body)
+        }
+    }
+
+    private hold(id: string) {
+        return new Promise<BreakpointEdit | 'abort'>((resolve) => this.holds.set(id, resolve))
+    }
+    /** Resolve a held transaction as aborted, e.g. when its client went away. */
+    private release(id: string) {
+        const resolve = this.holds.get(id)
+        if (!resolve) return
+        this.holds.delete(id)
+        resolve('abort')
+    }
+    /** Let a transaction held at a breakpoint continue, with the user's edits. */
+    resume(id: string, edit: BreakpointEdit = {}) {
+        const resolve = this.holds.get(id)
+        if (!resolve) throw new Error('This request is not paused')
+        this.holds.delete(id)
+        resolve(edit)
+    }
+    /** Fail a transaction held at a breakpoint. */
+    abort(id: string) {
+        if (!this.holds.has(id)) throw new Error('This request is not paused')
+        this.release(id)
+    }
+
     requestData(id: string, chunk: Buffer) {
         this.capture(id, 'request', chunk)
     }
@@ -320,7 +539,11 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         const t = this.transactions.get(id)
         if (!t) return
         if (body) this.decodeGrpc(t, 'request', body)
-        this.publish(t)
+        if (t.local) {
+            this.captures.delete(id)
+            this.matched.delete(id)
+            this.finish(t)
+        } else this.publish(t)
     }
 
     private decodeGrpc(t: Transaction, side: 'request' | 'response', body: Buffer) {
@@ -330,48 +553,132 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
             this.log(`gRPC decode failed for ${t.path}: ${error}`, 'warn')
         }
     }
-    response(id: string, info: Parameters<Handlers['response']>[1]) {
+    async response(id: string, info: ResponseInfo): Promise<ResponseDecision | undefined> {
         const t = this.transactions.get(id)
-        if (!t) return
-        t.status = info.status
-        t.statusMessage = info.statusMessage
+        const rules = this.matched.get(id) ?? []
+        const decision: ResponseDecision = {}
+        let status = info.status
+        let headers: WireHeaders = { ...info.headers }
+        let body: Buffer | undefined
+        const streaming =
+            getHeader(headers, 'content-type')?.split(';')[0].trim().toLowerCase() ===
+            'text/event-stream'
+        const applied: string[] = []
+        const decoded = async () =>
+            decodeBody(body ?? (await info.body()), getHeader(headers, 'content-encoding')).bytes
+        let hold = false
+        for (const rule of rules) {
+            if (rule.kind === 'rewrite' && rule.response) {
+                const edit = rule.response
+                if (edit.status) status = edit.status
+                if (edit.headers) applyHeaderEdits(headers, edit.headers)
+                if (!streaming) {
+                    if (edit.body !== undefined) body = Buffer.from(edit.body)
+                    else if (edit.bodyReplace) {
+                        const re = regex(edit.bodyReplace.pattern, 'gi')
+                        if (re)
+                            body = Buffer.from(
+                                (await decoded())
+                                    .toString('utf8')
+                                    .replace(re, edit.bodyReplace.replacement)
+                            )
+                    }
+                }
+                applied.push(ruleLabel(rule))
+            } else if (rule.kind === 'throttle') decision.throttle = { kbps: rule.kbps }
+            else if (rule.kind === 'breakpoint' && rule.response && t && !streaming) hold = true
+        }
+        if (t) {
+            if (hold) {
+                // Hand the user the decoded body; whatever they send back goes out plain.
+                const original = body ?? (await decoded())
+                if (body === undefined) setHeader(headers, 'content-encoding', null)
+                this.describeResponse(t, status, headers, info)
+                this.retain(t, 'response', original)
+                t.paused = 'response'
+                this.publish(t)
+                const edit = await this.hold(id)
+                t.paused = undefined
+                applied.push('breakpoint')
+                if (edit === 'abort') {
+                    decision.abort = 'Aborted at a Tapline breakpoint'
+                    t.rules = [...(t.rules ?? []), ...applied]
+                    this.publish(t)
+                    return decision
+                }
+                if (edit.status) status = edit.status
+                if (edit.headers) headers = toWire(edit.headers)
+                body =
+                    edit.body !== undefined && !t.responseBinary ? Buffer.from(edit.body) : original
+            }
+            if (body !== undefined) {
+                setHeader(headers, 'content-length', String(body.length))
+                setHeader(headers, 'transfer-encoding', null)
+                setHeader(headers, 'content-encoding', null)
+            }
+            this.describeResponse(t, status, headers, info)
+            if (applied.length) t.rules = [...(t.rules ?? []), ...applied]
+            if (info.timings) t.timings = info.timings
+            this.trackEvents(t)
+            this.publish(t)
+        }
+        if (!rules.length) return undefined
+        if (status !== info.status) decision.status = status
+        decision.headers = headers
+        if (body !== undefined) decision.body = body
+        return decision
+    }
+
+    private describeResponse(
+        t: Transaction,
+        status: number,
+        headers: WireHeaders,
+        info: ResponseInfo
+    ) {
+        t.status = status
+        t.statusMessage =
+            status === info.status
+                ? (info.statusMessage ?? http.STATUS_CODES[status])
+                : http.STATUS_CODES[status]
         t.httpVersion = info.httpVersion ?? t.httpVersion
-        t.responseHeaders = flatten(info.headers)
+        t.responseHeaders = flatten(headers)
+    }
+
+    /** Attach an SSE parser to `text/event-stream` responses so events show as they arrive. */
+    private trackEvents(t: Transaction) {
         const contentType = Object.entries(t.responseHeaders).find(
             ([name]) => name.toLowerCase() === 'content-type'
         )?.[1]
-        if (contentType?.split(';')[0].trim().toLowerCase() === 'text/event-stream') {
-            t.events = []
-            let retained = 0
-            const sizes: number[] = []
-            const limit = this.settings.maxBodyBytes
-            this.eventStreams.set(
-                t,
-                new SSEParser(
-                    limit,
-                    (event) => {
-                        const size = Buffer.byteLength(event.data + event.event + event.lastEventId)
-                        if (size > limit) {
-                            t.eventsTruncated = true
-                            return
-                        }
-                        t.events!.push({ ...event, id: randomUUID(), time: Date.now() })
-                        sizes.push(size)
-                        retained += size
-                        while (t.events!.length > 500 || retained > limit) {
-                            t.events!.shift()
-                            retained -= sizes.shift()!
-                            t.eventsTruncated = true
-                        }
-                    },
-                    () => {
+        if (contentType?.split(';')[0].trim().toLowerCase() !== 'text/event-stream') return
+        if (this.eventStreams.has(t)) return
+        t.events = []
+        let retained = 0
+        const sizes: number[] = []
+        const limit = this.settings.maxBodyBytes
+        this.eventStreams.set(
+            t,
+            new SSEParser(
+                limit,
+                (event) => {
+                    const size = Buffer.byteLength(event.data + event.event + event.lastEventId)
+                    if (size > limit) {
+                        t.eventsTruncated = true
+                        return
+                    }
+                    t.events!.push({ ...event, id: randomUUID(), time: Date.now() })
+                    sizes.push(size)
+                    retained += size
+                    while (t.events!.length > 500 || retained > limit) {
+                        t.events!.shift()
+                        retained -= sizes.shift()!
                         t.eventsTruncated = true
                     }
-                )
+                },
+                () => {
+                    t.eventsTruncated = true
+                }
             )
-        }
-        if (info.timings) t.timings = info.timings
-        this.publish(t)
+        )
     }
     responseData(id: string, chunk: Buffer) {
         this.capture(id, 'response', chunk)
@@ -391,6 +698,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         if (Object.keys(trailers).length) t.responseTrailers = trailers
         if (body) this.decodeGrpc(t, 'response', body)
         this.captures.delete(id)
+        this.matched.delete(id)
         this.finish(t)
     }
     websocket(id: string, url: string, headers: Record<string, string | string[]>, client: Client) {
@@ -421,6 +729,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     closed(id: string, aborted: boolean) {
         const t = this.transactions.get(id)
         this.captures.delete(id)
+        this.matched.delete(id)
+        this.release(id)
         if (!t) return
         if (t.state === 'pending') {
             if (t.scheme === 'connect' || t.frames.length || t.status === 101) this.finish(t)
@@ -430,6 +740,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     failure(id: string, error: string) {
         const t = this.transactions.get(id)
         this.captures.delete(id)
+        this.matched.delete(id)
+        this.release(id)
         if (t) this.finish(t, error)
     }
 
