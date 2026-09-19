@@ -241,5 +241,9 @@
     "Only the most recent 500 WebSocket messages are retained.": "仅保留最近 500 条 WebSocket 消息。",
     "Waiting for messages…": "等待消息…",
     "No messages were captured.": "未捕获到消息。",
-    "No resend confirmation received; delivery is unknown.": "未收到重发确认，发送结果未知。"
+    "No resend confirmation received; delivery is unknown.": "未收到重发确认，发送结果未知。",
+    "Compare Requests": "比较请求",
+    "Select exactly two requests to compare.": "请选择两条请求进行比较。",
+    "Tapline: #{0} ↔ #{1}": "Tapline：#{0} ↔ #{1}",
+    "(comparison no longer available)": "（对比内容已不可用）"
 }

@@ -263,6 +263,12 @@
                 "title": "%command.addBreakpoint%",
                 "category": "Tapline",
                 "icon": "$(debug-breakpoint)"
+            },
+            {
+                "command": "tapline.compare",
+                "title": "%command.compare%",
+                "category": "Tapline",
+                "icon": "$(diff)"
             }
         ],
         "menus": {
@@ -470,6 +476,13 @@
                 {
                     "command": "tapline.addBreakpoint",
                     "when": "false"
+                }
+            ],
+            "webview/context": [
+                {
+                    "command": "tapline.compare",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineCompareCount == 2",
+                    "group": "1_compare"
                 }
             ]
         },

@@ -42,6 +42,10 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 U
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等 MCP 客户端可以列出、搜索、读取、
   重放和发送抓到的请求（见下文）。
 
+选中两条请求（Cmd/Ctrl + 点击），使用选择工具栏或右键菜单中的「比较请求」，
+即可在 VS Code 原生差异编辑器中对比请求和响应。左侧为较早的记录；对比内容固定为
+打开时的快照，Headers 排序、JSON 格式化，二进制正文以 Base64 展示，并标明未完成或截断的抓包。
+
 ## 设置
 
 | 设置项                                      | 默认值           | 作用                       |

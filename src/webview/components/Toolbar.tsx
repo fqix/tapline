@@ -160,6 +160,13 @@ export function Toolbar({
             {selection.length > 1 && (
                 <span className="chip active selection">
                     {t('selectedCount', selection.length)}
+                    {selection.length === 2 && (
+                        <IconButton
+                            icon="diff"
+                            title={t('compare')}
+                            onClick={() => vscode.postMessage({ type: 'compare', ids: selection })}
+                        />
+                    )}
                     <IconButton
                         icon="terminal"
                         title={t('copyCurl')}
