@@ -12,7 +12,8 @@
         ],
         "types": [
             "node",
-            "vscode"
+            "vscode",
+            "mocha"
         ]
     },
     "include": [

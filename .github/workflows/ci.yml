@@ -21,16 +21,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `e2e` runs the extension in a real VS Code; one runner per OS where the
+          # built core matches the runner's architecture.
           - runner: macos-15-intel
             target: darwin-x64
           - runner: macos-latest
             target: darwin-arm64
+            e2e: true
           - runner: ubuntu-latest
             target: linux-x64
+            e2e: true
           - runner: ubuntu-24.04-arm
             target: linux-arm64
           - runner: windows-latest
             target: win32-x64
+            e2e: true
           # GitHub-hosted Windows ARM runners are not available; Go cross-compiles
           # the arm64 package on the x64 runner.
           - runner: windows-latest
@@ -87,6 +92,14 @@ jobs:
 
       - name: Run unit and integration tests
         run: npm test
+
+      - name: Run end-to-end tests (VS Code)
+        if: matrix.e2e && runner.os == 'Linux'
+        run: xvfb-run -a npm run test:e2e
+
+      - name: Run end-to-end tests (VS Code)
+        if: matrix.e2e && runner.os != 'Linux'
+        run: npm run test:e2e
 
       - name: Package VSIX
         run: npm run package -- --target ${{ matrix.target }}
