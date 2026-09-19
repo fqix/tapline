@@ -1,32 +1,42 @@
 import { grpcStatusName, type Transaction } from '../../shared/model'
 
-type Subject = Pick<Transaction, 'status' | 'state'> & { grpcStatus?: number }
+type Subject = Pick<Transaction, 'status' | 'state' | 'paused'> & { grpcStatus?: number }
 
 const tone = (x: Subject) =>
-    x.state === 'pending'
-        ? 'pending'
-        : x.state === 'error' && !x.status
-          ? 'error'
-          : x.grpcStatus !== undefined
-            ? x.grpcStatus === 0
-                ? 's2'
-                : 'error'
-            : `s${Math.floor((x.status ?? 0) / 100)}`
+    x.paused
+        ? 'paused'
+        : x.state === 'pending'
+          ? 'pending'
+          : x.state === 'error' && !x.status
+            ? 'error'
+            : x.grpcStatus !== undefined
+              ? x.grpcStatus === 0
+                  ? 's2'
+                  : 'error'
+              : `s${Math.floor((x.status ?? 0) / 100)}`
 
 /**
  * Coloured dot plus status code; a spinner while the response is outstanding. For
  * gRPC the dot follows `grpc-status` (HTTP is always 200) and the tooltip names it.
  */
 export function StatusBadge({ x }: { x: Subject }) {
-    const label = x.state === 'pending' ? '' : x.state === 'error' && !x.status ? 'ERR' : x.status
+    const label = x.paused
+        ? (x.status ?? '')
+        : x.state === 'pending'
+          ? ''
+          : x.state === 'error' && !x.status
+            ? 'ERR'
+            : x.status
     const title =
         x.grpcStatus !== undefined
             ? `gRPC ${x.grpcStatus} ${grpcStatusName(x.grpcStatus)}`
-            : undefined
+            : x.paused
+              ? 'Paused at a breakpoint'
+              : undefined
     return (
         <span className={`status ${tone(x)}`} title={title}>
             <span
-                className={`codicon codicon-${x.state === 'pending' ? 'loading codicon-modifier-spin' : 'circle-filled'}`}
+                className={`codicon codicon-${x.paused ? 'debug-pause' : x.state === 'pending' ? 'loading codicon-modifier-spin' : 'circle-filled'}`}
                 aria-hidden="true"
             />
             <span className="mono">{label}</span>

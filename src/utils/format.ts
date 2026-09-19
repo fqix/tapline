@@ -86,6 +86,12 @@ export function renderTransaction(t: Transaction): string {
             t.grpc && { messages: t.grpc.request, type: t.grpc.requestType }
         )
     ]
+    if (t.rules?.length || t.upstreamUrl)
+        parts.splice(
+            1,
+            0,
+            `### Rules · ${(t.rules ?? []).join(', ')}${t.local ? ' · answered by Tapline' : ''}${t.upstreamUrl ? `\nSent to ${t.upstreamUrl}` : ''}`
+        )
     if (t.grpc)
         parts.splice(
             1,
@@ -109,7 +115,7 @@ export function renderTransaction(t: Transaction): string {
     else {
         parts.push(
             '',
-            `### Response · ${duration(t.duration)} · ${bytes(t.responseBytes)}${t.truncated ? ' · body truncated' : ''}`,
+            `### Response · ${duration(t.duration)} · ${bytes(t.responseBytes)}${t.truncated ? ' · body truncated' : ''}${t.responseEncoding ? ` · decoded from ${t.responseEncoding}` : ''}`,
             `${version} ${t.status ?? ''} ${t.statusMessage ?? ''}`.trimEnd(),
             block(
                 t.responseHeaders,
