@@ -91,6 +91,7 @@ export type HostMessage =
     | { type: 'pane'; pane: Pane; draft?: ComposeDraft }
     /** A file chosen for a map-local rule. */
     | { type: 'pickedFile'; ruleId: string; path: string }
+    | { type: 'frameResent'; id: string; frameId: string; error?: string }
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
@@ -98,6 +99,7 @@ export type PanelMessage =
     | { type: 'copy'; text: string }
     | { type: 'copyCurl'; ids: string[] }
     | { type: 'replay'; id: string }
+    | { type: 'resendFrame'; id: string; frameId: string }
     | { type: 'openText'; id: string }
     | { type: 'openBody'; id: string; side: 'request' | 'response' }
     | { type: 'select'; id: string | undefined }

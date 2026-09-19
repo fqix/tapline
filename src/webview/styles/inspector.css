@@ -282,12 +282,63 @@ pre.body.hex {
 }
 
 /* ---- frames and events ---- */
+.message-stream {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.message-stream.frames {
+    height: 100%;
+}
+.message-stream.grpc-messages {
+    height: clamp(200px, 50vh, 480px);
+}
+.stream-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: none;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+}
+.stream-toolbar .filter {
+    flex: 1 1 140px;
+}
+.stream-count {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.stream-paused {
+    padding: 4px 12px;
+}
+.stream-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+}
+.stream-item {
+    position: relative;
+    padding-right: 52px;
+    border-bottom: 1px solid var(--border-faint);
+}
+.stream-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+}
+.stream-actions button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
 .frames .frame {
     display: grid;
     grid-template-columns: 16px 88px minmax(0, 1fr);
     gap: 8px;
     padding: 4px 12px;
-    border-bottom: 1px solid var(--border-faint);
 }
 .frames .frame pre {
     margin: 0;
@@ -304,13 +355,16 @@ pre.body.hex {
 .frames .frame.receive .dir {
     color: var(--vscode-charts-green, #89d185);
 }
-.server-events .event-meta {
+.frames .event-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 2px;
     color: var(--vscode-descriptionForeground);
     overflow-wrap: anywhere;
+}
+.frame-content {
+    min-width: 0;
 }
 
 /* ---- generic side panes (composer, rules, stats) ---- */
