@@ -284,6 +284,11 @@
                 "command": "tapline.toggleMark",
                 "title": "%command.toggleMark%",
                 "category": "Tapline"
+            },
+            {
+                "command": "tapline.copyResponse",
+                "title": "%command.copyResponse%",
+                "category": "Tapline"
             }
         ],
         "menus": {
@@ -503,6 +508,10 @@
                 {
                     "command": "tapline.toggleMark",
                     "when": "false"
+                },
+                {
+                    "command": "tapline.copyResponse",
+                    "when": "false"
                 }
             ],
             "webview/context": [
@@ -523,6 +532,11 @@
                 },
                 {
                     "command": "tapline.toggleMark",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "2_request"
+                },
+                {
+                    "command": "tapline.copyResponse",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
                     "group": "2_request"
                 }

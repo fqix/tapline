@@ -48,6 +48,8 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
 - **Notes and markers** — annotate or star requests from the inspector or row menu.
   Annotations are shared across windows for the lifetime of the captured request;
   clearing or evicting it also removes its annotations.
+- **Copy response body** — copy retained content from the inspector or row menu;
+  binary bodies copy as Base64.
 - **Compare requests** — select two rows with Cmd/Ctrl-click and use _Compare Requests_
   in the selection toolbar or context menu. The native VS Code diff shows immutable
   request/response snapshots, with the earlier capture on the left. Headers are sorted,

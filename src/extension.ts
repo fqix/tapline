@@ -115,10 +115,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     const toggleMark = async (id: string) => {
         await client!.call('annotate', { transaction: id, marked: !byId(id).marked })
     }
+    const copyResponse = async (id: string) => {
+        const t = byId(id)
+        await vscode.env.clipboard.writeText(t.responseBody)
+        const copied = t.responseBinary
+            ? vscode.l10n.t('Response body copied as Base64')
+            : vscode.l10n.t('Response body copied')
+        void vscode.window.setStatusBarMessage(
+            copied +
+                (t.truncated || t.state === 'pending'
+                    ? ' · ' + vscode.l10n.t('Capture may be incomplete')
+                    : ''),
+            3000
+        )
+    }
     const actions: PanelActions = {
         compareOriginal,
         editNote,
         toggleMark,
+        copyResponse,
         compare,
         copyCurl: async (ids) => {
             await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
@@ -311,7 +326,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     for (const [name, action] of Object.entries({
         compareOriginal,
         editNote,
-        toggleMark
+        toggleMark,
+        copyResponse
     }))
         command(`tapline.${name}`, async (context?: { id?: string }) => {
             const id = context?.id ?? one()?.id
