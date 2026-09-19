@@ -1,15 +1,27 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import type { AgentClient } from '../client/agentClient'
-import type { Transaction } from '../shared/model'
-import { toRow, type HostMessage, type PanelMessage } from '../webview/types/messages'
+import type { BreakpointEdit, ComposeRequest, Rule, Transaction } from '../shared/model'
+import { searchTransactions } from '../utils/search'
+import {
+    toRow,
+    type ComposeDraft,
+    type HostMessage,
+    type Pane,
+    type PanelMessage
+} from '../webview/types/messages'
 
 export interface PanelActions {
-    copyCurl(id: string): Promise<void>
+    copyCurl(ids: string[]): Promise<void>
     replay(id: string): Promise<Transaction>
+    compose(request: ComposeRequest): Promise<Transaction>
     openText(id: string): Promise<void>
     openBody(id: string, side: 'request' | 'response'): Promise<void>
     delete(ids: string[]): Promise<void>
+    exportHar(ids: string[]): Promise<void>
+    saveRules(rules: Rule[]): Promise<void>
+    resume(id: string, edit: BreakpointEdit): Promise<void>
+    abort(id: string): Promise<void>
 }
 
 /**
@@ -25,6 +37,8 @@ export class TrafficPanel implements vscode.Disposable {
     private dirty = new Set<string>()
     private rowsTimer?: NodeJS.Timeout
     private disposables: vscode.Disposable[] = []
+    /** Transactions already revealed for a breakpoint, so updates do not steal focus twice. */
+    private revealed = new Set<string>()
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -39,18 +53,38 @@ export class TrafficPanel implements vscode.Disposable {
                     this.dirty.add(t.id)
                     this.scheduleRows()
                     if (t.id === this.selected) this.post({ type: 'detail', transaction: t })
+                    if (t.paused && !this.revealed.has(`${t.id}:${t.paused}`)) {
+                        this.revealed.add(`${t.id}:${t.paused}`)
+                        this.focus(t.id, vscode.ViewColumn.Active, true)
+                    } else if (!t.paused && t.state !== 'pending') {
+                        this.revealed.delete(`${t.id}:request`)
+                        this.revealed.delete(`${t.id}:response`)
+                    }
                 } else if (event.type === 'state') this.postAll()
+            }),
+            vscode.workspace.onDidChangeConfiguration((change) => {
+                if (change.affectsConfiguration('tapline.rules')) this.postRules()
             })
         )
+    }
+
+    /** Open the composer (optionally prefilled), the rules editor or the statistics. */
+    showPane(pane: Pane, draft?: ComposeDraft, column = vscode.ViewColumn.Active) {
+        this.ensure(column)
+        this.post({ type: 'pane', pane, draft })
+    }
+
+    private postRules() {
+        this.post({ type: 'rules', rules: this.client.rules() })
     }
 
     show(column = vscode.ViewColumn.Active) {
         this.ensure(column)
     }
 
-    /** Select a request and scroll it into view. */
-    focus(id: string, column = vscode.ViewColumn.Active) {
-        this.ensure(column)
+    /** Select a request and scroll it into view; `reveal` also brings the panel forward. */
+    focus(id: string, column = vscode.ViewColumn.Active, reveal = false) {
+        this.ensure(column, reveal)
         this.selected = id
         this.post({ type: 'focus', id })
         this.postDetail()
@@ -103,9 +137,9 @@ export class TrafficPanel implements vscode.Disposable {
         void this.panel.webview.postMessage(message)
     }
 
-    private ensure(column: vscode.ViewColumn) {
+    private ensure(column: vscode.ViewColumn, reveal = false) {
         if (this.panel) {
-            this.panel.reveal(column, true)
+            this.panel.reveal(column, !reveal)
             return
         }
         const panel = (this.panel = vscode.window.createWebviewPanel(
@@ -137,6 +171,7 @@ export class TrafficPanel implements vscode.Disposable {
                 case 'ready': {
                     this.ready = true
                     this.postAll()
+                    this.postRules()
                     const queued = this.queued
                     this.queued = []
                     for (const message of queued) this.post(message)
@@ -147,10 +182,44 @@ export class TrafficPanel implements vscode.Disposable {
                     void vscode.window.setStatusBarMessage(vscode.l10n.t('Copied'), 1500)
                     return
                 case 'copyCurl':
-                    return this.actions.copyCurl(message.id)
+                    return this.actions.copyCurl(message.ids)
                 case 'replay': {
                     const replayed = await this.actions.replay(message.id)
                     this.focus(replayed.id)
+                    return
+                }
+                case 'compose': {
+                    const sent = await this.actions.compose(message.request)
+                    this.focus(sent.id)
+                    return
+                }
+                case 'exportHar':
+                    return this.actions.exportHar(message.ids)
+                case 'saveRules':
+                    return this.actions.saveRules(message.rules)
+                case 'resume':
+                    return this.actions.resume(message.id, message.edit)
+                case 'abort':
+                    return this.actions.abort(message.id)
+                case 'search':
+                    this.post({
+                        type: 'search',
+                        query: message.query,
+                        ids: searchTransactions(this.client.transactions.values(), message.query)
+                    })
+                    return
+                case 'pickFile': {
+                    const picked = await vscode.window.showOpenDialog({
+                        canSelectMany: false,
+                        defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
+                        title: vscode.l10n.t('Choose the file to serve')
+                    })
+                    if (picked?.[0])
+                        this.post({
+                            type: 'pickedFile',
+                            ruleId: message.ruleId,
+                            path: picked[0].fsPath
+                        })
                     return
                 }
                 case 'openText':
@@ -291,6 +360,103 @@ function panelStrings(): Record<string, string> {
         'col.path': vscode.l10n.t('Path'),
         'col.timestamp': vscode.l10n.t('Start'),
         'col.duration': vscode.l10n.t('Duration'),
-        'col.responseBytes': vscode.l10n.t('Size')
+        'col.responseBytes': vscode.l10n.t('Size'),
+        image: vscode.l10n.t('Image'),
+        find: vscode.l10n.t('Find in body'),
+        findPlaceholder: vscode.l10n.t('Find…'),
+        previous: vscode.l10n.t('Previous match'),
+        next: vscode.l10n.t('Next match'),
+        close: vscode.l10n.t('Close'),
+        jwtExpires: vscode.l10n.t('Expires'),
+        jwtExpired: vscode.l10n.t('Expired'),
+        sentTo: vscode.l10n.t('Sent to'),
+        rulesApplied: vscode.l10n.t('Rules'),
+        localResponse: vscode.l10n.t('answered by Tapline'),
+        editResend: vscode.l10n.t('Edit & Resend'),
+        pausedRequest: vscode.l10n.t('Request paused at a breakpoint — edit it, then continue'),
+        pausedResponse: vscode.l10n.t('Response paused at a breakpoint — edit it, then continue'),
+        continue: vscode.l10n.t('Continue'),
+        abort: vscode.l10n.t('Abort'),
+        binaryNotEditable: vscode.l10n.t('binary body is forwarded unchanged'),
+        composer: vscode.l10n.t('Compose Request'),
+        composeClear: vscode.l10n.t('Clear'),
+        composeInvalidUrl: vscode.l10n.t('Enter an http:// or https:// URL'),
+        send: vscode.l10n.t('Send'),
+        sendHint: vscode.l10n.t(
+            'Cmd/Ctrl+Enter sends through the proxy; the reply appears in the table'
+        ),
+        stats: vscode.l10n.t('Statistics'),
+        statsScope: vscode.l10n.t('{0} requests shown (filters apply)'),
+        byHost: vscode.l10n.t('By host'),
+        slowest: vscode.l10n.t('Slowest responses'),
+        largest: vscode.l10n.t('Largest responses'),
+        rules: vscode.l10n.t('Rules'),
+        rulesHint: vscode.l10n.t('applied in order · saved to tapline.rules'),
+        addRule: vscode.l10n.t('Add rule'),
+        noRules: vscode.l10n.t(
+            'No rules yet. Rules pause, rewrite, mock, redirect, block or slow down matching requests.'
+        ),
+        ruleName: vscode.l10n.t('Name (optional)'),
+        enabled: vscode.l10n.t('Enabled'),
+        moveUp: vscode.l10n.t('Move up'),
+        moveDown: vscode.l10n.t('Move down'),
+        urlPattern: vscode.l10n.t('URL pattern'),
+        urlPatternHint: vscode.l10n.t(
+            '* matches anything; without * the pattern is a prefix; empty matches every URL'
+        ),
+        methods: vscode.l10n.t('Methods'),
+        methodsHint: vscode.l10n.t('comma-separated; empty matches all'),
+        breakRequest: vscode.l10n.t('Pause requests'),
+        breakResponse: vscode.l10n.t('Pause responses'),
+        keepOriginal: vscode.l10n.t('keep original'),
+        urlRegex: vscode.l10n.t('URL replace'),
+        regexHint: vscode.l10n.t('regular expression → replacement'),
+        headerEditHint: vscode.l10n.t('Name: value sets, Name: alone removes'),
+        bodyReplace: vscode.l10n.t('replace matches in the body'),
+        bodySet: vscode.l10n.t('set the whole body'),
+        file: vscode.l10n.t('File'),
+        fileHint: vscode.l10n.t(
+            'relative to the workspace or absolute; leave empty to use the inline body'
+        ),
+        browse: vscode.l10n.t('Browse…'),
+        inlineBody: vscode.l10n.t('Inline body'),
+        contentTypeHint: vscode.l10n.t('guessed from the file or body when empty'),
+        mapTo: vscode.l10n.t('Send to'),
+        mapToHint: vscode.l10n.t(
+            'origin, optionally with a path prefix; the request path and query are kept'
+        ),
+        latency: vscode.l10n.t('Latency (ms)'),
+        bandwidth: vscode.l10n.t('Bandwidth (kbps)'),
+        'kind.breakpoint': vscode.l10n.t('Breakpoint'),
+        'kind.rewrite': vscode.l10n.t('Rewrite'),
+        'kind.mapLocal': vscode.l10n.t('Map Local'),
+        'kind.mapRemote': vscode.l10n.t('Map Remote'),
+        'kind.block': vscode.l10n.t('Block'),
+        'kind.throttle': vscode.l10n.t('Throttle'),
+        'kindHelp.breakpoint': vscode.l10n.t(
+            'Pause matching requests or responses so you can edit them before they continue.'
+        ),
+        'kindHelp.rewrite': vscode.l10n.t(
+            'Change the method, URL, status, headers or body on the way through.'
+        ),
+        'kindHelp.mapLocal': vscode.l10n.t(
+            'Answer with a file from disk or an inline body; the server is never contacted.'
+        ),
+        'kindHelp.mapRemote': vscode.l10n.t(
+            'Send the request to another origin, e.g. a local server instead of production.'
+        ),
+        'kindHelp.block': vscode.l10n.t('Refuse the request with an error status.'),
+        'kindHelp.throttle': vscode.l10n.t(
+            'Add latency and cap bandwidth to simulate slow networks.'
+        ),
+        filterHelp: vscode.l10n.t('Filter syntax'),
+        filterHelpText: vscode.l10n.t(
+            'Words match the URL, method or status. Use key:value terms to narrow down; prefix - to negate. body:, header:, req: and res: search headers and bodies.'
+        ),
+        selectedCount: vscode.l10n.t('{0} selected'),
+        clearSelection: vscode.l10n.t('Clear selection'),
+        exportHar: vscode.l10n.t('Export HAR'),
+        pausedCount: vscode.l10n.t('{0} paused'),
+        showPaused: vscode.l10n.t('Show paused requests')
     }
 }

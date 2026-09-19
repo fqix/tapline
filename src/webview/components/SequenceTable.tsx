@@ -52,29 +52,45 @@ const clock = new Intl.DateTimeFormat(undefined, {
 })
 
 const pathIcon = (row: Row) =>
-    row.replayOf
-        ? 'debug-restart'
-        : row.websocket
-          ? 'plug'
-          : row.events !== undefined
-            ? 'radio-tower'
-            : undefined
+    row.paused
+        ? 'debug-pause'
+        : row.local
+          ? 'file'
+          : row.replayOf
+            ? 'debug-restart'
+            : row.websocket
+              ? 'plug'
+              : row.events !== undefined
+                ? 'radio-tower'
+                : row.rules
+                  ? 'edit'
+                  : undefined
+
+export interface SelectOptions {
+    /** Add to / remove from the selection (Cmd/Ctrl-click). */
+    toggle?: boolean
+    /** Extend the selection from the anchor (Shift-click). */
+    range?: boolean
+}
 
 const RowView = memo(function RowView({
     row,
     selected,
+    primary,
     onSelect
 }: {
     row: Row
     selected: boolean
-    onSelect(id: string): void
+    /** The row the inspector shows (one of the selected). */
+    primary: boolean
+    onSelect(id: string, options?: SelectOptions): void
 }) {
     return (
         <div
-            className={`grid-row ${selected ? 'selected' : ''} ${row.state}`}
+            className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''}`}
             role="row"
             aria-selected={selected}
-            onClick={() => onSelect(row.id)}
+            onClick={(e) => onSelect(row.id, { toggle: e.metaKey || e.ctrlKey, range: e.shiftKey })}
             onDoubleClick={() => vscode.postMessage({ type: 'openText', id: row.id })}
         >
             <span role="gridcell" className="mono num seq c-seq">
@@ -95,9 +111,10 @@ const RowView = memo(function RowView({
                 {row.host}
             </span>
             <span role="gridcell" className="mono ellipsis path" title={row.url}>
-                {/* One icon slot per row (replay, WebSocket or SSE) so paths line up. */}
+                {/* One icon slot per row (paused, local, replay, WebSocket, SSE, rule) so paths line up. */}
                 <span
                     className={`codicon codicon-${pathIcon(row) ?? 'circle-filled slot-empty'} dim`}
+                    title={row.rules ? t('rulesApplied') : undefined}
                     aria-hidden="true"
                 />
                 {row.scheme === 'connect' ? row.path : row.path || '/'}
@@ -127,7 +144,7 @@ const RowView = memo(function RowView({
                     title={t('copyCurl')}
                     onClick={(e) => {
                         e.stopPropagation()
-                        vscode.postMessage({ type: 'copyCurl', id: row.id })
+                        vscode.postMessage({ type: 'copyCurl', ids: [row.id] })
                     }}
                 />
             </span>
@@ -140,6 +157,7 @@ export function SequenceTable({
     rows,
     total,
     selected,
+    selection,
     onSelect,
     sort,
     onSort,
@@ -149,7 +167,8 @@ export function SequenceTable({
     rows: Row[]
     total: number
     selected?: string
-    onSelect(id: string | undefined): void
+    selection: string[]
+    onSelect(id: string | undefined, options?: SelectOptions): void
     sort: Sort
     onSort(sort: Sort): void
     focus?: { id: string; tick: number }
@@ -171,7 +190,14 @@ export function SequenceTable({
                 if (!rows.length) return
                 const step = event.key === 'ArrowDown' ? 1 : -1
                 const next = rows[Math.min(rows.length - 1, Math.max(0, index + step))]
-                if (next && next.id !== selected) onSelect(next.id)
+                if (next && (next.id !== selected || event.shiftKey))
+                    onSelect(next.id, { range: event.shiftKey })
+                event.preventDefault()
+            } else if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
+                if (rows.length) {
+                    onSelect(rows[0].id)
+                    onSelect(rows[rows.length - 1].id, { range: true })
+                }
                 event.preventDefault()
             } else if (event.key === 'Enter' && selected) {
                 vscode.postMessage({ type: 'openText', id: selected })
@@ -180,7 +206,10 @@ export function SequenceTable({
                 (event.key === 'Delete' ||
                     (event.key === 'Backspace' && (event.metaKey || event.ctrlKey)))
             ) {
-                vscode.postMessage({ type: 'delete', ids: [selected] })
+                vscode.postMessage({
+                    type: 'delete',
+                    ids: selection.length ? selection : [selected]
+                })
             } else if (event.key === 'Escape') {
                 if (selected) onSelect(undefined)
                 else onClearFilters()
@@ -188,7 +217,8 @@ export function SequenceTable({
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [rows, index, selected, onSelect, onClearFilters])
+    }, [rows, index, selected, selection, onSelect, onClearFilters])
+    const selectedSet = useMemo(() => new Set(selection), [selection])
     const [widths, setWidths] = useState<Widths>(() => ({
         ...defaultWidths(),
         ...(state().columns as Partial<Widths> | undefined)
@@ -275,7 +305,8 @@ export function SequenceTable({
                     <RowView
                         key={row.id}
                         row={row}
-                        selected={row.id === selected}
+                        selected={row.id === selected || selectedSet.has(row.id)}
+                        primary={row.id === selected}
                         onSelect={onSelect}
                     />
                 )}

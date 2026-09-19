@@ -188,6 +188,8 @@ body.resizing-column {
 }
 .grid-row {
     cursor: default;
+    /* Shift-click extends the selection; it must not select text. */
+    user-select: none;
 }
 .grid-row:hover {
     background: var(--vscode-list-hoverBackground);
