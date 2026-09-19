@@ -5,6 +5,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Added
 
 - Compare replays with their original request from the inspector or row menu.
