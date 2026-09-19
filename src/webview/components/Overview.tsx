@@ -48,6 +48,20 @@ export function Overview({ x, onFocus }: { x: Transaction; onFocus(id: string): 
                 {x.grpc.web ? ' · gRPC-Web' : ''}
             </>
         ])
+    if (x.upstreamUrl)
+        rows.push([t('sentTo'), <span className="mono selectable">{x.upstreamUrl}</span>])
+    if (x.rules?.length)
+        rows.push([
+            t('rulesApplied'),
+            <>
+                {x.rules.map((name, i) => (
+                    <span key={i} className="tag">
+                        {name}
+                    </span>
+                ))}
+                {x.local && <span className="muted"> · {t('localResponse')}</span>}
+            </>
+        ])
     if (x.error) rows.push([t('error'), <span className="error-text">{x.error}</span>])
     if (x.replayOf)
         rows.push([

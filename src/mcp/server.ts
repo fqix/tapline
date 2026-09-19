@@ -63,7 +63,11 @@ function summarize(t: Transaction) {
                   grpcStatus: t.grpc.status ?? null
               }
             : {}),
-        ...(t.replayOf ? { replayOf: t.replayOf } : {})
+        ...(t.replayOf ? { replayOf: t.replayOf } : {}),
+        ...(t.rules?.length ? { rules: t.rules } : {}),
+        ...(t.local ? { answeredLocally: true } : {}),
+        ...(t.upstreamUrl ? { sentTo: t.upstreamUrl } : {}),
+        ...(t.paused ? { pausedAt: t.paused } : {})
     }
 }
 

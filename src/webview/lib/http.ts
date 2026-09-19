@@ -104,6 +104,145 @@ export function cookies(headers: Headers, side: 'request' | 'response'): Pair[] 
 }
 
 export function formFields(headers: Headers, body: string, binary: boolean): Pair[] {
-    if (binary || !contentType(headers).includes('x-www-form-urlencoded')) return []
+    const type = contentType(headers)
+    // Boundaries are case-sensitive: parse them from the header as sent.
+    if (type.includes('multipart/form-data'))
+        return multipartFields(header(headers, 'content-type') ?? '', body, binary)
+    if (binary || !type.includes('x-www-form-urlencoded')) return []
     return [...new URLSearchParams(body)].map(([name, value]) => ({ name, value }))
+}
+
+const utf8 = new TextDecoder('utf-8', { fatal: true })
+
+/** Parts of a multipart/form-data body; file parts are summarised, text parts shown. */
+export function multipartFields(type: string, body: string, binary: boolean): Pair[] {
+    const boundary = /boundary=("?)([^";]+)\1/i.exec(type)?.[2]
+    if (!boundary) return []
+    // Work on latin1 so byte offsets survive; decode each text part as UTF-8 afterwards.
+    const raw = binary ? atob(body) : body
+    const fields: Pair[] = []
+    for (const part of raw.split(`--${boundary}`).slice(1)) {
+        if (part.startsWith('--')) break
+        const split = part.indexOf('\r\n\r\n')
+        if (split < 0) continue
+        const head = part.slice(0, split)
+        const content = part.slice(split + 4).replace(/\r\n$/, '')
+        const disposition = /content-disposition:([^\r\n]*)/i.exec(head)?.[1] ?? ''
+        const name = /name="([^"]*)"/i.exec(disposition)?.[1] ?? ''
+        const filename = /filename="([^"]*)"/i.exec(disposition)?.[1]
+        const partType = /content-type:\s*([^\r\n]*)/i.exec(head)?.[1]
+        if (filename !== undefined) {
+            fields.push({
+                name,
+                value: `${filename} (${partType ?? 'application/octet-stream'}, ${content.length} bytes)`
+            })
+            continue
+        }
+        let value: string
+        try {
+            value = binary ? utf8.decode(Uint8Array.from(content, (c) => c.charCodeAt(0))) : content
+        } catch {
+            value = `(${content.length} bytes of binary data)`
+        }
+        fields.push({ name, value })
+    }
+    return fields
+}
+
+export interface Jwt {
+    /** Header the token was found in. */
+    source: string
+    header: unknown
+    payload: unknown
+    /** `exp` claim, when present. */
+    expires?: number
+}
+
+const base64url = (s: string) => {
+    const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)
+    const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))
+    return new TextDecoder().decode(bytes)
+}
+
+/** JSON Web Tokens found in header values (Authorization: Bearer …, cookies, custom). */
+export function findJwts(headers: Headers): Jwt[] {
+    const found: Jwt[] = []
+    const pattern = /\b(eyJ[\w-]+)\.(eyJ[\w-]+)\.([\w-]*)/g
+    for (const [name, value] of Object.entries(headers)) {
+        for (const m of value.matchAll(pattern)) {
+            try {
+                const header = JSON.parse(base64url(m[1]))
+                const payload = JSON.parse(base64url(m[2]))
+                if (typeof header !== 'object' || typeof payload !== 'object') continue
+                found.push({
+                    source: name,
+                    header,
+                    payload,
+                    expires: typeof payload?.exp === 'number' ? payload.exp : undefined
+                })
+            } catch {
+                // Not a JWT after all.
+            }
+        }
+    }
+    return found
+}
+
+/** Whether the body is an image the panel can preview inline. */
+export function imageType(headers: Headers): string | undefined {
+    const type = contentType(headers).split(';')[0].trim()
+    return /^image\/(png|jpeg|gif|webp|svg\+xml|bmp|x-icon|avif)$/.test(type) ? type : undefined
+}
+
+export function isMarkup(headers: Headers, body: string): boolean {
+    const type = contentType(headers)
+    return (
+        type.includes('xml') ||
+        type.includes('html') ||
+        type.includes('svg') ||
+        (!type && /^\s*<[?!a-z]/i.test(body))
+    )
+}
+
+/** Indent XML / HTML one element per line; short `<x>text</x>` pairs stay on one line. */
+export function prettyMarkup(text: string): string {
+    const lines: string[] = []
+    let depth = 0
+    const inline = /^<(br|hr|img|input|meta|link|area|base|col|embed|source|track|wbr)\b/i
+    const pieces = text
+        .replace(/>\s*</g, '><')
+        .split(/(?=<)|(?<=>)/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+    for (let i = 0; i < pieces.length; i++) {
+        const token = pieces[i]
+        const closing = /^<\//.test(token)
+        const selfClosing = /\/>$/.test(token) || /^<[?!]/.test(token) || inline.test(token)
+        const opening = token.startsWith('<') && !closing && !selfClosing
+        const next = pieces[i + 1]
+        const after = pieces[i + 2]
+        if (opening && next && !next.startsWith('<') && after && /^<\//.test(after)) {
+            lines.push('  '.repeat(depth) + token + next + after)
+            i += 2
+            continue
+        }
+        if (closing) depth = Math.max(0, depth - 1)
+        lines.push('  '.repeat(depth) + token)
+        if (opening) depth++
+    }
+    return lines.join('\n')
+}
+
+/** Count and positions of `needle` in `text`, case-insensitive. */
+export function findAll(text: string, needle: string): number[] {
+    if (!needle) return []
+    const hay = text.toLowerCase()
+    const n = needle.toLowerCase()
+    const hits: number[] = []
+    let i = hay.indexOf(n)
+    while (i >= 0 && hits.length < 5000) {
+        hits.push(i)
+        i = hay.indexOf(n, i + n.length)
+    }
+    return hits
 }

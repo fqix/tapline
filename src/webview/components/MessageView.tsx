@@ -1,6 +1,14 @@
 import type { Headers, Transaction } from '../../shared/model'
 import { bytes } from '../../shared/model'
-import { cookies, formFields, queryParams, requestLine, statusLine, type Pair } from '../lib/http'
+import {
+    cookies,
+    findJwts,
+    formFields,
+    queryParams,
+    requestLine,
+    statusLine,
+    type Pair
+} from '../lib/http'
 import { t } from '../lib/i18n'
 import { vscode } from '../lib/vscode'
 import { BodyView } from './BodyView'
@@ -91,6 +99,39 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
                     items={pairs(x.responseTrailers)}
                 />
             )}
+            {findJwts(headers).map((jwt, i) => (
+                <Section
+                    key={`${jwt.source}-${i}`}
+                    id={`${side}-jwt`}
+                    title="JWT"
+                    count={jwt.source}
+                    actions={
+                        <IconButton
+                            icon="copy"
+                            title={t('copy')}
+                            onClick={() =>
+                                vscode.postMessage({
+                                    type: 'copy',
+                                    text: JSON.stringify(
+                                        { header: jwt.header, payload: jwt.payload },
+                                        null,
+                                        2
+                                    )
+                                })
+                            }
+                        />
+                    }
+                >
+                    {jwt.expires !== undefined && (
+                        <p className={jwt.expires * 1000 < Date.now() ? 'note error' : 'muted'}>
+                            {jwt.expires * 1000 < Date.now() ? t('jwtExpired') : t('jwtExpires')}{' '}
+                            {new Date(jwt.expires * 1000).toLocaleString()}
+                        </p>
+                    )}
+                    <pre className="body">{JSON.stringify(jwt.header, null, 2)}</pre>
+                    <pre className="body">{JSON.stringify(jwt.payload, null, 2)}</pre>
+                </Section>
+            ))}
             <BodyView x={x} side={side} />
         </div>
     )
