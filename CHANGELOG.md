@@ -5,6 +5,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0]
+
 ### Added
 
 - Stream message tools for WebSocket, SSE and gRPC: search, per-message copy,
@@ -28,6 +30,15 @@ body:"…" header:name=value -term`, with a syntax popover), multi-select in the
   wired into CI on macOS, Linux and Windows.
 - The text document, MCP listings and `get_request` report applied rules, local
   responses, the upstream URL and paused state.
+
+### Changed
+
+- Interface typography now matches the VS Code workbench; body code retains the editor font.
+- Bundle Wintun 0.14.1 for Windows capture.
+
+### Fixed
+
+- Resume and abort paused requests using the correct transaction identifier.
 
 ## [0.3.0]
 
