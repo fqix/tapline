@@ -3,6 +3,28 @@
 All notable changes to Tapline are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Interception rules (`tapline.rules`, with an editor in the traffic panel): breakpoints
+  hold a request or response so it can be edited before it continues, rewrite changes
+  method / URL / status / headers / body, map local answers with a file or inline body,
+  map remote sends the request to another origin, block refuses it, throttle adds
+  latency and caps bandwidth. _Break on This URL_ adds a breakpoint from a request.
+- Compose pane to send a request from scratch, and _Edit & Resend_ on a captured one.
+- Filter query language (`status:5xx method:post host:api.* type:json size>10k dur>500
+body:"…" header:name=value -term`, with a syntax popover), multi-select in the table
+  (Cmd/Ctrl-click, Shift-click, Cmd/Ctrl+A) with copy-as-cURL / export HAR / delete for
+  the selection, and a Statistics pane (per host, slowest and largest responses).
+- Inspector: gzip / deflate / br / zstd response bodies are decoded; Pretty view for
+  XML and HTML, inline image preview, multipart/form-data fields, decoded JWTs with
+  expiry, and find-in-body with match navigation.
+- End-to-end test suite (`npm run test:e2e`) that runs the extension in a real VS Code,
+  wired into CI on macOS, Linux and Windows.
+- The text document, MCP listings and `get_request` report applied rules, local
+  responses, the upstream URL and paused state.
+
 ## [0.3.0] - 2026-09-19
 
 ### Added

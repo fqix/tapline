@@ -13,10 +13,21 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 
 - **Charles-style views** — a _Structure_ tree (host → path → request) in the sidebar
   and one traffic panel: a sortable, filterable _Sequence_ table (status / method quick
-  filters, per-host view) with an inspector below or beside it. The inspector shows an
-  overview with timing waterfall, request and response pages (headers, query, cookies,
-  form, trailers, body as Pretty JSON / Text / Hex), WebSocket frames and SSE events
-  streamed live.
+  filters, per-host view, multi-select) with an inspector below or beside it. The
+  inspector shows an overview with timing waterfall, request and response pages
+  (headers, query, cookies, form and multipart fields, decoded JWTs, trailers, body as
+  Pretty JSON / XML / Text / Hex / Image with find-in-body), WebSocket frames and SSE
+  events streamed live. Compressed bodies (gzip, deflate, br, zstd) are decoded.
+- **Rules** — breakpoints that pause a request or response for editing, rewrite
+  (method, URL, status, headers, body), map local (answer with a file or inline body),
+  map remote (send to another origin), block and throttle. Edited in the panel, stored
+  in `tapline.rules` (see below).
+- **Compose** — write a request from scratch or _Edit & Resend_ a captured one; the
+  reply appears in the table like any other.
+- **Filter query** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
+size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match the
+  URL, method or status. _Statistics_ summarise the filtered rows per host with the
+  slowest and largest responses.
 - **gRPC decoding** — messages are split out of the length-prefixed body (gzip/deflate
   and gRPC-Web included) and decoded with the workspace's `.proto` files
   (`tapline.grpc.protoFiles`) or, without a schema, by field number; `grpc-status` drives
@@ -45,6 +56,42 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Transactions kept and body bytes retained |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants            |
 | `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages        |
+| `tapline.rules`                             | `[]`             | Interception rules (see below)            |
+
+## Rules
+
+Rules apply in order to every request whose URL matches the rule's wildcard pattern
+(`*` matches anything; a pattern without `*` is a prefix; empty matches all) and,
+optionally, one of its methods. Open the editor with the ruler button in the traffic
+panel or _Tapline: Rules…_; _Break on This URL_ in a request's context menu adds a
+breakpoint for it. Rules are ordinary settings, so they can also be written by hand:
+
+```jsonc
+"tapline.rules": [
+    { "kind": "breakpoint", "url": "https://api.example.com/v1/orders*", "request": true, "response": true },
+    { "kind": "rewrite", "url": "*/v1/*", "request": { "headers": { "X-Debug": "1", "Authorization": null } },
+      "response": { "status": 500, "bodyReplace": { "pattern": "\"ok\":true", "replacement": "\"ok\":false" } } },
+    { "kind": "mapLocal", "url": "*/users.json", "file": "mocks/users.json" },
+    { "kind": "mapLocal", "url": "*/feature-flags", "body": "{\"beta\": true}", "status": 200 },
+    { "kind": "mapRemote", "url": "https://api.example.com/*", "to": "http://localhost:8080" },
+    { "kind": "block", "url": "*://telemetry.*", "status": 403 },
+    { "kind": "throttle", "url": "*", "latencyMs": 800, "kbps": 256 }
+]
+```
+
+| Kind         | Effect                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| `breakpoint` | Holds the request and/or response; the inspector shows an editor with _Continue_ and _Abort_.             |
+| `rewrite`    | `method`, `url` (regex → replacement), `status`, `headers` (`null` removes), `body` or `bodyReplace`.     |
+| `mapLocal`   | Answers with `file` (relative to the workspace or absolute) or `body`; `contentType` is guessed if unset. |
+| `mapRemote`  | Sends the request to `to` (origin, optional path prefix), keeping the path and query; `Host` follows.     |
+| `block`      | Refuses with `status` (default 403) without contacting the server.                                        |
+| `throttle`   | Delays forwarding by `latencyMs` and paces both bodies at `kbps`.                                         |
+
+Rewritten and edited bodies are sent uncompressed with `Content-Encoding` removed;
+`text/event-stream` responses are never buffered, so only their status and headers can
+change. Requests that a rule touched show a pencil in the table and the rule names in
+the overview; `rule:any` filters them.
 
 ## Root certificate
 
@@ -89,12 +136,13 @@ git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
 npm ci
 npm run core:build     # patch and build sing-box into core/<platform>-<arch>/
 npm run build          # esbuild → dist/
-npm test               # vitest
+npm test               # vitest: unit tests plus integration tests against the core
+npm run test:e2e       # the extension inside a real VS Code (downloads it on first run)
 npm run package        # VSIX for this platform (package:all for all six)
 ```
 
 Press F5 to launch the extension development host. CI builds, tests and packages every
-platform on each push.
+platform on each push and runs the end-to-end suite on one runner per OS.
 
 ## Releasing
 
