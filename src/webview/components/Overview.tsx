@@ -28,6 +28,7 @@ export function Overview({ x, onFocus }: { x: Transaction; onFocus(id: string): 
             `${bytes(x.requestBytes)} ${t('sent')} · ${bytes(x.responseBytes)} ${t('received')}`
         ]
     ]
+    if (x.note) rows.push([t('note'), <span className="selectable request-note">{x.note}</span>])
     if (x.grpc)
         rows.splice(4, 0, [
             'gRPC',

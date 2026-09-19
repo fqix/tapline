@@ -274,6 +274,16 @@
                 "command": "tapline.compareOriginal",
                 "title": "%command.compareOriginal%",
                 "category": "Tapline"
+            },
+            {
+                "command": "tapline.editNote",
+                "title": "%command.editNote%",
+                "category": "Tapline"
+            },
+            {
+                "command": "tapline.toggleMark",
+                "title": "%command.toggleMark%",
+                "category": "Tapline"
             }
         ],
         "menus": {
@@ -485,6 +495,14 @@
                 {
                     "command": "tapline.compareOriginal",
                     "when": "false"
+                },
+                {
+                    "command": "tapline.editNote",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.toggleMark",
+                    "when": "false"
                 }
             ],
             "webview/context": [
@@ -496,6 +514,16 @@
                 {
                     "command": "tapline.compareOriginal",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineReplay",
+                    "group": "2_request"
+                },
+                {
+                    "command": "tapline.editNote",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "2_request"
+                },
+                {
+                    "command": "tapline.toggleMark",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
                     "group": "2_request"
                 }
             ]

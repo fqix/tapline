@@ -64,5 +64,7 @@
     "config.rules.body": "mapLocal: inline body served when no file is set.",
     "config.rules.to": "mapRemote: origin (scheme://host[:port], optional path prefix) the request is sent to instead.",
     "command.compare": "Compare Requests",
-    "command.compareOriginal": "Compare with Original Request"
+    "command.compareOriginal": "Compare with Original Request",
+    "command.editNote": "Edit Request Note",
+    "command.toggleMark": "Toggle Request Marker"
 }
