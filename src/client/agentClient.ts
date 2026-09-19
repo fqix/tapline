@@ -93,22 +93,30 @@ export class AgentClient implements vscode.Disposable {
                 ? config.get<number>('mcp.port', defaultSettings.mcpPort)
                 : 0,
             protoFiles: this.protoFiles,
-            rules: this.rules()
+            rules: this.rules(true)
         }
     }
 
-    /** Rules from `tapline.rules`, with map-local files resolved against the workspace. */
-    rules(): Rule[] {
+    /**
+     * Rules from `tapline.rules`, normalised (ids, `enabled`). With `resolve`, map-local
+     * files are made absolute against the workspace for the agent; the editor gets them
+     * as written so relative paths survive a round trip.
+     */
+    rules(resolve = false): Rule[] {
         const config = vscode.workspace.getConfiguration('tapline')
         const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
         return config
             .get<Rule[]>('rules', [])
             .filter((rule) => rule && typeof rule === 'object' && rule.kind)
-            .map((rule) => ({
+            .map((rule, index) => ({
                 ...rule,
-                id: rule.id || `${rule.kind}-${rule.url ?? ''}-${rule.name ?? ''}`,
+                id: rule.id || `${rule.kind}-${index}`,
                 enabled: rule.enabled !== false,
-                ...(rule.kind === 'mapLocal' && rule.file && !isAbsolute(rule.file) && root
+                ...(resolve &&
+                rule.kind === 'mapLocal' &&
+                rule.file &&
+                !isAbsolute(rule.file) &&
+                root
                     ? { file: join(root, rule.file) }
                     : {})
             }))
@@ -343,10 +351,10 @@ export class AgentClient implements vscode.Disposable {
         return this.call('compose', { request })
     }
     resume(id: string, edit?: BreakpointEdit) {
-        return this.apply(this.call('resume', { id, edit }))
+        return this.apply(this.call('resume', { transaction: id, edit }))
     }
     abort(id: string) {
-        return this.apply(this.call('abort', { id }))
+        return this.apply(this.call('abort', { transaction: id }))
     }
 
     dispose() {

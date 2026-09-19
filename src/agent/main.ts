@@ -102,10 +102,10 @@ async function handle(request: Request): Promise<unknown> {
         case 'compose':
             return engine.compose(request.request)
         case 'resume':
-            engine.resume(request.id, request.edit)
+            engine.resume(request.transaction, request.edit)
             return state()
         case 'abort':
-            engine.abort(request.id)
+            engine.abort(request.transaction)
             return state()
         case 'logs':
             return engine.logs

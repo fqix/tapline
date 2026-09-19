@@ -21,9 +21,9 @@ export type Request =
     | { method: 'delete'; ids: string[] }
     | { method: 'compose'; request: ComposeRequest }
     /** Continue a transaction held at a breakpoint, with edits. */
-    | { method: 'resume'; id: string; edit?: BreakpointEdit }
+    | { method: 'resume'; transaction: string; edit?: BreakpointEdit }
     /** Fail a transaction held at a breakpoint. */
-    | { method: 'abort'; id: string }
+    | { method: 'abort'; transaction: string }
     | { method: 'logs' }
     /** Stop capture and exit so a newer build can take over; clients respawn it. */
     | { method: 'shutdown' }

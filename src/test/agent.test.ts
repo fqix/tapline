@@ -11,7 +11,7 @@ import { createInterface } from 'node:readline'
 import { pipePath } from '../agent/paths'
 import type { Message } from '../agent/protocol'
 import { defaultSettings } from '../shared/model'
-import { CORE, freePort } from './helpers'
+import { CORE, freePort, httpServer, viaProxy } from './helpers'
 
 const describeCore = existsSync(CORE) ? describe : describe.skip
 
@@ -108,6 +108,54 @@ describeCore('shared agent', () => {
         // Grace period is 3 s; sing-box must be gone with the agent.
         expect(await exited).toBe(0)
     }, 20000)
+
+    it('resumes a breakpoint over the protocol (transaction id must not clash with the message id)', async () => {
+        const again = spawn(process.execPath, [script, directory, CORE], {
+            stdio: ['ignore', 'pipe', 'pipe']
+        })
+        await new Promise<void>((resolve) =>
+            createInterface({ input: again.stdout! }).once('line', () => resolve())
+        )
+        const origin = await httpServer((_req, res) => res.end('ok'))
+        const client = new TestClient()
+        try {
+            await client.connect(pipePath(directory))
+            const port = await freePort()
+            await client.call('hello', {
+                settings: {
+                    ...defaultSettings,
+                    port,
+                    mcpPort: 0,
+                    rules: [
+                        { id: 'bp', enabled: true, kind: 'breakpoint', url: '*', request: true }
+                    ]
+                }
+            })
+            await client.call('start')
+            const reply = viaProxy(port, `http://127.0.0.1:${origin.port}/held`)
+            let held: { id: string } | undefined
+            for (let i = 0; i < 100 && !held; i++) {
+                await new Promise((r) => setTimeout(r, 50))
+                held = client.events.find(
+                    (e) => e.type === 'transaction' && e.transaction.paused === 'request'
+                )?.transaction
+            }
+            expect(held).toBeDefined()
+            const state = await Promise.race([
+                client.call('resume', { transaction: held!.id, edit: {} }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('resume hung')), 5000))
+            ])
+            expect(state.running).toBe(true)
+            expect((await reply).body).toBe('ok')
+            await expect(client.call('abort', { transaction: held!.id })).rejects.toThrow(
+                'not paused'
+            )
+        } finally {
+            client.socket.destroy()
+            origin.server.close()
+            again.kill()
+        }
+    }, 30000)
 
     it('reports its build and exits on shutdown so a newer build can replace it', async () => {
         const again = spawn(process.execPath, [script, directory, CORE], {
