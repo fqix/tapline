@@ -9,6 +9,11 @@ export interface Frame {
     binary: boolean
     /** UTF-8 text, or base64 when `binary`. */
     data: string
+    /** Original payload size, before the capture limit is applied. */
+    size?: number
+    truncated?: boolean
+    /** Captured message resent on this connection. */
+    replayOf?: string
 }
 
 export interface ServerEvent {
@@ -111,6 +116,7 @@ export interface Transaction {
     tls: boolean
     error?: string
     frames: Frame[]
+    framesTruncated?: boolean
     /** Present for text/event-stream responses, including streams awaiting their first event. */
     events?: ServerEvent[]
     eventsTruncated?: boolean

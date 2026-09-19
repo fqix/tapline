@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import http from 'node:http'
@@ -9,9 +9,9 @@ import { CORE, settled, startEngine } from './helpers'
 const describeCore = existsSync(CORE) ? describe : describe.skip
 
 /** Minimal RFC 6455 text frame (unmasked, server→client or masked client→server). */
-function frame(text: string, mask: boolean) {
+function frame(text: string | Buffer, mask: boolean, binary = false) {
     const payload = Buffer.from(text)
-    const header = Buffer.from([0x81, (mask ? 0x80 : 0) | payload.length])
+    const header = Buffer.from([binary ? 0x82 : 0x81, (mask ? 0x80 : 0) | payload.length])
     if (!mask) return Buffer.concat([header, payload])
     const key = randomBytes(4)
     const masked = Buffer.from(payload.map((b, i) => b ^ key[i % 4]))
@@ -73,53 +73,108 @@ describeCore('websocket relay', () => {
 
     it('records both directions of a WebSocket session', async () => {
         const socket = net.connect(engine.settings.port, '127.0.0.1')
-        await new Promise<void>((r) => socket.once('connect', r))
-        socket.write(
-            `GET http://127.0.0.1:${port}/socket HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`
-        )
-        const received: string[] = []
-        const parser = new FrameParser()
-        await new Promise<void>((resolve, reject) => {
-            let buffer = Buffer.alloc(0)
-            let upgraded = false
-            let sentTwo = false
-            socket.on('data', (data: Buffer) => {
-                if (upgraded) {
-                    received.push(...parser.push(data))
-                    if (received.length >= 1 && !sentTwo) {
-                        sentTwo = true
-                        socket.write(frame('two', true))
+        const cleanup = () => socket.destroy()
+        try {
+            await new Promise<void>((r) => socket.once('connect', r))
+            socket.write(
+                `GET http://127.0.0.1:${port}/socket HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`
+            )
+            const received: string[] = []
+            const parser = new FrameParser()
+            await new Promise<void>((resolve, reject) => {
+                let buffer = Buffer.alloc(0)
+                let upgraded = false
+                let sentTwo = false
+                socket.on('data', (data: Buffer) => {
+                    if (upgraded) {
+                        received.push(...parser.push(data))
+                        if (received.length >= 1 && !sentTwo) {
+                            sentTwo = true
+                            socket.write(frame('two', true))
+                        }
+                        if (received.length >= 2) resolve()
+                        return
                     }
-                    if (received.length >= 2) resolve()
-                    return
-                }
-                buffer = Buffer.concat([buffer, data])
-                const end = buffer.indexOf('\r\n\r\n')
-                if (end < 0) return
-                if (!/^HTTP\/1\.1 101/.test(buffer.toString('latin1', 0, end)))
-                    return reject(new Error(buffer.toString('latin1', 0, end)))
-                upgraded = true
-                const rest = buffer.subarray(end + 4)
-                if (rest.length) received.push(...parser.push(rest))
-                socket.write(frame('one', true))
+                    buffer = Buffer.concat([buffer, data])
+                    const end = buffer.indexOf('\r\n\r\n')
+                    if (end < 0) return
+                    if (!/^HTTP\/1\.1 101/.test(buffer.toString('latin1', 0, end)))
+                        return reject(new Error(buffer.toString('latin1', 0, end)))
+                    upgraded = true
+                    const rest = buffer.subarray(end + 4)
+                    if (rest.length) received.push(...parser.push(rest))
+                    socket.write(frame('one', true))
+                })
+                socket.once('error', reject)
             })
-            socket.once('error', reject)
-        })
-        expect(received).toEqual(['echo:one', 'echo:two'])
-        socket.write(Buffer.from([0x88, 0x80, 0, 0, 0, 0]))
-        socket.end()
-        const t = await settled(engine, (t) => t.path === '/socket')
-        expect(t.status).toBe(101)
-        // Both directions interleave freely; only the per-direction order is fixed.
-        expect(t.frames.filter((f) => f.direction === 'send').map((f) => f.data)).toEqual([
-            'one',
-            'two'
-        ])
-        expect(t.frames.filter((f) => f.direction === 'receive').map((f) => f.data)).toEqual([
-            'echo:one',
-            'echo:two'
-        ])
-        expect(t.frames.every((f) => !f.binary)).toBe(true)
-        expect(t.state).toBe('completed')
+            expect(received).toEqual(['echo:one', 'echo:two'])
+            const live = [...engine.transactions.values()].find((t) => t.path === '/socket')!
+            const original = live.frames.find((f) => f.direction === 'send' && f.data === 'one')!
+            await engine.resendFrame(live.id, original.id)
+            await vi.waitFor(() => expect(received).toContain('echo:one'), { timeout: 3000 })
+            await vi.waitFor(() => expect(received.length).toBe(3), { timeout: 3000 })
+            expect(live.frames.find((f) => f.replayOf === original.id)?.data).toBe('one')
+            // A server message is not a client command and must never be resent upstream.
+            await expect(
+                engine.resendFrame(live.id, live.frames.find((f) => f.direction === 'receive')!.id)
+            ).rejects.toThrow('Only outgoing')
+            await expect(engine.resendFrame(live.id, 'expired')).rejects.toThrow(
+                'no longer retained'
+            )
+
+            const binary = Buffer.from([0, 1, 255])
+            socket.write(frame(binary, true, true))
+            await vi.waitFor(() =>
+                expect(live.frames.some((f) => f.binary && f.direction === 'send')).toBe(true)
+            )
+            const binaryFrame = live.frames.find((f) => f.binary && f.direction === 'send')!
+            await engine.resendFrame(live.id, binaryFrame.id)
+            await vi.waitFor(() => expect(received.length).toBe(5))
+            expect(live.frames.find((f) => f.replayOf === binaryFrame.id)).toMatchObject({
+                binary: true,
+                data: binary.toString('base64'),
+                size: 3
+            })
+
+            engine.settings.maxBodyBytes = 2
+            socket.write(frame('oversized', true))
+            await vi.waitFor(() => expect(live.frames.some((f) => f.truncated)).toBe(true))
+            const truncated = live.frames.find((f) => f.direction === 'send' && f.truncated)!
+            expect(truncated).toMatchObject({ data: 'ov', size: 9 })
+            await expect(engine.resendFrame(live.id, truncated.id)).rejects.toThrow('Truncated')
+            engine.settings.maxBodyBytes = 512 * 1024
+            await vi.waitFor(() => expect(received.length).toBe(6))
+
+            socket.write(frame('', true))
+            await vi.waitFor(() =>
+                expect(live.frames.some((f) => f.direction === 'send' && f.data === '')).toBe(true)
+            )
+            await engine.resendFrame(
+                live.id,
+                live.frames.find((f) => f.direction === 'send' && f.data === '')!.id
+            )
+            await vi.waitFor(() => expect(received.length).toBe(8))
+            socket.write(Buffer.from([0x88, 0x80, 0, 0, 0, 0]))
+            socket.end()
+            const t = await settled(engine, (t) => t.path === '/socket')
+            expect(t.status).toBe(101)
+            // Both directions interleave freely; only the per-direction order is fixed.
+            expect(
+                t.frames
+                    .filter((f) => f.direction === 'send')
+                    .slice(0, 3)
+                    .map((f) => f.data)
+            ).toEqual(['one', 'two', 'one'])
+            expect(
+                t.frames
+                    .filter((f) => f.direction === 'receive')
+                    .slice(0, 3)
+                    .map((f) => f.data)
+            ).toEqual(['echo:one', 'echo:two', 'echo:one'])
+            expect(t.state).toBe('completed')
+            await expect(engine.resendFrame(t.id, original.id)).rejects.toThrow('closed')
+        } finally {
+            cleanup()
+        }
     })
 })
