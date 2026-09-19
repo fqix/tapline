@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import { join } from 'node:path'
@@ -177,6 +177,8 @@ export class Inspector {
     private tunnels = new Map<string, Duplex>()
     private sessions = new Set<string>()
     private stopping?: Promise<void>
+    private websocketSend = false
+    private pendingSends = new Map<string, (error?: Error) => void>()
     private exitHandlers: ((error: Error) => void)[] = []
 
     constructor(
@@ -190,6 +192,31 @@ export class Inspector {
 
     private send(message: Record<string, unknown>) {
         this.wire?.send(message)
+    }
+
+    sendWebSocket(session: string, data: Buffer, binary: boolean): Promise<void> {
+        if (!this.websocketSend)
+            return Promise.reject(new Error('Rebuild the capture core to enable WebSocket resend'))
+        if (!this.wire || !this.sessions.has(session))
+            return Promise.reject(new Error('WebSocket connection is closed'))
+        return new Promise((resolve, reject) => {
+            const id = randomUUID()
+            const finish = (error?: Error) => {
+                clearTimeout(timer)
+                this.pendingSends.delete(id)
+                error ? reject(error) : resolve()
+            }
+            const timer = setTimeout(
+                () => finish(new Error('WebSocket resend timed out; delivery is unknown')),
+                10000
+            )
+            this.pendingSends.set(id, finish)
+            try {
+                this.send({ type: 'websocket-send', id, session, data, binary })
+            } catch (error) {
+                finish(error instanceof Error ? error : new Error(String(error)))
+            }
+        })
     }
 
     private fail(id: string, error: unknown) {
@@ -508,6 +535,7 @@ export class Inspector {
             child.stdin!.on('error', fatal)
             child.on('exit', (code) => {
                 const error = new Error(`sing-box exited (${code}): ${log.slice(-2000)}`)
+                for (const finish of this.pendingSends.values()) finish(error)
                 finish(error)
                 if (this.child === child) this.exitHandlers.forEach((h) => h(error))
                 for (const id of [...this.sessions]) this.fail(id, new Error('sing-box stopped'))
@@ -515,9 +543,14 @@ export class Inspector {
             })
             wire.on('message', (message: any) => {
                 if (message.type === 'ready') {
+                    this.websocketSend = message.websocketSend === true
                     this.port = message.port
                     inspectorReady = true
                     if (coreReady) finish()
+                } else if (message.type === 'websocket-send-result') {
+                    this.pendingSends.get(message.id)?.(
+                        message.error ? new Error(message.error) : undefined
+                    )
                 } else void this.message(message).catch((error) => this.fail(message.id, error))
             })
             wire.send({ type: 'start', port, host, ingressPort: port, root: this.options.root })
@@ -529,6 +562,8 @@ export class Inspector {
     }
 
     private async shutdown() {
+        this.websocketSend = false
+        for (const finish of this.pendingSends.values()) finish(new Error('Capture stopped'))
         const child = this.child
         const exited =
             child?.pid && child.exitCode === null && child.signalCode === null

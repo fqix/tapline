@@ -734,7 +734,21 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         t.statusMessage = 'Switching Protocols'
         this.publish(t)
     }
-    frame(id: string, fromServer: boolean, data: Buffer, binary: boolean) {
+    async resendFrame(id: string, frameId: string): Promise<void> {
+        const t = this.transactions.get(id)
+        if (!t || t.state !== 'pending' || t.status !== 101 || !this.inspector)
+            throw new Error('WebSocket connection is closed')
+        const frame = t.frames.find((f) => f.id === frameId)
+        if (!frame) throw new Error('WebSocket message is no longer retained')
+        if (frame.direction !== 'send')
+            throw new Error('Only outgoing WebSocket messages can be resent')
+        if (frame.truncated) throw new Error('Truncated WebSocket messages cannot be resent')
+        const data = Buffer.from(frame.data, frame.binary ? 'base64' : 'utf8')
+        await this.inspector.sendWebSocket(id, data, frame.binary)
+        this.frame(id, false, data, frame.binary, frame.id)
+    }
+
+    frame(id: string, fromServer: boolean, data: Buffer, binary: boolean, replayOf?: string) {
         const t = this.transactions.get(id)
         if (!t) return
         if (fromServer) t.responseBytes += data.length
@@ -745,10 +759,16 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
             time: Date.now(),
             direction: fromServer ? 'receive' : 'send',
             binary: !text,
+            size: data.length,
+            truncated: data.length > this.settings.maxBodyBytes,
+            replayOf,
             data: data.subarray(0, this.settings.maxBodyBytes).toString(text ? 'utf8' : 'base64')
         }
         t.frames.push(frame)
-        if (t.frames.length > 500) t.frames.shift()
+        if (t.frames.length > 500) {
+            t.frames.shift()
+            t.framesTruncated = true
+        }
         this.publish(t)
     }
     closed(id: string, aborted: boolean) {

@@ -101,6 +101,9 @@ async function handle(request: Request): Promise<unknown> {
             return state()
         case 'compose':
             return engine.compose(request.request)
+        case 'resendFrame':
+            await engine.resendFrame(request.transaction, request.frame)
+            return state()
         case 'resume':
             engine.resume(request.transaction, request.edit)
             return state()

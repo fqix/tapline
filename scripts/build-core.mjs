@@ -34,7 +34,7 @@ const output = (command, args, options = {}) =>
         ...options
     }).trim()
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex')
-const patches = ['0001', '0002', '0003', '0004', '0005', '0006'].map((prefix) => {
+const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007'].map((prefix) => {
     const name = readFileSync(join(PATCHES, 'series'), 'utf8')
         .split('\n')
         .find((line) => line.startsWith(prefix))
