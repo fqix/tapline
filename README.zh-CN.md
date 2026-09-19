@@ -28,6 +28,10 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 U
 - **gRPC 解码** — 从 length-prefixed 的 body 中拆出每条消息（支持 gzip/deflate 与 gRPC-Web），
   用工作区的 `.proto`（`tapline.grpc.protoFiles`）解出字段名，没有 schema 时按字段编号解码；
   `grpc-status` 决定状态颜色，方法列显示为 _gRPC_。
+- **流式消息** — WebSocket、SSE 和 gRPC 支持搜索、单条复制、暂停显示与跟随最新；
+  暂停或向上滚动时固定当前画面，抓包继续。WebSocket 可按收发方向筛选，并在原连接上
+  重发完整的已发送消息（含二进制）；连接关闭或消息被截断时不可重发。SSE 可搜索事件名、
+  ID 和内容，gRPC 在流结束前显示已收到的完整消息，仍受正文保留上限约束。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……可配置）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）。

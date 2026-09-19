@@ -180,8 +180,8 @@ export function Inspector({
                 {active === 'overview' && <Overview x={x} onFocus={onFocus} />}
                 {active === 'request' && <MessageView key={x.id} x={x} side="request" />}
                 {active === 'response' && <MessageView key={x.id} x={x} side="response" />}
-                {active === 'frames' && <Frames x={x} />}
-                {active === 'events' && <ServerEvents x={x} />}
+                {active === 'frames' && <Frames key={x.id} x={x} />}
+                {active === 'events' && <ServerEvents key={x.id} x={x} />}
             </div>
         </div>
     )

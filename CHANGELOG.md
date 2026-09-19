@@ -7,6 +7,10 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Added
 
+- Stream message tools for WebSocket, SSE and gRPC: search, per-message copy,
+  pause display while capture continues, and follow latest. WebSocket adds direction
+  filtering and resending complete outgoing messages on the original open connection,
+  including binary payloads. gRPC messages appear before the stream finishes.
 - Interception rules (`tapline.rules`, with an editor in the traffic panel): breakpoints
   hold a request or response so it can be edited before it continues, rewrite changes
   method / URL / status / headers / body, map local answers with a file or inline body,

@@ -188,6 +188,24 @@ export class TrafficPanel implements vscode.Disposable {
                     this.focus(replayed.id)
                     return
                 }
+                case 'resendFrame': {
+                    let error: string | undefined
+                    try {
+                        await this.client.call('resendFrame', {
+                            transaction: message.id,
+                            frame: message.frameId
+                        })
+                    } catch (caught) {
+                        error = caught instanceof Error ? caught.message : String(caught)
+                    }
+                    this.post({
+                        type: 'frameResent',
+                        id: message.id,
+                        frameId: message.frameId,
+                        error
+                    })
+                    return
+                }
                 case 'compose': {
                     const sent = await this.actions.compose(message.request)
                     this.focus(sent.id)
@@ -279,6 +297,32 @@ function panelStrings(): Record<string, string> {
         request: vscode.l10n.t('Request'),
         response: vscode.l10n.t('Response'),
         frames: vscode.l10n.t('Frames'),
+        streamSearch: vscode.l10n.t('Search messages…'),
+        streamClearSearch: vscode.l10n.t('Clear message search'),
+        streamDirection: vscode.l10n.t('Message direction'),
+        streamAll: vscode.l10n.t('Both directions'),
+        streamSent: vscode.l10n.t('Sent'),
+        streamReceived: vscode.l10n.t('Received'),
+        streamCount: vscode.l10n.t('{0} / {1} messages'),
+        streamPause: vscode.l10n.t('Pause display'),
+        streamResume: vscode.l10n.t('Follow latest'),
+        streamPaused: vscode.l10n.t('Display paused; capture continues.'),
+        streamNew: vscode.l10n.t('{0} new messages retained'),
+        streamNoMatches: vscode.l10n.t('No matching messages'),
+        streamCopy: vscode.l10n.t('Copy message'),
+        streamCopyBase64: vscode.l10n.t('Copy message as Base64'),
+        streamResend: vscode.l10n.t('Resend on this WebSocket connection'),
+        streamResent: vscode.l10n.t('Message resent'),
+        streamClosed: vscode.l10n.t('WebSocket connection is closed'),
+        streamReceiveOnly: vscode.l10n.t('Only outgoing messages can be resent'),
+        streamTruncatedResend: vscode.l10n.t('Truncated messages cannot be resent'),
+        streamTruncated: vscode.l10n.t('Payload truncated'),
+        streamFramesTruncated: vscode.l10n.t(
+            'Only the most recent 500 WebSocket messages are retained.'
+        ),
+        streamWaiting: vscode.l10n.t('Waiting for messages…'),
+        streamEmpty: vscode.l10n.t('No messages were captured.'),
+        streamSendTimeout: vscode.l10n.t('No resend confirmation received; delivery is unknown.'),
         events: vscode.l10n.t('SSE Events'),
         eventsWaiting: vscode.l10n.t('Waiting for events…'),
         eventsEmpty: vscode.l10n.t('No complete events were captured.'),

@@ -191,7 +191,12 @@ export function BodyView({ x, side }: { x: Transaction; side: 'request' | 'respo
                 </div>
             )}
             {active === 'messages' && (
-                <GrpcMessages info={grpc!} side={side} encoding={x.grpc?.encoding} />
+                <GrpcMessages
+                    key={`${x.id}:${side}`}
+                    info={grpc!}
+                    side={side}
+                    encoding={x.grpc?.encoding}
+                />
             )}
             {active === 'image' && (
                 <img

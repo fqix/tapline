@@ -32,6 +32,12 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
   and gRPC-Web included) and decoded with the workspace's `.proto` files
   (`tapline.grpc.protoFiles`) or, without a schema, by field number; `grpc-status` drives
   the status colour and the method column reads _gRPC_.
+- **Stream messages** — search, copy individual messages, pause display and follow
+  latest for WebSocket, SSE and gRPC. Scrolling up freezes the view while capture
+  continues. Filter WebSocket messages by direction and resend complete outgoing
+  messages (including binary) on the original open connection. SSE search includes
+  event names and IDs; complete gRPC messages appear before EOF, within the body
+  retention limit. Closed connections and truncated messages cannot be resent.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, … configurable) get `HTTP(S)_PROXY` and the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
