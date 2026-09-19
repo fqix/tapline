@@ -182,13 +182,15 @@ func socks5UDP(ctx context.Context, proxy, target string) (net.PacketConn, *net.
 	if err != nil {
 		return fail(err)
 	}
-	return &socksPacketConn{UDPConn: udp, control: control, relay: relay, remote: remote}, remote, nil
+	return &socksPacketConn{PacketConn: udp, control: control, relay: relay, remote: remote}, remote, nil
 }
 
 // socksPacketConn frames datagrams for the SOCKS5 UDP relay: every packet gets
 // a header naming the target, and incoming packets have it removed.
 type socksPacketConn struct {
-	*net.UDPConn
+	// Expose only PacketConn: promoting UDPConn's ReadMsgUDP/WriteMsgUDP lets
+	// quic-go's optimized I/O bypass the SOCKS framing in ReadFrom/WriteTo.
+	net.PacketConn
 	control net.Conn
 	relay   *net.UDPAddr
 	remote  *net.UDPAddr
@@ -202,7 +204,7 @@ func (c *socksPacketConn) WriteTo(p []byte, _ net.Addr) (int, error) {
 	buf := make([]byte, 0, len(c.header)+len(p))
 	buf = append(buf, c.header...)
 	buf = append(buf, p...)
-	if _, err := c.UDPConn.WriteTo(buf, c.relay); err != nil {
+	if _, err := c.PacketConn.WriteTo(buf, c.relay); err != nil {
 		return 0, err
 	}
 	return len(p), nil
@@ -211,7 +213,7 @@ func (c *socksPacketConn) WriteTo(p []byte, _ net.Addr) (int, error) {
 func (c *socksPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	buf := make([]byte, len(p)+262)
 	for {
-		n, _, err := c.UDPConn.ReadFrom(buf)
+		n, _, err := c.PacketConn.ReadFrom(buf)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -225,7 +227,7 @@ func (c *socksPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 
 func (c *socksPacketConn) Close() error {
 	c.control.Close()
-	return c.UDPConn.Close()
+	return c.PacketConn.Close()
 }
 
 func socksHeader(a *net.UDPAddr) []byte {
@@ -263,4 +265,3 @@ func stripSocksHeader(b []byte) ([]byte, bool) {
 	}
 	return b[n:], true
 }
-

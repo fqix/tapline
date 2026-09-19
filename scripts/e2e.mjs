@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Build the end-to-end tests and their scratch workspace, then run them in VS Code:
 // `node scripts/e2e.mjs [--build-only]`. Requires `npm run build` and the core for
-// this platform (`npm run core:build`).
+// this platform (`npm run core:build`) and Go 1.25+ for the HTTP/3 probe.
 import { build } from 'esbuild'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -13,6 +13,24 @@ const OUT = join(ROOT, 'out')
 const tests = readdirSync(join(ROOT, 'src', 'e2e')).filter((f) => f.endsWith('.test.ts'))
 
 rmSync(OUT, { recursive: true, force: true })
+mkdirSync(OUT, { recursive: true })
+// Build before launching VS Code so compilation is outside the test timeout.
+// Fail explicitly if Go or its dependencies are missing; never silently skip H3.
+execFileSync(
+    process.env.TAPLINE_GO || 'go',
+    [
+        'build',
+        '-mod=readonly',
+        '-o',
+        join(OUT, process.platform === 'win32' ? 'h3-probe.exe' : 'h3-probe'),
+        '.'
+    ],
+    {
+        cwd: join(ROOT, 'scripts', 'h3-probe'),
+        stdio: 'inherit',
+        env: { ...process.env, GOWORK: 'off' }
+    }
+)
 await build({
     entryPoints: tests.map((f) => join(ROOT, 'src', 'e2e', f)),
     outdir: join(OUT, 'e2e'),
