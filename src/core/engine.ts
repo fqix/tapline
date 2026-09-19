@@ -11,7 +11,7 @@ import {
     ensureTruststore,
     type RootIdentity
 } from './certificate'
-import { GrpcDecoder } from './grpc'
+import { GrpcDecoder, grpcContentType } from './grpc'
 import { SSEParser } from './sse'
 import {
     Inspector,
@@ -62,6 +62,8 @@ interface Capture {
     chunks: Buffer[]
     retained: number
     total: number
+    grpcTimer?: NodeJS.Timeout
+    grpcDecoded?: number
 }
 
 /**
@@ -291,12 +293,35 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         if (c.total > this.settings.maxBodyBytes) t.truncated = true
         if (side === 'request') t.requestBytes = c.total
         else t.responseBytes = c.total
+        const headers = side === 'request' ? t.requestHeaders : t.responseHeaders
+        const encoding = getHeader(headers, 'content-encoding')
+        if (
+            grpcContentType(headers) &&
+            (!encoding || encoding === 'identity') &&
+            !c.grpcTimer &&
+            c.grpcDecoded !== c.retained
+        ) {
+            // Coalesce chunks and decode only complete frames within the retained limit.
+            // Long-lived gRPC streams must not wait for EOF to become inspectable.
+            c.grpcTimer = setTimeout(() => {
+                c.grpcTimer = undefined
+                if (this.captures.get(id)?.[side] !== c || t.state !== 'pending') return
+                c.grpcDecoded = c.retained
+                const body = Buffer.concat(c.chunks)
+                this.retain(t, side, body)
+                this.decodeGrpc(t, side, body)
+                this.publish(t)
+            }, 100)
+            c.grpcTimer.unref()
+        }
     }
 
     private seal(id: string, side: 'request' | 'response'): Buffer | undefined {
         const t = this.transactions.get(id)
         const c = this.captures.get(id)?.[side]
         if (!t || !c) return undefined
+        clearTimeout(c.grpcTimer)
+        c.grpcTimer = undefined
         const body = Buffer.concat(c.chunks)
         this.retain(t, side, body)
         c.chunks = []
