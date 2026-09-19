@@ -12,6 +12,7 @@ import {
 } from '../webview/types/messages'
 
 export interface PanelActions {
+    compareOriginal(id: string): Promise<void>
     compare(ids: string[]): Promise<void>
     copyCurl(ids: string[]): Promise<void>
     replay(id: string): Promise<Transaction>
@@ -182,6 +183,8 @@ export class TrafficPanel implements vscode.Disposable {
                     await vscode.env.clipboard.writeText(message.text)
                     void vscode.window.setStatusBarMessage(vscode.l10n.t('Copied'), 1500)
                     return
+                case 'compareOriginal':
+                    return await this.actions[message.type](message.id)
                 case 'compare':
                     return await this.actions.compare(message.ids)
                 case 'copyCurl':
@@ -296,6 +299,7 @@ export class TrafficPanel implements vscode.Disposable {
 /** Localised strings handed to the webview; keys match `t()` calls in src/webview. */
 function panelStrings(): Record<string, string> {
     return {
+        compareOriginal: vscode.l10n.t('Compare with Original Request'),
         compare: vscode.l10n.t('Compare Requests'),
         overview: vscode.l10n.t('Overview'),
         request: vscode.l10n.t('Request'),

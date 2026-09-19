@@ -93,7 +93,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         const [left, right] = ids.map(byId).sort((a, b) => a.sequence - b.sequence)
         await comparisons.compare(left, right)
     }
+    const compareOriginal = async (id: string) => {
+        const t = byId(id)
+        if (!t.replayOf || !client!.transactions.has(t.replayOf))
+            throw new Error(vscode.l10n.t('The original request is no longer available.'))
+        await comparisons.compare(byId(t.replayOf), t)
+    }
     const actions: PanelActions = {
+        compareOriginal,
         compare,
         copyCurl: async (ids) => {
             await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
@@ -283,6 +290,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     command('tapline.openHost', (node?: TrafficNode) => {
         if (node?.kind === 'host') panel.showHost(node.host)
     })
+    for (const [name, action] of Object.entries({
+        compareOriginal
+    }))
+        command(`tapline.${name}`, async (context?: { id?: string }) => {
+            const id = context?.id ?? one()?.id
+            if (id) await action(id)
+        })
     command('tapline.compare', async (context?: { ids?: string[] }) => {
         if (Array.isArray(context?.ids)) return compare(context.ids)
         const picks = [...client!.transactions.values()]
