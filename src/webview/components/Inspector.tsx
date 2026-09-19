@@ -113,6 +113,15 @@ export function Inspector({
                     {x.url}
                 </button>
                 <span className="actions">
+                    {x.replayOf && (
+                        <IconButton
+                            icon="diff"
+                            title={t('compareOriginal')}
+                            onClick={() =>
+                                vscode.postMessage({ type: 'compareOriginal', id: x.id })
+                            }
+                        />
+                    )}
                     <IconButton
                         icon="copy"
                         title={t('copyUrl')}

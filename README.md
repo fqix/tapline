@@ -44,6 +44,7 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
   `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …).
 - **One-click root certificate** — install, trust and uninstall the CA in the OS
   store on macOS, Windows and Linux. Capture waits until the CA is trusted.
+- **Compare with original** — open a replay against its original from the inspector or row menu.
 - **Compare requests** — select two rows with Cmd/Ctrl-click and use _Compare Requests_
   in the selection toolbar or context menu. The native VS Code diff shows immutable
   request/response snapshots, with the earlier capture on the left. Headers are sorted,

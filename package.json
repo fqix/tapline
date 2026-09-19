@@ -269,6 +269,11 @@
                 "title": "%command.compare%",
                 "category": "Tapline",
                 "icon": "$(diff)"
+            },
+            {
+                "command": "tapline.compareOriginal",
+                "title": "%command.compareOriginal%",
+                "category": "Tapline"
             }
         ],
         "menus": {
@@ -476,6 +481,10 @@
                 {
                     "command": "tapline.addBreakpoint",
                     "when": "false"
+                },
+                {
+                    "command": "tapline.compareOriginal",
+                    "when": "false"
                 }
             ],
             "webview/context": [
@@ -483,6 +492,11 @@
                     "command": "tapline.compare",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineCompareCount == 2",
                     "group": "1_compare"
+                },
+                {
+                    "command": "tapline.compareOriginal",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineReplay",
+                    "group": "2_request"
                 }
             ]
         },

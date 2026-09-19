@@ -245,5 +245,7 @@
     "Compare Requests": "比较请求",
     "Select exactly two requests to compare.": "请选择两条请求进行比较。",
     "Tapline: #{0} ↔ #{1}": "Tapline：#{0} ↔ #{1}",
-    "(comparison no longer available)": "（对比内容已不可用）"
+    "(comparison no longer available)": "（对比内容已不可用）",
+    "Compare with Original Request": "与原请求对比",
+    "The original request is no longer available.": "原请求已不可用，可能已被清除。"
 }

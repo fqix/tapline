@@ -92,6 +92,8 @@ const RowView = memo(function RowView({
             aria-selected={selected}
             data-vscode-context={JSON.stringify({
                 webviewSection: 'requests',
+                id: row.id,
+                taplineReplay: !!row.replayOf,
                 taplineCompareCount: comparisonIds?.length ?? 0,
                 ids: comparisonIds
             })}

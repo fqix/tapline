@@ -121,6 +121,7 @@ suite('Tapline end to end', function () {
             'tapline.stats',
             'tapline.exportHar',
             'tapline.compare',
+            'tapline.compareOriginal',
             'tapline.configureMcp'
         ])
             assert.ok(commands.includes(name), `${name} is registered`)
@@ -176,6 +177,36 @@ suite('Tapline end to end', function () {
         await api.client.delete([left.id, right.id])
         assert.equal(original.getText(), snapshot)
         assert.equal((await vscode.workspace.openTextDocument(input.original)).getText(), snapshot)
+        await vscode.window.tabGroups.close(tab)
+    })
+
+    test('compares replays with their original requests', async () => {
+        const url = `http://127.0.0.1:${origin.port}/compare-original`
+        await viaProxy(url)
+        const original = await settled((t) => t.url === url)
+        const replay = await api.client.compose({
+            url,
+            method: 'GET',
+            headers: {},
+            body: '',
+            replayOf: original.id
+        })
+        await settled((t) => t.id === replay.id)
+        await vscode.commands.executeCommand('tapline.compareOriginal', { id: replay.id })
+        const tab = await until(() =>
+            vscode.window.tabGroups.all
+                .flatMap((g) => g.tabs)
+                .find(
+                    (t) =>
+                        t.input instanceof vscode.TabInputTextDiff &&
+                        t.input.original.path.endsWith(`/request-${original.sequence}.taplinehttp`)
+                )
+        )
+        assert.ok(
+            (tab.input as vscode.TabInputTextDiff).modified.path.endsWith(
+                `/request-${replay.sequence}.taplinehttp`
+            )
+        )
         await vscode.window.tabGroups.close(tab)
     })
 
