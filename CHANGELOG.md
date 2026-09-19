@@ -25,7 +25,7 @@ body:"…" header:name=value -term`, with a syntax popover), multi-select in the
 - The text document, MCP listings and `get_request` report applied rules, local
   responses, the upstream URL and paused state.
 
-## [0.3.0] - 2026-09-19
+## [0.3.0]
 
 ### Added
 
@@ -54,7 +54,7 @@ body:"…" header:name=value -term`, with a syntax popover), multi-select in the
   (restoring capture if it was running), so updates and rebuilds take effect without
   closing every window.
 
-## [0.2.0] - 2026-09-18
+## [0.2.0]
 
 ### Changed
 
@@ -81,7 +81,7 @@ body:"…" header:name=value -term`, with a syntax popover), multi-select in the
   filters, Delete (Cmd/Ctrl+Backspace) removes the selected request.
 - "Show original" link from a replayed request to the request it replayed.
 
-## [0.1.0] - 2026-09-18
+## [0.1.0]
 
 ### Added
 
