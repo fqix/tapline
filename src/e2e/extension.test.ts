@@ -2,11 +2,14 @@
 // and sing-box core. Requests go through the proxy from this test process; assertions
 // read the extension's transaction mirror through the API `activate` returns.
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
 import http from 'node:http'
 import net from 'node:net'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
-import type { Rule, Transaction } from '../shared/model'
+import { defaultSettings, type Rule, type Transaction } from '../shared/model'
 
 const PROXY_PORT = 3626
 
@@ -155,6 +158,81 @@ suite('Tapline end to end', function () {
         await vscode.commands.executeCommand('tapline.rules')
         await vscode.commands.executeCommand('tapline.stats')
         await vscode.commands.executeCommand('tapline.compose')
+    })
+
+    test('decrypts and records HTTP/3 over the SOCKS5 UDP relay', async () => {
+        const wasRunning = api.client.running
+        const url = 'https://localhost:18443/tapline-e2e-h3?source=quic'
+        const body = '{"protocol":"h3","message":"你好 Tapline"}'
+        try {
+            // Scope TLS inspection to this test via the agent API. Trust the CA in
+            // the probe only, without changing the machine's certificate store.
+            await api.client.call('settings', {
+                settings: {
+                    ...defaultSettings,
+                    port: PROXY_PORT,
+                    mcpPort: 3627,
+                    sslHosts: ['localhost'],
+                    rules: [
+                        {
+                            id: 'e2e-h3',
+                            name: 'e2e-h3',
+                            enabled: true,
+                            kind: 'mapLocal',
+                            url,
+                            status: 201,
+                            contentType: 'application/json',
+                            body
+                        }
+                    ]
+                }
+            })
+            await api.client.start()
+            // A local rule keeps the test offline while exercising real QUIC,
+            // TLS verification, decryption, body streaming and the client mirror.
+            const probe = join(
+                __dirname,
+                '..',
+                process.platform === 'win32' ? 'h3-probe.exe' : 'h3-probe'
+            )
+            const { stdout } = await promisify(execFile)(
+                probe,
+                [
+                    '-proxy',
+                    `127.0.0.1:${PROXY_PORT}`,
+                    '-ca',
+                    api.client.certificatePath,
+                    '-timeout',
+                    '15s',
+                    url
+                ],
+                { timeout: 25000, windowsHide: true }
+            ).catch(async (error) => {
+                const logs = await api.client.call('logs', {})
+                throw new Error(
+                    `${error.message}\n${error.stdout ?? ''}\n${error.stderr ?? ''}\n${logs.map((log) => log.message).join('\n')}`
+                )
+            })
+            assert.match(stdout, /HTTP\/3\.0 201\s+/)
+            assert.ok(stdout.includes(`${Buffer.byteLength(body)} bytes`), stdout)
+
+            const t = await settled((t) => t.url === url, 'HTTP/3 transaction')
+            assert.equal(t.state, 'completed', t.error)
+            assert.equal(t.httpVersion, '3.0')
+            assert.equal(t.tls, true)
+            assert.equal(t.scheme, 'https')
+            assert.equal(t.method, 'GET')
+            assert.equal(t.status, 201)
+            assert.ok(t.requestHeaders['user-agent'])
+            assert.equal(t.responseHeaders['content-type'], 'application/json')
+            assert.equal(t.responseBody, body)
+            assert.equal(t.responseBytes, Buffer.byteLength(body))
+            assert.equal(t.local, true)
+            assert.deepEqual(t.rules, ['e2e-h3'])
+        } finally {
+            await api.client.pushSettings()
+            if (!wasRunning) await api.client.stop()
+        }
     })
 
     test('copies a request as cURL', async () => {
