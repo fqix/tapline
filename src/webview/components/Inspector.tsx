@@ -125,6 +125,11 @@ export function Inspector({
                         active={!!x.note}
                         onClick={() => vscode.postMessage({ type: 'editNote', id: x.id })}
                     />
+                    <IconButton
+                        icon="clippy"
+                        title={t(x.responseBinary ? 'copyResponseBase64' : 'copyResponse')}
+                        onClick={() => vscode.postMessage({ type: 'copyResponse', id: x.id })}
+                    />
                     {x.replayOf && (
                         <IconButton
                             icon="diff"

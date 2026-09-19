@@ -66,5 +66,6 @@
     "command.compare": "Compare Requests",
     "command.compareOriginal": "Compare with Original Request",
     "command.editNote": "Edit Request Note",
-    "command.toggleMark": "Toggle Request Marker"
+    "command.toggleMark": "Toggle Request Marker",
+    "command.copyResponse": "Copy Response Body"
 }

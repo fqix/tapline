@@ -100,7 +100,7 @@ export type HostMessage =
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
     | { type: 'ready' }
-    | { type: 'compareOriginal' | 'editNote' | 'toggleMark'; id: string }
+    | { type: 'compareOriginal' | 'editNote' | 'toggleMark' | 'copyResponse'; id: string }
     | { type: 'copy'; text: string }
     | { type: 'copyCurl'; ids: string[] }
     | { type: 'compare'; ids: string[] }

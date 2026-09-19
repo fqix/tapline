@@ -15,6 +15,7 @@ export interface PanelActions {
     compareOriginal(id: string): Promise<void>
     editNote(id: string): Promise<void>
     toggleMark(id: string): Promise<void>
+    copyResponse(id: string): Promise<void>
     compare(ids: string[]): Promise<void>
     copyCurl(ids: string[]): Promise<void>
     replay(id: string): Promise<Transaction>
@@ -188,6 +189,7 @@ export class TrafficPanel implements vscode.Disposable {
                 case 'compareOriginal':
                 case 'editNote':
                 case 'toggleMark':
+                case 'copyResponse':
                     return await this.actions[message.type](message.id)
                 case 'compare':
                     return await this.actions.compare(message.ids)
@@ -308,6 +310,8 @@ function panelStrings(): Record<string, string> {
         note: vscode.l10n.t('Request Note'),
         mark: vscode.l10n.t('Mark Request'),
         unmark: vscode.l10n.t('Unmark Request'),
+        copyResponse: vscode.l10n.t('Copy Response Body'),
+        copyResponseBase64: vscode.l10n.t('Copy Response Body as Base64'),
         compare: vscode.l10n.t('Compare Requests'),
         overview: vscode.l10n.t('Overview'),
         request: vscode.l10n.t('Request'),

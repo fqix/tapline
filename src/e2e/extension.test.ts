@@ -122,6 +122,7 @@ suite('Tapline end to end', function () {
             'tapline.exportHar',
             'tapline.compare',
             'tapline.compareOriginal',
+            'tapline.copyResponse',
             'tapline.toggleMark',
             'tapline.editNote',
             'tapline.configureMcp'
@@ -226,6 +227,14 @@ suite('Tapline end to end', function () {
         await until(() => api.client.transactions.get(original.id)?.marked === false)
         await api.client.call('annotate', { transaction: original.id, note: '' })
         await until(() => api.client.transactions.get(original.id)?.note === undefined)
+    })
+
+    test('copies the retained response body', async () => {
+        const url = `http://127.0.0.1:${origin.port}/copy-response`
+        await viaProxy(url)
+        const original = await settled((t) => t.url === url)
+        await vscode.commands.executeCommand('tapline.copyResponse', { id: original.id })
+        assert.equal(await vscode.env.clipboard.readText(), original.responseBody)
     })
 
     test('opens the traffic panel and its side panes', async () => {
