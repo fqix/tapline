@@ -1,6 +1,7 @@
 // Newline-delimited JSON between VS Code windows (clients) and the shared agent.
 import type {
     AgentState,
+    BreakpointEdit,
     ComposeRequest,
     Event,
     LogEntry,
@@ -19,6 +20,10 @@ export type Request =
     | { method: 'clear' }
     | { method: 'delete'; ids: string[] }
     | { method: 'compose'; request: ComposeRequest }
+    /** Continue a transaction held at a breakpoint, with edits. */
+    | { method: 'resume'; id: string; edit?: BreakpointEdit }
+    /** Fail a transaction held at a breakpoint. */
+    | { method: 'abort'; id: string }
     | { method: 'logs' }
     /** Stop capture and exit so a newer build can take over; clients respawn it. */
     | { method: 'shutdown' }
@@ -34,6 +39,8 @@ export interface Responses {
     clear: AgentState
     delete: AgentState
     compose: Transaction
+    resume: AgentState
+    abort: AgentState
     logs: LogEntry[]
     shutdown: AgentState
 }
@@ -42,4 +49,4 @@ export type Message =
     { id: number; result: unknown } | { id: number; error: string } | { event: Event }
 
 /** Bumped whenever the wire format changes so stale agents are never reused. */
-export const PROTOCOL = 'tapline-agent-1'
+export const PROTOCOL = 'tapline-agent-2'

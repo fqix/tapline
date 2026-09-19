@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import { join } from 'node:path'
 import { Duplex, Readable, Transform } from 'node:stream'
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { RootIdentity } from './certificate'
 import { Streams } from './streams'
 import { Wire } from './wire'
@@ -14,29 +15,69 @@ export interface Client {
     remotePort: number
 }
 
+export type WireHeaders = Record<string, string | string[]>
+
 export interface RequestInfo {
     method: string
     url: string
     httpVersion?: string
-    headers: Record<string, string | string[]>
+    headers: WireHeaders
     client: Client
+    /**
+     * Reads the whole request body. Once called the inspector no longer streams it
+     * through; the decision's `body` (or the buffered bytes) is sent instead.
+     */
+    body(): Promise<Buffer>
 }
 export interface ResponseInfo {
     status: number
     statusMessage?: string
     httpVersion?: string
-    headers: Record<string, string | string[]>
+    headers: WireHeaders
     timings?: Record<string, number>
+    /** As for requests: reading the body switches from streaming to buffering. */
+    body(): Promise<Buffer>
+}
+
+export interface Throttle {
+    /** Delay before the request is forwarded (or the response is answered). */
+    latencyMs?: number
+    /** Body bandwidth cap in kilobits per second, both directions. */
+    kbps?: number
+}
+
+/** What the engine wants done with a request after recording it and applying its rules. */
+export interface RequestDecision {
+    method?: string
+    url?: string
+    headers?: WireHeaders
+    /** Replacement body; the recorded body is what is sent. */
+    body?: Buffer
+    /** Answer from Tapline without contacting the server. */
+    local?: { status: number; headers: WireHeaders; body: Buffer }
+    /** Fail the request with a 502 (breakpoint abort). */
+    abort?: string
+    throttle?: Throttle
+}
+export interface ResponseDecision {
+    status?: number
+    headers?: WireHeaders
+    body?: Buffer
+    abort?: string
+    throttle?: Throttle
 }
 
 /** Callbacks the engine implements. The inspector relays bytes; the engine records. */
 export interface Handlers {
     connect(id: string, host: string, port: number, client: Client): boolean
     tunnelBytes(id: string, direction: 'send' | 'receive', count: number): void
-    request(id: string, info: RequestInfo): void
+    request(id: string, info: RequestInfo): Promise<RequestDecision | void> | RequestDecision | void
     requestData(id: string, chunk: Buffer): void
     requestEnd(id: string, trailers: Record<string, string>): void
-    response(id: string, info: ResponseInfo): void
+    response(
+        id: string,
+        info: ResponseInfo
+    ): Promise<ResponseDecision | void> | ResponseDecision | void
     responseData(id: string, chunk: Buffer): void
     responseEnd(id: string, trailers: Record<string, string>): void
     websocket(
@@ -78,6 +119,38 @@ export function coreConfig(host: string, port: number) {
             ]
         }
     }
+}
+
+/** Read a stream to its end. */
+export function collect(source: Readable): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const chunks: Buffer[] = []
+        source.on('data', (chunk: Buffer) => chunks.push(chunk))
+        source.once('end', () => resolve(Buffer.concat(chunks)))
+        source.once('error', reject)
+    })
+}
+
+/** Paces bytes to `kbps` kilobits per second in 4 KiB slices. */
+export function pacer(kbps: number) {
+    const bytesPerMs = (kbps * 1000) / 8 / 1000
+    let readyAt = Date.now()
+    return new Transform({
+        async transform(chunk: Buffer, _encoding, done) {
+            try {
+                for (let offset = 0; offset < chunk.length; offset += 4096) {
+                    const slice = chunk.subarray(offset, offset + 4096)
+                    readyAt = Math.max(readyAt, Date.now()) + slice.length / bytesPerMs
+                    const wait = readyAt - Date.now()
+                    if (wait > 0) await sleep(wait)
+                    this.push(slice)
+                }
+                done()
+            } catch (error) {
+                done(error as Error)
+            }
+        }
+    })
 }
 
 /** Verify the bundled core against its build manifest before executing it. */
@@ -128,11 +201,17 @@ export class Inspector {
         this.tunnels.delete(id)
     }
 
-    /** Relay `<id>:<phase>:in` to `<id>:<phase>:out`, tapping every chunk. */
+    /**
+     * Relay `<id>:<phase>:in` to `<id>:<phase>:out`, tapping every chunk. When the
+     * engine buffered or replaced the body, `bytes` are sent instead of the stream
+     * (which was, or is being, drained by `buffered`).
+     */
     private async relay(
         id: string,
         phase: 'request' | 'response',
-        source: Readable & { trailers?: Record<string, string> }
+        source: Readable & { trailers?: Record<string, string> },
+        bytes?: Buffer,
+        throttle?: Throttle
     ) {
         const handlers = this.handlers
         const tap = new Transform({
@@ -142,13 +221,39 @@ export class Inspector {
                 done(null, chunk)
             }
         })
-        source.on('error', (error) => tap.destroy(error))
-        const output = source.pipe(tap) as Transform & { trailers?: Record<string, string> }
+        const input = bytes ? Readable.from(bytes.length ? [bytes] : []) : source
+        input.on('error', (error) => tap.destroy(error))
+        let output: Readable = input.pipe(tap)
+        if (throttle?.kbps) output = output.pipe(pacer(throttle.kbps))
         Object.defineProperty(output, 'trailers', { get: () => source.trailers })
         await this.streams!.pipe(`${id}:${phase}:out`, output)
         const trailers = source.trailers ?? {}
         if (phase === 'request') handlers.requestEnd(id, trailers)
         else handlers.responseEnd(id, trailers)
+    }
+
+    /** Lazily buffers a stream in full; `bytes()` is defined once `read()` was called. */
+    private buffered(source: Readable) {
+        let pending: Promise<Buffer> | undefined
+        let bytes: Buffer | undefined
+        return {
+            read: () => (pending ??= collect(source).then((b) => (bytes = b))),
+            bytes: () => bytes
+        }
+    }
+
+    /** Answer the request from the engine: headers now, the body over `<id>:request:out`. */
+    private async respondLocally(
+        id: string,
+        local: NonNullable<RequestDecision['local']>,
+        drain: () => Promise<Buffer>
+    ) {
+        // The client's body still has to be drained so the core releases the session.
+        const drained = drain().catch(() => Buffer.alloc(0))
+        const headers = { ...local.headers, 'content-length': String(local.body.length) }
+        this.send({ type: 'request-result', id, local: true, status: local.status, headers })
+        await this.streams!.pipe(`${id}:request:out`, Readable.from([local.body]))
+        await drained
     }
 
     private client(socket: any): Client {
@@ -221,45 +326,82 @@ export class Inspector {
                 const request = message.request ?? {}
                 this.sessions.add(id)
                 const headers = request.headers ?? {}
-                this.handlers.request(id, {
-                    method: request.method ?? 'GET',
-                    url: request.url,
-                    httpVersion: request.httpVersion,
-                    headers,
-                    client: this.client(message.socket)
-                })
-                const target = new URL(request.url)
+                const source = this.streams!.reader(`${id}:request:in`)
+                const buffered = this.buffered(source)
+                const decision =
+                    (await this.handlers.request(id, {
+                        method: request.method ?? 'GET',
+                        url: request.url,
+                        httpVersion: request.httpVersion,
+                        headers,
+                        client: this.client(message.socket),
+                        body: buffered.read
+                    })) || {}
+                if (!this.sessions.has(id)) return
+                if (decision.abort) {
+                    this.send({ type: 'request-result', id, error: decision.abort })
+                    void buffered.read().catch(() => {})
+                    return
+                }
+                if (decision.local) return this.respondLocally(id, decision.local, buffered.read)
+                if (decision.throttle?.latencyMs) await sleep(decision.throttle.latencyMs)
+                const url = decision.url ?? request.url
+                const target = new URL(url)
                 const options = {
                     host: target.hostname,
                     port: target.port || (target.protocol === 'https:' ? 443 : 80),
                     path: target.pathname + target.search,
-                    method: request.method ?? 'GET',
-                    headers,
+                    method: decision.method ?? request.method ?? 'GET',
+                    headers: decision.headers ?? headers,
                     ...(this.options.upstreamCA ? { ca: this.options.upstreamCA } : {})
                 }
-                this.send({ type: 'request-result', id, options, url: request.url, route: '' })
-                await this.relay(id, 'request', this.streams!.reader(`${id}:request:in`))
+                this.send({ type: 'request-result', id, options, url, route: '' })
+                await this.relay(
+                    id,
+                    'request',
+                    source,
+                    decision.body ?? buffered.bytes(),
+                    decision.throttle
+                )
                 return
             }
             case 'response': {
                 if (!this.sessions.has(id)) return this.send({ type: 'abort', id })
                 const response = message.response ?? {}
-                this.handlers.response(id, {
-                    status: response.statusCode,
-                    statusMessage: response.statusMessage,
-                    httpVersion: response.httpVersion,
-                    headers: response.headers ?? {},
-                    timings: message.timings
-                })
+                const source = this.streams!.reader(`${id}:response:in`)
+                const buffered = this.buffered(source)
+                const decision =
+                    (await this.handlers.response(id, {
+                        status: response.statusCode,
+                        statusMessage: response.statusMessage,
+                        httpVersion: response.httpVersion,
+                        headers: response.headers ?? {},
+                        timings: message.timings,
+                        body: buffered.read
+                    })) || {}
+                if (!this.sessions.has(id)) return
+                if (decision.abort) {
+                    this.send({ type: 'response-result', id, error: decision.abort })
+                    void buffered.read().catch(() => {})
+                    return
+                }
+                if (decision.throttle?.latencyMs) await sleep(decision.throttle.latencyMs)
+                const headers = decision.headers ?? response.headers ?? {}
                 this.send({
                     type: 'response-result',
                     id,
-                    status: response.statusCode,
+                    status: decision.status ?? response.statusCode,
                     statusMessage: response.statusMessage,
-                    headers: response.headers ?? {},
+                    headers,
                     rawHeaders: response.rawHeaders
                 })
-                await this.relay(id, 'response', this.streams!.reader(`${id}:response:in`))
+                await this.relay(
+                    id,
+                    'response',
+                    source,
+                    decision.body ?? buffered.bytes(),
+                    decision.throttle
+                )
                 return
             }
             case 'closed':
