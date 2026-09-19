@@ -75,12 +75,14 @@ const RowView = memo(function RowView({
     row,
     selected,
     primary,
+    comparisonIds,
     onSelect
 }: {
     row: Row
     selected: boolean
     /** The row the inspector shows (one of the selected). */
     primary: boolean
+    comparisonIds?: string[]
     onSelect(id: string, options?: SelectOptions): void
 }) {
     return (
@@ -88,6 +90,11 @@ const RowView = memo(function RowView({
             className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''}`}
             role="row"
             aria-selected={selected}
+            data-vscode-context={JSON.stringify({
+                webviewSection: 'requests',
+                taplineCompareCount: comparisonIds?.length ?? 0,
+                ids: comparisonIds
+            })}
             onClick={(e) => onSelect(row.id, { toggle: e.metaKey || e.ctrlKey, range: e.shiftKey })}
             onDoubleClick={() => vscode.postMessage({ type: 'openText', id: row.id })}
         >
@@ -305,6 +312,11 @@ export function SequenceTable({
                         row={row}
                         selected={row.id === selected || selectedSet.has(row.id)}
                         primary={row.id === selected}
+                        comparisonIds={
+                            selection.length === 2 && selectedSet.has(row.id)
+                                ? selection
+                                : undefined
+                        }
                         onSelect={onSelect}
                     />
                 )}

@@ -98,6 +98,7 @@ export type PanelMessage =
     | { type: 'ready' }
     | { type: 'copy'; text: string }
     | { type: 'copyCurl'; ids: string[] }
+    | { type: 'compare'; ids: string[] }
     | { type: 'replay'; id: string }
     | { type: 'resendFrame'; id: string; frameId: string }
     | { type: 'openText'; id: string }

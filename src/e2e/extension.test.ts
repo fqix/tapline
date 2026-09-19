@@ -120,6 +120,7 @@ suite('Tapline end to end', function () {
             'tapline.rules',
             'tapline.stats',
             'tapline.exportHar',
+            'tapline.compare',
             'tapline.configureMcp'
         ])
             assert.ok(commands.includes(name), `${name} is registered`)
@@ -144,6 +145,38 @@ suite('Tapline end to end', function () {
         assert.equal(JSON.parse(t.responseBody).body, 'ping')
         assert.equal(t.responseHeaders['x-echo'], '1')
         assert.equal(t.sequence >= 1, true)
+    })
+
+    test('opens immutable request comparisons in the native diff editor', async () => {
+        const url = `http://127.0.0.1:${origin.port}/diff`
+        await viaProxy(url, { method: 'POST' }, 'before')
+        const left = await settled((t) => t.url === url && t.requestBody === 'before')
+        await viaProxy(url, { method: 'POST' }, 'after')
+        const right = await settled((t) => t.url === url && t.requestBody === 'after')
+        // Reverse the selection order: the earlier sequence must still be on the left.
+        await vscode.commands.executeCommand('tapline.compare', { ids: [right.id, left.id] })
+        const tab = await until(
+            () =>
+                vscode.window.tabGroups.all
+                    .flatMap((g) => g.tabs)
+                    .find(
+                        (t) =>
+                            t.input instanceof vscode.TabInputTextDiff &&
+                            t.input.original.scheme === 'tapline-diff'
+                    ),
+            10000,
+            'comparison editor'
+        )
+        const input = tab.input as vscode.TabInputTextDiff
+        const original = await vscode.workspace.openTextDocument(input.original)
+        const modified = await vscode.workspace.openTextDocument(input.modified)
+        assert.ok(original.getText().includes('before'))
+        assert.ok(modified.getText().includes('after'))
+        const snapshot = original.getText()
+        await api.client.delete([left.id, right.id])
+        assert.equal(original.getText(), snapshot)
+        assert.equal((await vscode.workspace.openTextDocument(input.original)).getText(), snapshot)
+        await vscode.window.tabGroups.close(tab)
     })
 
     test('opens the traffic panel and its side panes', async () => {

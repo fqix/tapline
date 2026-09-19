@@ -5,6 +5,11 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Compare two captured requests in the native VS Code diff editor, with stable snapshots
+  of request/response headers and bodies, formatted JSON, Base64 binary content and trailers.
+
 ## [0.4.0]
 
 ### Added

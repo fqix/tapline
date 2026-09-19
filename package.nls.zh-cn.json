@@ -62,5 +62,6 @@
     "config.rules.response": "breakpoint：是否暂停响应（布尔）；rewrite：应用于响应的修改。",
     "config.rules.file": "mapLocal：作为响应返回的文件，相对于工作区或绝对路径。",
     "config.rules.body": "mapLocal：未设置文件时返回的内联内容。",
-    "config.rules.to": "mapRemote：请求改发到的源（scheme://host[:port]，可带路径前缀）。"
+    "config.rules.to": "mapRemote：请求改发到的源（scheme://host[:port]，可带路径前缀）。",
+    "command.compare": "比较请求"
 }

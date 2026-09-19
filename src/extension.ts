@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { toCurl, toHAR, type ComposeRequest, type Transaction } from './shared/model'
 import { AgentClient } from './client/agentClient'
+import { ComparisonDocuments } from './providers/comparisonDocuments'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
 import { CertificateTrust } from './environment/certificateTrust'
@@ -22,6 +23,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     client = new AgentClient(context)
     const view = new TrafficView(client)
     const documents = new TransactionDocuments(client)
+    const comparisons = new ComparisonDocuments()
     const environment = new CaptureEnvironment(context, client)
     const certificate = new CertificateTrust(client)
     const protos = new ProtoIndex(client)
@@ -85,7 +87,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
             3000
         )
     }
+    const compare = async (ids: string[]) => {
+        if (ids.length !== 2 || ids[0] === ids[1])
+            throw new Error(vscode.l10n.t('Select exactly two requests to compare.'))
+        const [left, right] = ids.map(byId).sort((a, b) => a.sequence - b.sequence)
+        await comparisons.compare(left, right)
+    }
     const actions: PanelActions = {
+        compare,
         copyCurl: async (ids) => {
             await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
             void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
@@ -116,6 +125,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         client,
         view,
         documents,
+        comparisons,
         environment,
         certificate,
         protos,
@@ -272,6 +282,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     })
     command('tapline.openHost', (node?: TrafficNode) => {
         if (node?.kind === 'host') panel.showHost(node.host)
+    })
+    command('tapline.compare', async (context?: { ids?: string[] }) => {
+        if (Array.isArray(context?.ids)) return compare(context.ids)
+        const picks = [...client!.transactions.values()]
+            .sort((a, b) => b.sequence - a.sequence)
+            .map((t) => ({ label: `#${t.sequence} ${t.method} ${t.url}`, id: t.id }))
+        const selected = await vscode.window.showQuickPick(picks, {
+            canPickMany: true,
+            title: vscode.l10n.t('Compare Requests'),
+            placeHolder: vscode.l10n.t('Select exactly two requests to compare.')
+        })
+        if (selected) await compare(selected.map((p) => p.id))
     })
     command('tapline.openText', async (node?: TrafficNode) => {
         const t = one(node)

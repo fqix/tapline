@@ -62,5 +62,6 @@
     "config.rules.response": "breakpoint: pause responses (boolean); rewrite: edits applied to the response.",
     "config.rules.file": "mapLocal: file served as the response, relative to the workspace or absolute.",
     "config.rules.body": "mapLocal: inline body served when no file is set.",
-    "config.rules.to": "mapRemote: origin (scheme://host[:port], optional path prefix) the request is sent to instead."
+    "config.rules.to": "mapRemote: origin (scheme://host[:port], optional path prefix) the request is sent to instead.",
+    "command.compare": "Compare Requests"
 }

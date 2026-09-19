@@ -44,6 +44,10 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
   `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …).
 - **One-click root certificate** — install, trust and uninstall the CA in the OS
   store on macOS, Windows and Linux. Capture waits until the CA is trusted.
+- **Compare requests** — select two rows with Cmd/Ctrl-click and use _Compare Requests_
+  in the selection toolbar or context menu. The native VS Code diff shows immutable
+  request/response snapshots, with the earlier capture on the left. Headers are sorted,
+  JSON is formatted, binary bodies use Base64, and incomplete captures are marked.
 - **Copy as cURL, export HAR, replay**, status-bar controls, English and 简体中文 UI.
 - **Shared core** — all VS Code windows use one capture agent; the last one to
   close shuts it down.
