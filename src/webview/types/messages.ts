@@ -1,4 +1,10 @@
-import type { Transaction } from '../../shared/model'
+import type {
+    BreakpointEdit,
+    ComposeRequest,
+    Rule,
+    RulePhase,
+    Transaction
+} from '../../shared/model'
 
 /** Lightweight row for the sequence table: no headers, bodies or frames. */
 export type Row = Pick<
@@ -20,6 +26,8 @@ export type Row = Pick<
     | 'tls'
     | 'error'
     | 'replayOf'
+    | 'paused'
+    | 'local'
 > & {
     /** Response media type without parameters, for the host overview tally. */
     contentType: string
@@ -27,6 +35,8 @@ export type Row = Pick<
     events: number | undefined
     grpc: boolean
     grpcStatus: number | undefined
+    /** Number of rules that acted on the transaction. */
+    rules: number
 }
 
 /** Row projection shared by the extension host and tests. */
@@ -52,6 +62,9 @@ export function toRow(t: Transaction): Row {
         tls: t.tls,
         error: t.error,
         replayOf: t.replayOf,
+        paused: t.paused,
+        local: t.local,
+        rules: t.rules?.length ?? 0,
         contentType: (type ?? '').split(';')[0].trim().toLowerCase(),
         websocket: t.frames.length > 0 || t.status === 101 || t.scheme.startsWith('ws'),
         events: t.events?.length,
@@ -70,19 +83,49 @@ export type HostMessage =
     | { type: 'focus'; id: string }
     /** Filter the table to one host and show its overview. */
     | { type: 'host'; host: string }
+    /** The current rule set (on ready and whenever the setting changes). */
+    | { type: 'rules'; rules: Rule[] }
+    /** Ids matching the host-evaluated part of a filter query (bodies, headers). */
+    | { type: 'search'; query: string; ids: string[] }
+    /** Open a side pane; `draft` prefills the composer. */
+    | { type: 'pane'; pane: Pane; draft?: ComposeDraft }
+    /** A file chosen for a map-local rule. */
+    | { type: 'pickedFile'; ruleId: string; path: string }
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
     | { type: 'ready' }
     | { type: 'copy'; text: string }
-    | { type: 'copyCurl'; id: string }
+    | { type: 'copyCurl'; ids: string[] }
     | { type: 'replay'; id: string }
     | { type: 'openText'; id: string }
     | { type: 'openBody'; id: string; side: 'request' | 'response' }
     | { type: 'select'; id: string | undefined }
     | { type: 'delete'; ids: string[] }
+    | { type: 'exportHar'; ids: string[] }
+    | { type: 'saveRules'; rules: Rule[] }
+    | { type: 'pickFile'; ruleId: string }
+    | { type: 'resume'; id: string; edit: BreakpointEdit }
+    | { type: 'abort'; id: string }
+    | { type: 'compose'; request: ComposeRequest }
+    /** Evaluate the host-side terms of a filter query. */
+    | { type: 'search'; query: string }
 
 export type Layout = 'stacked' | 'side'
+/** What the second split pane shows besides the inspector. */
+export type Pane = 'inspector' | 'stats' | 'rules' | 'composer'
+
+/** Composer contents; headers are `Name: value` lines. */
+export interface ComposeDraft {
+    method: string
+    url: string
+    headers: string
+    body: string
+    /** Transaction the draft was copied from (Edit & Resend). */
+    replayOf?: string
+}
+
+export type { RulePhase }
 
 export interface PanelState {
     selected?: string
@@ -95,4 +138,8 @@ export interface PanelState {
     bodyView?: Record<string, string>
     /** Sequence table column widths in px, keyed by column. */
     columns?: Record<string, number>
+    pane?: Pane
+    draft?: ComposeDraft
+    /** Id of the rule shown in the editor. */
+    rule?: string
 }

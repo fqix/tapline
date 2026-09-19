@@ -239,6 +239,30 @@
                 "title": "%command.configureMcp%",
                 "category": "Tapline",
                 "icon": "$(sparkle)"
+            },
+            {
+                "command": "tapline.compose",
+                "title": "%command.compose%",
+                "category": "Tapline",
+                "icon": "$(send)"
+            },
+            {
+                "command": "tapline.rules",
+                "title": "%command.rules%",
+                "category": "Tapline",
+                "icon": "$(symbol-ruler)"
+            },
+            {
+                "command": "tapline.stats",
+                "title": "%command.stats%",
+                "category": "Tapline",
+                "icon": "$(graph)"
+            },
+            {
+                "command": "tapline.addBreakpoint",
+                "title": "%command.addBreakpoint%",
+                "category": "Tapline",
+                "icon": "$(debug-breakpoint)"
             }
         ],
         "menus": {
@@ -322,6 +346,21 @@
                     "command": "tapline.configureMcp",
                     "when": "view == tapline.traffic",
                     "group": "4_logs@0"
+                },
+                {
+                    "command": "tapline.compose",
+                    "when": "view == tapline.traffic",
+                    "group": "navigation@6"
+                },
+                {
+                    "command": "tapline.rules",
+                    "when": "view == tapline.traffic",
+                    "group": "1_tools@1"
+                },
+                {
+                    "command": "tapline.stats",
+                    "when": "view == tapline.traffic",
+                    "group": "1_tools@2"
                 }
             ],
             "view/item/context": [
@@ -379,6 +418,16 @@
                     "command": "tapline.delete",
                     "when": "view == tapline.traffic && viewItem == transaction",
                     "group": "4_delete@1"
+                },
+                {
+                    "command": "tapline.compose",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "3_act@0"
+                },
+                {
+                    "command": "tapline.addBreakpoint",
+                    "when": "view == tapline.traffic && viewItem == transaction",
+                    "group": "3_act@3"
                 }
             ],
             "commandPalette": [
@@ -416,6 +465,10 @@
                 },
                 {
                     "command": "tapline.openText",
+                    "when": "false"
+                },
+                {
+                    "command": "tapline.addBreakpoint",
                     "when": "false"
                 }
             ]
@@ -599,6 +652,204 @@
                         "**/*.proto"
                     ],
                     "description": "%config.grpc.protoFiles%"
+                },
+                "tapline.rules": {
+                    "type": "array",
+                    "default": [],
+                    "markdownDescription": "%config.rules%",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "kind"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "default": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "breakpoint",
+                                    "rewrite",
+                                    "mapLocal",
+                                    "mapRemote",
+                                    "block",
+                                    "throttle"
+                                ],
+                                "enumDescriptions": [
+                                    "%config.rules.kind.breakpoint%",
+                                    "%config.rules.kind.rewrite%",
+                                    "%config.rules.kind.mapLocal%",
+                                    "%config.rules.kind.mapRemote%",
+                                    "%config.rules.kind.block%",
+                                    "%config.rules.kind.throttle%"
+                                ]
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "%config.rules.url%"
+                            },
+                            "method": {
+                                "type": "string",
+                                "description": "%config.rules.method%"
+                            },
+                            "request": {
+                                "type": [
+                                    "boolean",
+                                    "object"
+                                ],
+                                "description": "%config.rules.request%",
+                                "properties": {
+                                    "method": {
+                                        "type": "string"
+                                    },
+                                    "url": {
+                                        "type": "object",
+                                        "properties": {
+                                            "pattern": {
+                                                "type": "string"
+                                            },
+                                            "replacement": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "pattern",
+                                            "replacement"
+                                        ]
+                                    },
+                                    "status": {
+                                        "type": "integer",
+                                        "minimum": 100,
+                                        "maximum": 599
+                                    },
+                                    "headers": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "description": "%config.rules.headers%"
+                                    },
+                                    "body": {
+                                        "type": "string"
+                                    },
+                                    "bodyReplace": {
+                                        "type": "object",
+                                        "properties": {
+                                            "pattern": {
+                                                "type": "string"
+                                            },
+                                            "replacement": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "pattern",
+                                            "replacement"
+                                        ]
+                                    }
+                                }
+                            },
+                            "response": {
+                                "type": [
+                                    "boolean",
+                                    "object"
+                                ],
+                                "description": "%config.rules.response%",
+                                "properties": {
+                                    "method": {
+                                        "type": "string"
+                                    },
+                                    "url": {
+                                        "type": "object",
+                                        "properties": {
+                                            "pattern": {
+                                                "type": "string"
+                                            },
+                                            "replacement": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "pattern",
+                                            "replacement"
+                                        ]
+                                    },
+                                    "status": {
+                                        "type": "integer",
+                                        "minimum": 100,
+                                        "maximum": 599
+                                    },
+                                    "headers": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "description": "%config.rules.headers%"
+                                    },
+                                    "body": {
+                                        "type": "string"
+                                    },
+                                    "bodyReplace": {
+                                        "type": "object",
+                                        "properties": {
+                                            "pattern": {
+                                                "type": "string"
+                                            },
+                                            "replacement": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "pattern",
+                                            "replacement"
+                                        ]
+                                    }
+                                }
+                            },
+                            "file": {
+                                "type": "string",
+                                "description": "%config.rules.file%"
+                            },
+                            "body": {
+                                "type": "string",
+                                "description": "%config.rules.body%"
+                            },
+                            "status": {
+                                "type": "integer",
+                                "minimum": 100,
+                                "maximum": 599
+                            },
+                            "contentType": {
+                                "type": "string"
+                            },
+                            "to": {
+                                "type": "string",
+                                "description": "%config.rules.to%"
+                            },
+                            "latencyMs": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "kbps": {
+                                "type": "integer",
+                                "minimum": 1
+                            }
+                        }
+                    }
                 }
             }
         }

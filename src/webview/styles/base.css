@@ -317,3 +317,136 @@ button {
 .error-text {
     color: var(--bad);
 }
+
+/* ---- push buttons, inputs and selects (VS Code widget colours) ---- */
+.button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 2px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+.button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+.button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.button.secondary {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+.button.secondary:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+input[type='text'],
+input[type='number'],
+input[type='search'],
+textarea,
+select {
+    min-width: 0;
+    padding: 3px 6px;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font: inherit;
+}
+input[type='text']:focus,
+input[type='number']:focus,
+textarea:focus,
+select:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+input::placeholder,
+textarea::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+textarea {
+    resize: vertical;
+    line-height: 1.4;
+}
+select {
+    background: var(--vscode-dropdown-background);
+    color: var(--vscode-dropdown-foreground);
+    border-color: var(--vscode-dropdown-border, transparent);
+}
+input[type='checkbox'] {
+    accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+}
+.checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.tag {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: var(--font-size-small);
+    line-height: 16px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+.toolbar-sep {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: var(--border);
+}
+.status.paused .codicon {
+    color: var(--warn);
+    font-size: 12px;
+}
+.chip.paused {
+    color: var(--warn);
+}
+.chip.selection {
+    padding-right: 2px;
+}
+.chip.selection .icon-button {
+    height: 16px;
+    min-width: 16px;
+}
+.chip.selection .icon-button .codicon {
+    font-size: 12px;
+}
+
+/* ---- filter syntax popover ---- */
+.filter {
+    position: relative;
+}
+.filter-help {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 5;
+    width: 360px;
+    max-width: 80vw;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--vscode-editorWidget-border, var(--border));
+    border-radius: var(--radius);
+    background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35));
+    white-space: normal;
+}
+.filter-help p {
+    margin: 0 0 6px;
+}
+.filter-help .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.filter-help .chip {
+    border-color: var(--border);
+}

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { toCurl, toHAR, type Transaction } from './shared/model'
+import { toCurl, toHAR, type ComposeRequest, type Transaction } from './shared/model'
 import { AgentClient } from './client/agentClient'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
@@ -13,7 +13,12 @@ import { configureMcp } from './mcp/integration'
 
 let client: AgentClient | undefined
 
-export async function activate(context: vscode.ExtensionContext) {
+/** What `activate` returns; the end-to-end tests drive the extension through it. */
+export interface TaplineApi {
+    client: AgentClient
+}
+
+export async function activate(context: vscode.ExtensionContext): Promise<TaplineApi> {
     client = new AgentClient(context)
     const view = new TrafficView(client)
     const documents = new TransactionDocuments(client)
@@ -48,19 +53,56 @@ export async function activate(context: vscode.ExtensionContext) {
                 })
         )
     }
+    const compose = async (request: ComposeRequest) =>
+        vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: vscode.l10n.t('Sending {0} {1}', request.method, request.url)
+            },
+            () => client!.compose(request)
+        )
+    /** Write the given transactions (or all) to a HAR file chosen by the user. */
+    const exportHar = async (selected: Transaction[]) => {
+        const items = selected.filter(
+            (t) => t.state !== 'pending' && t.scheme !== 'connect' && t.status !== 101
+        )
+        if (!items.length) throw new Error(vscode.l10n.t('Nothing to export'))
+        const target = await vscode.window.showSaveDialog({
+            title: vscode.l10n.t('Export HAR'),
+            defaultUri: vscode.Uri.joinPath(
+                vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(homedir()),
+                'tapline-session.har'
+            ),
+            filters: { 'HTTP Archive': ['har'] }
+        })
+        if (!target) return
+        await writeFile(
+            target.fsPath,
+            JSON.stringify(toHAR(items.sort((a, b) => a.sequence - b.sequence)), null, 2)
+        )
+        void vscode.window.setStatusBarMessage(
+            vscode.l10n.t('Exported {0} requests', items.length),
+            3000
+        )
+    }
     const actions: PanelActions = {
-        copyCurl: async (id) => {
-            await vscode.env.clipboard.writeText(toCurl(byId(id)))
+        copyCurl: async (ids) => {
+            await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
             void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
         },
         replay: (id) => replay(byId(id)),
+        compose,
         openText: async (id) => void (await openText(byId(id))),
         openBody: async (id, side) =>
             void (await vscode.window.showTextDocument(
                 TransactionDocuments.uri(byId(id), `${side}-body`),
                 { preview: true, viewColumn: vscode.ViewColumn.Beside }
             )),
-        delete: (ids) => client!.delete(ids)
+        delete: (ids) => client!.delete(ids),
+        exportHar: (ids) => exportHar(ids.map(byId)),
+        saveRules: (rules) => client!.saveRules(rules),
+        resume: (id, edit) => client!.resume(id, edit),
+        abort: (id) => client!.abort(id)
     }
     const panel = new TrafficPanel(context, client, actions)
     const status = vscode.window.createStatusBarItem(
@@ -268,29 +310,45 @@ export async function activate(context: vscode.ExtensionContext) {
         const ids = view.selected(node).map((t) => t.id)
         if (ids.length) await client!.delete(ids)
     })
-    command('tapline.exportHar', async (node?: TrafficNode) => {
-        const selected = node ? view.selected(node) : [...client!.transactions.values()]
-        const items = selected.filter(
-            (t) => t.state !== 'pending' && t.scheme !== 'connect' && t.status !== 101
+    command('tapline.exportHar', (node?: TrafficNode) =>
+        exportHar(node ? view.selected(node) : [...client!.transactions.values()])
+    )
+    command('tapline.compose', (node?: TrafficNode) => {
+        const t = one(node)
+        panel.showPane(
+            'composer',
+            t && t.scheme !== 'connect'
+                ? {
+                      method: t.method,
+                      url: t.url,
+                      headers: Object.entries(t.requestHeaders)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join('\n'),
+                      body: t.requestBinary ? '' : t.requestBody,
+                      replayOf: t.id
+                  }
+                : undefined
         )
-        if (!items.length) throw new Error(vscode.l10n.t('Nothing to export'))
-        const target = await vscode.window.showSaveDialog({
-            title: vscode.l10n.t('Export HAR'),
-            defaultUri: vscode.Uri.joinPath(
-                vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(homedir()),
-                'tapline-session.har'
-            ),
-            filters: { 'HTTP Archive': ['har'] }
-        })
-        if (!target) return
-        await writeFile(
-            target.fsPath,
-            JSON.stringify(toHAR(items.sort((a, b) => a.sequence - b.sequence)), null, 2)
-        )
-        void vscode.window.setStatusBarMessage(
-            vscode.l10n.t('Exported {0} requests', items.length),
-            3000
-        )
+    })
+    command('tapline.rules', () => panel.showPane('rules'))
+    command('tapline.stats', () => panel.showPane('stats'))
+    command('tapline.addBreakpoint', async (node?: TrafficNode) => {
+        const t = one(node)
+        const url = t ? new URL(t.url) : undefined
+        const pattern = url ? `${url.origin}${url.pathname}` : ''
+        const rules = client!.rules()
+        await client!.saveRules([
+            ...rules,
+            {
+                id: `bp${Date.now().toString(36)}`,
+                enabled: true,
+                kind: 'breakpoint',
+                url: pattern,
+                request: true,
+                response: true
+            }
+        ])
+        panel.showPane('rules')
     })
     command('tapline.openTerminal', async () => {
         if (!client!.running && !(await startCapture())) return
@@ -330,6 +388,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 : undefined
         )
         .catch((error) => client!.output.error(String(error)))
+    return { client }
 }
 
 export function deactivate() {

@@ -99,9 +99,10 @@ describeCore('interception rules with the bundled core', () => {
             })
         })
 
-    const rule = <R extends Rule>(r: R) => r
+    type Draft = { [K in Rule['kind']]: Omit<Extract<Rule, { kind: K }>, 'enabled'> }[Rule['kind']]
+    const rule = (r: Draft & { enabled?: boolean }): Rule => ({ enabled: true, ...r }) as Rule
     const use = (...rules: Rule[]) => {
-        engine.settings.rules = rules.map((r, i) => ({ enabled: true, ...r, id: r.id || `r${i}` }))
+        engine.settings.rules = rules
     }
 
     beforeAll(async () => {
@@ -367,7 +368,7 @@ describeCore('interception rules with the bundled core', () => {
     })
 
     it('ignores disabled rules', async () => {
-        use({ ...rule({ id: 'off', kind: 'block', url: '*' }), enabled: false })
+        use(rule({ id: 'off', kind: 'block', url: '*', enabled: false }))
         const reply = await viaProxy(engine.settings.port, `http://127.0.0.1:${origin.port}/on`)
         expect(reply.status).toBe(200)
     })
