@@ -20,15 +20,22 @@ function frame(text: string | Buffer, mask: boolean, binary = false) {
 /** Incremental parser for small frames (payload < 126 bytes); returns complete text payloads. */
 class FrameParser {
     private buffer = Buffer.alloc(0)
+    constructor(private readonly onClose: () => void = () => {}) {}
     push(data: Buffer): string[] {
         this.buffer = Buffer.concat([this.buffer, data])
         const frames: string[] = []
         while (this.buffer.length >= 2) {
+            const opcode = this.buffer[0] & 0x0f
             const masked = (this.buffer[1] & 0x80) !== 0
             const length = this.buffer[1] & 0x7f
             const start = masked ? 6 : 2
             if (this.buffer.length < start + length) break
             const payload = this.buffer.subarray(start, start + length)
+            if (opcode === 8) {
+                this.buffer = this.buffer.subarray(start + length)
+                this.onClose()
+                continue
+            }
             if (masked) {
                 const key = this.buffer.subarray(2, 6)
                 frames.push(Buffer.from(payload.map((b, i) => b ^ key[i % 4])).toString())
@@ -53,12 +60,11 @@ describeCore('websocket relay', () => {
             socket.write(
                 `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
             )
-            const parser = new FrameParser()
+            const parser = new FrameParser(() => socket.end(Buffer.from([0x88, 0])))
             // The proxy may reset the upstream socket after the close handshake
             // (ECONNRESET on Windows); without a listener that is an uncaught exception.
             socket.on('error', () => undefined)
             socket.on('data', (data: Buffer) => {
-                if ((data[0] & 0x0f) === 0x8) return socket.end()
                 for (const text of parser.push(data)) socket.write(frame(`echo:${text}`, false))
             })
         })
@@ -80,7 +86,8 @@ describeCore('websocket relay', () => {
                 `GET http://127.0.0.1:${port}/socket HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`
             )
             const received: string[] = []
-            const parser = new FrameParser()
+            // Wait for the peer's Close frame before ending TCP.
+            const parser = new FrameParser(() => socket.end())
             await new Promise<void>((resolve, reject) => {
                 let buffer = Buffer.alloc(0)
                 let upgraded = false
@@ -155,7 +162,6 @@ describeCore('websocket relay', () => {
             )
             await vi.waitFor(() => expect(received.length).toBe(8))
             socket.write(Buffer.from([0x88, 0x80, 0, 0, 0, 0]))
-            socket.end()
             const t = await settled(engine, (t) => t.path === '/socket')
             expect(t.status).toBe(101)
             // Both directions interleave freely; only the per-direction order is fixed.
@@ -171,7 +177,7 @@ describeCore('websocket relay', () => {
                     .slice(0, 3)
                     .map((f) => f.data)
             ).toEqual(['echo:one', 'echo:two', 'echo:one'])
-            expect(t.state).toBe('completed')
+            expect(t.state, t.error).toBe('completed')
             await expect(engine.resendFrame(t.id, original.id)).rejects.toThrow('closed')
         } finally {
             cleanup()
