@@ -99,6 +99,9 @@ async function handle(request: Request): Promise<unknown> {
         case 'delete':
             engine.delete(request.ids)
             return state()
+        case 'annotate':
+            engine.annotate(request.transaction, request)
+            return state()
         case 'compose':
             return engine.compose(request.request)
         case 'resendFrame':

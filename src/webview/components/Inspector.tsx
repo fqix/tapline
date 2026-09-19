@@ -113,6 +113,18 @@ export function Inspector({
                     {x.url}
                 </button>
                 <span className="actions">
+                    <IconButton
+                        icon={x.marked ? 'star-full' : 'star-empty'}
+                        title={t(x.marked ? 'unmark' : 'mark')}
+                        active={!!x.marked}
+                        onClick={() => vscode.postMessage({ type: 'toggleMark', id: x.id })}
+                    />
+                    <IconButton
+                        icon="comment"
+                        title={t('editNote')}
+                        active={!!x.note}
+                        onClick={() => vscode.postMessage({ type: 'editNote', id: x.id })}
+                    />
                     {x.replayOf && (
                         <IconButton
                             icon="diff"

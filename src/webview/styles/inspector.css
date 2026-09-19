@@ -662,3 +662,11 @@ table.stats tr + tr td {
 table.stats td.seq {
     width: 1%;
 }
+
+.request-note {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.request-mark {
+    color: var(--vscode-editorWarning-foreground);
+}

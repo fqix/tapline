@@ -85,6 +85,9 @@ export const grpcStatusNames = [
 export const grpcStatusName = (code: number) => grpcStatusNames[code] ?? String(code)
 
 export interface Transaction {
+    /** Session-scoped annotations shared by every window. */
+    note?: string
+    marked?: boolean
     id: string
     sequence: number
     timestamp: number

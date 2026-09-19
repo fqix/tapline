@@ -19,6 +19,7 @@ export type Request =
     | { method: 'record'; value: boolean }
     | { method: 'clear' }
     | { method: 'delete'; ids: string[] }
+    | { method: 'annotate'; transaction: string; note?: string; marked?: boolean }
     | { method: 'compose'; request: ComposeRequest }
     | { method: 'resendFrame'; transaction: string; frame: string }
     /** Continue a transaction held at a breakpoint, with edits. */
@@ -39,6 +40,7 @@ export interface Responses {
     record: AgentState
     clear: AgentState
     delete: AgentState
+    annotate: AgentState
     compose: Transaction
     resendFrame: AgentState
     resume: AgentState
@@ -51,4 +53,4 @@ export type Message =
     { id: number; result: unknown } | { id: number; error: string } | { event: Event }
 
 /** Bumped whenever the wire format changes so stale agents are never reused. */
-export const PROTOCOL = 'tapline-agent-3'
+export const PROTOCOL = 'tapline-agent-4'

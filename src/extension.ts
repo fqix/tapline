@@ -99,8 +99,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
             throw new Error(vscode.l10n.t('The original request is no longer available.'))
         await comparisons.compare(byId(t.replayOf), t)
     }
+    const editNote = async (id: string) => {
+        const t = byId(id)
+        const note = await vscode.window.showInputBox({
+            title: vscode.l10n.t('Request Note'),
+            prompt: vscode.l10n.t('Add a note for this session. Leave empty to remove it.'),
+            value: t.note ?? '',
+            validateInput: (value) =>
+                value.length > 2000
+                    ? vscode.l10n.t('Notes must be at most 2000 characters.')
+                    : undefined
+        })
+        if (note !== undefined) await client!.call('annotate', { transaction: id, note })
+    }
+    const toggleMark = async (id: string) => {
+        await client!.call('annotate', { transaction: id, marked: !byId(id).marked })
+    }
     const actions: PanelActions = {
         compareOriginal,
+        editNote,
+        toggleMark,
         compare,
         copyCurl: async (ids) => {
             await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
@@ -291,7 +309,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         if (node?.kind === 'host') panel.showHost(node.host)
     })
     for (const [name, action] of Object.entries({
-        compareOriginal
+        compareOriginal,
+        editNote,
+        toggleMark
     }))
         command(`tapline.${name}`, async (context?: { id?: string }) => {
             const id = context?.id ?? one()?.id

@@ -9,6 +9,8 @@ import type {
 /** Lightweight row for the sequence table: no headers, bodies or frames. */
 export type Row = Pick<
     Transaction,
+    | 'note'
+    | 'marked'
     | 'id'
     | 'sequence'
     | 'timestamp'
@@ -46,6 +48,8 @@ export function toRow(t: Transaction): Row {
     )?.[1]
     return {
         id: t.id,
+        note: t.note,
+        marked: t.marked,
         sequence: t.sequence,
         timestamp: t.timestamp,
         method: t.method,
@@ -96,7 +100,7 @@ export type HostMessage =
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
     | { type: 'ready' }
-    | { type: 'compareOriginal'; id: string }
+    | { type: 'compareOriginal' | 'editNote' | 'toggleMark'; id: string }
     | { type: 'copy'; text: string }
     | { type: 'copyCurl'; ids: string[] }
     | { type: 'compare'; ids: string[] }

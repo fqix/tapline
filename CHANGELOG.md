@@ -8,6 +8,7 @@ All notable changes to Tapline are documented here. The format follows
 ### Added
 
 - Compare replays with their original request from the inspector or row menu.
+- Add session notes and star markers shared across VS Code windows.
 - Compare two captured requests in the native VS Code diff editor, with stable snapshots
   of request/response headers and bodies, formatted JSON, Base64 binary content and trailers.
 

@@ -122,6 +122,8 @@ suite('Tapline end to end', function () {
             'tapline.exportHar',
             'tapline.compare',
             'tapline.compareOriginal',
+            'tapline.toggleMark',
+            'tapline.editNote',
             'tapline.configureMcp'
         ])
             assert.ok(commands.includes(name), `${name} is registered`)
@@ -208,6 +210,22 @@ suite('Tapline end to end', function () {
             )
         )
         await vscode.window.tabGroups.close(tab)
+    })
+
+    test('shares request notes and markers in the capture session', async () => {
+        const url = `http://127.0.0.1:${origin.port}/annotated`
+        await viaProxy(url)
+        const original = await settled((t) => t.url === url)
+        await api.client.call('annotate', { transaction: original.id, note: '检查登录态' })
+        await vscode.commands.executeCommand('tapline.toggleMark', { id: original.id })
+        await until(() => api.client.transactions.get(original.id)?.marked)
+        assert.equal(api.client.transactions.get(original.id)?.note, '检查登录态')
+        const snapshot = await api.client.call('snapshot', {})
+        assert.equal(snapshot.transactions.find((t) => t.id === original.id)?.note, '检查登录态')
+        await vscode.commands.executeCommand('tapline.toggleMark', { id: original.id })
+        await until(() => api.client.transactions.get(original.id)?.marked === false)
+        await api.client.call('annotate', { transaction: original.id, note: '' })
+        await until(() => api.client.transactions.get(original.id)?.note === undefined)
     })
 
     test('opens the traffic panel and its side panes', async () => {

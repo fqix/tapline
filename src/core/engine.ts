@@ -154,6 +154,21 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         this.emit('event', { type: 'reset' })
     }
 
+    annotate(id: string, patch: { note?: string; marked?: boolean }) {
+        const t = this.transactions.get(id)
+        if (!t) throw new Error('This request is no longer available.')
+        if (
+            patch.note !== undefined &&
+            (typeof patch.note !== 'string' || patch.note.length > 2000)
+        )
+            throw new Error('Notes must be at most 2000 characters.')
+        if (patch.marked !== undefined && typeof patch.marked !== 'boolean')
+            throw new Error('Invalid request marker.')
+        if (patch.note !== undefined) t.note = patch.note || undefined
+        if (patch.marked !== undefined) t.marked = patch.marked
+        this.publish(t)
+    }
+
     // ---- lifecycle ---------------------------------------------------------
 
     async start() {

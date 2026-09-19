@@ -94,6 +94,7 @@ const RowView = memo(function RowView({
                 webviewSection: 'requests',
                 id: row.id,
                 taplineReplay: !!row.replayOf,
+                taplineMarked: !!row.marked,
                 taplineCompareCount: comparisonIds?.length ?? 0,
                 ids: comparisonIds
             })}
@@ -124,6 +125,10 @@ const RowView = memo(function RowView({
                     title={row.rules ? t('rulesApplied') : undefined}
                     aria-hidden="true"
                 />
+                {row.marked && (
+                    <span className="codicon codicon-star-full request-mark" title={t('mark')} />
+                )}
+                {row.note && <span className="codicon codicon-comment" title={row.note} />}
                 {row.scheme === 'connect' ? row.path : row.path || '/'}
             </span>
             <span role="gridcell" className="mono num c-start">

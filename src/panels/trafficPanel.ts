@@ -13,6 +13,8 @@ import {
 
 export interface PanelActions {
     compareOriginal(id: string): Promise<void>
+    editNote(id: string): Promise<void>
+    toggleMark(id: string): Promise<void>
     compare(ids: string[]): Promise<void>
     copyCurl(ids: string[]): Promise<void>
     replay(id: string): Promise<Transaction>
@@ -184,6 +186,8 @@ export class TrafficPanel implements vscode.Disposable {
                     void vscode.window.setStatusBarMessage(vscode.l10n.t('Copied'), 1500)
                     return
                 case 'compareOriginal':
+                case 'editNote':
+                case 'toggleMark':
                     return await this.actions[message.type](message.id)
                 case 'compare':
                     return await this.actions.compare(message.ids)
@@ -300,6 +304,10 @@ export class TrafficPanel implements vscode.Disposable {
 function panelStrings(): Record<string, string> {
     return {
         compareOriginal: vscode.l10n.t('Compare with Original Request'),
+        editNote: vscode.l10n.t('Edit Request Note'),
+        note: vscode.l10n.t('Request Note'),
+        mark: vscode.l10n.t('Mark Request'),
+        unmark: vscode.l10n.t('Unmark Request'),
         compare: vscode.l10n.t('Compare Requests'),
         overview: vscode.l10n.t('Overview'),
         request: vscode.l10n.t('Request'),
