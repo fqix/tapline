@@ -12,10 +12,19 @@
 ## 功能
 
 - **Charles 风格视图** — 侧边栏是 _结构_ 树（主机 → 路径 → 请求），编辑区只有一个流量
-  面板：可排序、可过滤的 _序列_ 表格（状态码 / 方法快捷筛选、按主机查看），详情可放在
-  下方或右侧。详情包含带时序瀑布图的概览、请求与响应页（Headers、Query、Cookies、
-  Form、Trailers，内容支持格式化 JSON / 文本 / 十六进制），WebSocket 帧和 SSE 事件
-  实时刷新。
+  面板：可排序、可过滤的 _序列_ 表格（状态码 / 方法快捷筛选、按主机查看、多选），详情可
+  放在下方或右侧。详情包含带时序瀑布图的概览、请求与响应页（Headers、Query、Cookies、
+  Form 与 multipart 字段、JWT 解码、Trailers，正文支持格式化 JSON / XML / 文本 /
+  十六进制 / 图片预览，并可在正文中查找），WebSocket 帧和 SSE 事件实时刷新。压缩的正文
+  （gzip、deflate、br、zstd）会自动解码。
+- **规则** — 断点（暂停请求或响应以便编辑）、改写（方法、URL、状态码、头、正文）、
+  映射到本地（用文件或内联内容响应）、映射到远程（发到另一个源）、拦截和限速。在面板中
+  编辑，保存在 `tapline.rules`（见下文）。
+- **发送请求** — 从零编写请求，或对抓到的请求 _编辑并重发_；响应像其他请求一样出现在
+  列表中。
+- **过滤语法** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
+size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 URL、方法或
+  状态码。_统计_ 按主机汇总当前过滤出的请求，并列出最慢和最大的响应。
 - **gRPC 解码** — 从 length-prefixed 的 body 中拆出每条消息（支持 gzip/deflate 与 gRPC-Web），
   用工作区的 `.proto`（`tapline.grpc.protoFiles`）解出字段名，没有 schema 时按字段编号解码；
   `grpc-status` 决定状态颜色，方法列显示为 _gRPC_。
@@ -41,6 +50,40 @@
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的事务数与正文字节数   |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点  |
 | `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema  |
+| `tapline.rules`                             | `[]`             | 拦截规则（见下文）         |
+
+## 规则
+
+规则按顺序应用于 URL 匹配其通配模式（`*` 匹配任意内容；不含 `*` 时按前缀匹配；留空匹配
+全部）且方法匹配（可选）的每个请求。点击流量面板中的尺子按钮或 _Tapline: 规则…_ 打开
+编辑器；请求右键菜单中的 _在此 URL 上设置断点_ 会直接为它添加断点。规则就是普通设置，
+也可以手写：
+
+```jsonc
+"tapline.rules": [
+    { "kind": "breakpoint", "url": "https://api.example.com/v1/orders*", "request": true, "response": true },
+    { "kind": "rewrite", "url": "*/v1/*", "request": { "headers": { "X-Debug": "1", "Authorization": null } },
+      "response": { "status": 500, "bodyReplace": { "pattern": "\"ok\":true", "replacement": "\"ok\":false" } } },
+    { "kind": "mapLocal", "url": "*/users.json", "file": "mocks/users.json" },
+    { "kind": "mapLocal", "url": "*/feature-flags", "body": "{\"beta\": true}", "status": 200 },
+    { "kind": "mapRemote", "url": "https://api.example.com/*", "to": "http://localhost:8080" },
+    { "kind": "block", "url": "*://telemetry.*", "status": 403 },
+    { "kind": "throttle", "url": "*", "latencyMs": 800, "kbps": 256 }
+]
+```
+
+| 类型         | 效果                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `breakpoint` | 暂停请求和/或响应；详情面板显示编辑器，带 _继续_ 和 _中止_。                                      |
+| `rewrite`    | `method`、`url`（正则 → 替换）、`status`、`headers`（`null` 表示删除）、`body` 或 `bodyReplace`。 |
+| `mapLocal`   | 用 `file`（相对工作区或绝对路径）或 `body` 响应；`contentType` 留空时自动推断。                   |
+| `mapRemote`  | 把请求发到 `to`（源，可带路径前缀），保留路径和查询串；`Host` 头随之更新。                        |
+| `block`      | 不访问服务器，直接以 `status`（默认 403）拒绝。                                                   |
+| `throttle`   | 转发前延迟 `latencyMs`，两个方向的正文都按 `kbps` 限速。                                          |
+
+改写或编辑过的正文以未压缩形式发送并移除 `Content-Encoding`；`text/event-stream` 响应
+不会被缓冲，只能改状态码和头。被规则处理过的请求在列表中显示铅笔图标，概览里列出规则名；
+`rule:any` 可以筛出它们。
 
 ## 根证书
 
@@ -85,7 +128,8 @@ git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
 npm ci
 npm run core:build     # 打补丁并构建 sing-box 到 core/<platform>-<arch>/
 npm run build          # esbuild → dist/
-npm test               # vitest
+npm test               # vitest：单元测试 + 针对核心的集成测试
+npm run test:e2e       # 在真实 VS Code 中运行插件（首次运行会下载 VS Code）
 npm run package        # 当前平台的 VSIX（package:all 构建全部六个）
 ```
 
