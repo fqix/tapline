@@ -14,7 +14,7 @@
     --row: 22px;
     --radius: 4px;
     /* Text follows the workbench font; only panel titles, badges and pane headers use the
-       11px VS Code reserves for those. Code-like values use the editor font instead. */
+       11px VS Code reserves for those. Only code blocks and editors use the editor font. */
     --font-size-small: 11px;
 }
 * {
@@ -43,13 +43,6 @@ body.resizing {
     display: flex;
     flex-direction: column;
     height: 100%;
-}
-.mono,
-pre,
-code {
-    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, Consolas, monospace);
-    font-size: var(--vscode-editor-font-size, 12px);
-    font-weight: var(--vscode-editor-font-weight, normal);
 }
 .muted {
     color: var(--vscode-descriptionForeground);
@@ -196,8 +189,6 @@ button {
     color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
 }
 .chip.host {
-    font-family: var(--vscode-editor-font-family);
-    font-size: var(--vscode-editor-font-size, 12px);
     padding-right: 2px;
 }
 .chip.host .icon-button {
@@ -276,10 +267,7 @@ button {
     color: var(--bad);
 }
 .method {
-    font-family: var(--vscode-editor-font-family);
-    font-size: var(--vscode-editor-font-size, 12px);
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    font: inherit;
 }
 .method.m-get {
     color: var(--vscode-charts-blue, #3794ff);
@@ -376,6 +364,16 @@ select {
     background: var(--vscode-dropdown-background);
     color: var(--vscode-dropdown-foreground);
     border-color: var(--vscode-dropdown-border, transparent);
+}
+/* Keep code and editable payloads monospaced after the shared control font reset. */
+input.mono,
+select.mono,
+textarea.mono,
+pre,
+code {
+    font-family: var(--vscode-editor-font-family, 'SF Mono', Menlo, Consolas, monospace);
+    font-size: var(--vscode-editor-font-size, 12px);
+    font-weight: var(--vscode-editor-font-weight, normal);
 }
 input[type='checkbox'] {
     accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));

@@ -157,14 +157,8 @@ table.pairs td {
     user-select: text;
 }
 table.pairs th {
-    font-family: var(--vscode-editor-font-family);
-    font-size: var(--vscode-editor-font-size, 12px);
     color: var(--vscode-symbolIcon-propertyForeground, var(--vscode-textLink-foreground));
     user-select: text;
-}
-table.pairs td {
-    font-family: var(--vscode-editor-font-family);
-    font-size: var(--vscode-editor-font-size, 12px);
 }
 table.pairs tr + tr {
     border-top: 1px solid var(--border-faint);

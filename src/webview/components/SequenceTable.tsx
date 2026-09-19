@@ -12,15 +12,13 @@ export const ROW_HEIGHT = 22
 
 const numeric: Column[] = ['sequence', 'timestamp', 'duration', 'responseBytes']
 type Widths = Record<Exclude<Column, 'path'>, number>
-/** Monospace columns scale with the editor font so a large font never clips them. */
-const editorScale = () => {
-    const size = parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-font-size')
-    )
-    return Number.isFinite(size) && size > 0 ? Math.max(1, size / 12) : 1
+/** Columns follow the workbench font used by the list. */
+const workbenchScale = () => {
+    const size = parseFloat(getComputedStyle(document.body).getPropertyValue('--vscode-font-size'))
+    return Number.isFinite(size) && size > 0 ? Math.max(1, size / 13) : 1
 }
 const defaultWidths = (): Widths => {
-    const k = editorScale()
+    const k = workbenchScale()
     return {
         sequence: Math.round(48 * k),
         status: 68,
