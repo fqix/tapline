@@ -5,6 +5,28 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0]
+
+### Added
+
+- Copy proxy and certificate environment commands for Bash/Zsh, Fish, Nushell,
+  CMD and PowerShell from the capture toolbar or startup notification, remembering
+  the selected shell.
+- Recorded setup and inspection walkthrough covering root certificate installation,
+  HTTP requests, edit/resend, request diffs and schema-decoded gRPC fields.
+
+### Fixed
+
+- Prepare the root certificate identity before checking system trust.
+- Recover from capture startup failures and bound agent handshake waits.
+- Reuse compatible agent builds without restarting an active capture.
+- Open request comparisons in the active editor group.
+- Display stream message timestamps in local time.
+
+### Changed
+
+- Use Node.js 24 LTS for development and CI, and Azure Login v3 for publishing.
+
 ## [0.5.0]
 
 ### Added
