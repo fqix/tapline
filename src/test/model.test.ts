@@ -111,6 +111,13 @@ describe('format', () => {
         expect(node.NODE_USE_ENV_PROXY).toBe('1')
         expect(node.PIP_CERT).toBeUndefined()
         expect(node.JAVA_TOOL_OPTIONS).toBeUndefined()
+        for (const type of ['extensionHost', 'pwa-extensionHost']) {
+            const extension = captureEnvironment(target, defaultDebugRuntimes[type])
+            expect(extension.HTTPS_PROXY).toBe('http://127.0.0.1:3606')
+            expect(extension.NODE_EXTRA_CA_CERTS).toBe('/tmp/ca.pem')
+            expect(extension.NODE_USE_ENV_PROXY).toBe('1')
+            expect(extension.GRPC_DEFAULT_SSL_ROOTS_FILE_PATH).toBe('/tmp/ca.pem')
+        }
         const java = captureEnvironment(target, ['java']).JAVA_TOOL_OPTIONS
         expect(java).toContain('-Dhttps.proxyPort=3606')
         expect(java).toContain('-Djavax.net.ssl.trustStore="/Users/me/Application Support/ca.p12"')

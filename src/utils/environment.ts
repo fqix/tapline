@@ -106,6 +106,8 @@ function quoteJavaOption(value: string) {
 export const defaultDebugRuntimes: Record<string, Profile[]> = {
     node: ['node', 'grpc'],
     'pwa-node': ['node', 'grpc'],
+    extensionHost: ['node', 'grpc'],
+    'pwa-extensionHost': ['node', 'grpc'],
     'node-terminal': ['node', 'grpc'],
     bun: ['node'],
     deno: ['deno'],

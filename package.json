@@ -662,6 +662,14 @@
                             "node",
                             "grpc"
                         ],
+                        "extensionHost": [
+                            "node",
+                            "grpc"
+                        ],
+                        "pwa-extensionHost": [
+                            "node",
+                            "grpc"
+                        ],
                         "bun": [
                             "node"
                         ],
