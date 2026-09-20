@@ -37,7 +37,7 @@ export class ComparisonDocuments implements vscode.TextDocumentContentProvider, 
                 original,
                 modified,
                 vscode.l10n.t('Tapline: #{0} ↔ #{1}', left.sequence, right.sequence),
-                { preview: false, viewColumn: vscode.ViewColumn.Beside }
+                { preview: false, viewColumn: vscode.ViewColumn.Active }
             )
         } catch (error) {
             this.snapshots.delete(original.toString())

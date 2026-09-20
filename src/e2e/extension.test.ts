@@ -168,6 +168,8 @@ suite('Tapline end to end', function () {
         const left = await settled((t) => t.url === url && t.requestBody === 'before')
         await viaProxy(url, { method: 'POST' }, 'after')
         const right = await settled((t) => t.url === url && t.requestBody === 'after')
+        const activeGroup = vscode.window.tabGroups.activeTabGroup
+        const groupCount = vscode.window.tabGroups.all.length
         // Reverse the selection order: the earlier sequence must still be on the left.
         await vscode.commands.executeCommand('tapline.compare', { ids: [right.id, left.id] })
         const tab = await until(
@@ -183,6 +185,12 @@ suite('Tapline end to end', function () {
             'comparison editor'
         )
         const input = tab.input as vscode.TabInputTextDiff
+        assert.equal(
+            vscode.window.tabGroups.all.length,
+            groupCount,
+            'Diff must not split the editor group'
+        )
+        assert.equal(tab.group, activeGroup)
         const original = await vscode.workspace.openTextDocument(input.original)
         const modified = await vscode.workspace.openTextDocument(input.modified)
         assert.ok(original.getText().includes('before'))
