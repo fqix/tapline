@@ -60,6 +60,20 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other MCP clients can list,
   search, read, replay and send captured requests (see below).
 
+## Basic workflow
+
+![Tapline: certificate setup, HTTP capture, replay, diff and decoded gRPC fields](docs/demo/tapline-walkthrough.gif)
+
+*Recorded in VS Code with Recordly, with focused zooms, cursor effects and a framed background. Waiting time is shortened.*
+
+1. Install and trust the root certificate, then start capture.
+2. Send an HTTP request to **httpbin** and inspect its parameters, headers and JSON response.
+3. Edit and resend the request, then compare it with the original in **Diff**.
+4. Open `grpcbin.proto` and call **grpcbin** from a captured terminal. Inspect named request and response fields: `f_string`, `f_strings`, `f_int32` and `f_bool`.
+5. Search messages, filter traffic with `proto:grpc`, then stop capture.
+
+[Watch the MP4](docs/demo/tapline-walkthrough.mp4) · [Demo requests and recording notes](docs/demo/README.md)
+
 ## Settings
 
 | Setting                                     | Default          | Purpose                                   |

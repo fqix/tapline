@@ -51,6 +51,20 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 U
   跨窗口同步，随记录清除或淘汰而移除。
 - **复制响应正文**：从右键菜单或详情工具栏复制保留的正文，二进制复制为 Base64。
 
+## 基本操作演示
+
+![Tapline：证书安装、HTTP 抓包、重发、Diff 与 gRPC 字段解析](docs/demo/tapline-walkthrough.gif)
+
+*使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果和背景边框，并缩短等待时间。*
+
+1. 安装并信任根证书，然后启动抓包。
+2. 向 **httpbin** 发送 HTTP 请求，查看参数、请求头和 JSON 响应。
+3. 编辑并重发请求，通过 **Diff** 与原请求对比。
+4. 展示 `grpcbin.proto`，在捕获终端中调用 **grpcbin**，查看请求和响应的 `f_string`、`f_strings`、`f_int32`、`f_bool` 字段名和值。
+5. 搜索消息，用 `proto:grpc` 筛选流量，最后停止抓包。
+
+[观看 MP4 视频](docs/demo/tapline-walkthrough.mp4) · [演示请求与录制说明](docs/demo/README.md)
+
 ## 设置
 
 | 设置项                                      | 默认值           | 作用                       |
