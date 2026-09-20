@@ -4,7 +4,13 @@ import { t } from '../lib/i18n'
 import { eventSearchText, frameSize, resendUnavailable } from '../lib/messages'
 import { MessageStream } from './MessageStream'
 
-const clock = (time: number) => new Date(time).toISOString().slice(11, 23)
+const clock = new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    hour12: false
+})
 
 export function Frames({ x }: { x: Transaction }) {
     const open = x.state === 'pending' && x.status === 101
@@ -24,7 +30,7 @@ export function Frames({ x }: { x: Transaction }) {
                             title={t(f.direction === 'send' ? 'streamSent' : 'streamReceived')}
                         />
                         <time className="time" dateTime={new Date(f.time).toISOString()}>
-                            {clock(f.time)}
+                            {clock.format(f.time)}
                         </time>
                         <div className="frame-content">
                             <div className="event-meta muted">
@@ -63,7 +69,7 @@ export function ServerEvents({ x }: { x: Transaction }) {
                     <div className="frame receive">
                         <span className="codicon codicon-arrow-down dir" aria-hidden="true" />
                         <time className="time" dateTime={new Date(event.time).toISOString()}>
-                            {clock(event.time)}
+                            {clock.format(event.time)}
                         </time>
                         <div className="frame-content">
                             <div className="event-meta">
