@@ -261,5 +261,10 @@
     "Notes must be at most 2000 characters.": "备注不能超过 2000 个字符。",
     "Response body copied as Base64": "已复制响应正文（Base64）",
     "Response body copied": "已复制响应正文",
-    "Capture may be incomplete": "抓包可能不完整"
+    "Capture may be incomplete": "抓包可能不完整",
+    "Copy Proxy Environment": "复制代理环境变量",
+    "Start capture before copying the proxy environment.": "请先启动抓包，再复制代理环境变量。",
+    "Choose the shell where you will paste the commands": "选择要粘贴命令的 Shell",
+    "These environment values contain characters that CMD cannot safely paste. Choose PowerShell instead.": "环境变量中包含 CMD 无法安全粘贴的字符，请改用 PowerShell。",
+    "Proxy environment copied for {0}. Paste into your terminal to apply.": "已复制 {0} 代理环境变量，粘贴到终端即可生效。"
 }

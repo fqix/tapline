@@ -67,5 +67,6 @@
     "command.compareOriginal": "Compare with Original Request",
     "command.editNote": "Edit Request Note",
     "command.toggleMark": "Toggle Request Marker",
-    "command.copyResponse": "Copy Response Body"
+    "command.copyResponse": "Copy Response Body",
+    "command.copyEnvironment": "Copy Proxy Environment"
 }

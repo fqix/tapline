@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import type { AgentClient } from '../client/agentClient'
+import { SHELLS, shellEnvironment, type Shell } from '../utils/shellEnvironment'
 import {
     captureEnvironment,
     defaultDebugRuntimes,
@@ -92,6 +93,61 @@ export class CaptureEnvironment implements vscode.Disposable {
         const env = this.environment(this.valid(runtimes[config.type]))
         if (!env) return config
         return { ...config, env: { ...env, ...(config.env ?? {}) } }
+    }
+
+    /** Copy commands for an existing terminal using the configured terminal profiles. */
+    async copyEnvironment() {
+        if (!this.client.running) {
+            void vscode.window.showInformationMessage(
+                vscode.l10n.t('Start capture before copying the proxy environment.')
+            )
+            return
+        }
+        const previous = this.context.globalState.get<Shell>(
+            'copyEnvironment.shell',
+            process.platform === 'win32' ? 'PowerShell' : 'Bash'
+        )
+        const pick = await vscode.window.showQuickPick(
+            [...SHELLS]
+                .sort((a, b) => Number(b === previous) - Number(a === previous))
+                .map((shell) => ({
+                    label: shell,
+                    description: shell === 'Bash' ? 'Bash / Zsh / sh' : undefined,
+                    shell
+                })),
+            {
+                title: vscode.l10n.t('Copy Proxy Environment'),
+                placeHolder: vscode.l10n.t('Choose the shell where you will paste the commands')
+            }
+        )
+        if (!pick) return
+        // Capture may stop or change ports while the picker is open.
+        const config = vscode.workspace.getConfiguration('tapline')
+        const env = this.environment(
+            this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
+        )
+        if (!env) {
+            void vscode.window.showInformationMessage(
+                vscode.l10n.t('Start capture before copying the proxy environment.')
+            )
+            return
+        }
+        if (pick.shell === 'CMD' && Object.values(env).some((value) => /["%!]/.test(value))) {
+            void vscode.window.showErrorMessage(
+                vscode.l10n.t(
+                    'These environment values contain characters that CMD cannot safely paste. Choose PowerShell instead.'
+                )
+            )
+            return
+        }
+        await vscode.env.clipboard.writeText(shellEnvironment(env, pick.shell))
+        await this.context.globalState.update('copyEnvironment.shell', pick.shell)
+        void vscode.window.showInformationMessage(
+            vscode.l10n.t(
+                'Proxy environment copied for {0}. Paste into your terminal to apply.',
+                pick.shell
+            )
+        )
     }
 
     /** Open a terminal with the proxy plus one runtime's variables. */

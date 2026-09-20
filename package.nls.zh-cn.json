@@ -67,5 +67,6 @@
     "command.compareOriginal": "与原请求对比",
     "command.editNote": "编辑请求备注",
     "command.toggleMark": "切换请求标记",
-    "command.copyResponse": "复制响应正文"
+    "command.copyResponse": "复制响应正文",
+    "command.copyEnvironment": "复制代理环境变量"
 }

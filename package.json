@@ -291,6 +291,13 @@
                 "command": "tapline.copyResponse",
                 "title": "%command.copyResponse%",
                 "category": "Tapline"
+            },
+            {
+                "command": "tapline.copyEnvironment",
+                "title": "%command.copyEnvironment%",
+                "category": "Tapline",
+                "icon": "$(copy)",
+                "enablement": "tapline.running"
             }
         ],
         "menus": {
@@ -389,6 +396,11 @@
                     "command": "tapline.stats",
                     "when": "view == tapline.traffic",
                     "group": "1_tools@2"
+                },
+                {
+                    "command": "tapline.copyEnvironment",
+                    "when": "view == tapline.traffic && tapline.running",
+                    "group": "navigation@4.1"
                 }
             ],
             "view/item/context": [

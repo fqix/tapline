@@ -233,10 +233,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 client!.port
             ),
             vscode.l10n.t('New Captured Terminal'),
+            vscode.l10n.t('Copy Proxy Environment'),
             vscode.l10n.t('Show Traffic')
         )
         if (choice === vscode.l10n.t('New Captured Terminal'))
             await vscode.commands.executeCommand('tapline.openTerminal')
+        else if (choice === vscode.l10n.t('Copy Proxy Environment'))
+            await environment.copyEnvironment()
         else if (choice === vscode.l10n.t('Show Traffic'))
             await vscode.commands.executeCommand('tapline.traffic.focus')
     }
@@ -449,6 +452,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         ])
         panel.showPane('rules')
     })
+    command('tapline.copyEnvironment', () => environment.copyEnvironment())
     command('tapline.openTerminal', async () => {
         if (!client!.running && !(await startCapture())) return
         await environment.openTerminal()
