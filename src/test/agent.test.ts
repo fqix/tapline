@@ -3,7 +3,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { build } from 'esbuild'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { X509Certificate, createPublicKey } from 'node:crypto'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -79,11 +80,22 @@ describeCore('shared agent', () => {
         const hello = await a.call('hello', { settings })
         expect(hello.clients).toBe(2)
         expect(hello.mcpPort).toBe(settings.mcpPort)
+        // A fresh installation must be able to inspect/install the CA before capture.
+        expect(hello.running).toBe(false)
+        const certificate = readFileSync(hello.certificatePath, 'utf8')
+        const root = new X509Certificate(certificate)
+        expect(root.ca).toBe(true)
+        expect(
+            root.publicKey.equals(createPublicKey(readFileSync(join(directory, 'ca.key'))))
+        ).toBe(true)
+        expect(existsSync(hello.truststorePath)).toBe(true)
         await expect(b.call('state')).rejects.toThrow('hello first')
         await b.call('hello', { settings })
+        expect(readFileSync(hello.certificatePath, 'utf8')).toBe(certificate)
         const state = await a.call('start')
         expect(state.running).toBe(true)
         expect(state.port).toBe(settings.port)
+        expect(readFileSync(hello.certificatePath, 'utf8')).toBe(certificate)
         // The MCP endpoint serves the same engine over Streamable HTTP.
         const mcp = new Client({ name: 'test', version: '0' })
         await mcp.connect(

@@ -87,7 +87,8 @@ export class CertificateTrust implements vscode.Disposable {
     }
 
     private async open(): Promise<TrustStore> {
-        if (!this.client.connected) await this.client.connect()
+        // A connected socket may still be completing hello and preparing the CA.
+        await this.client.connect()
         const path = this.client.certificatePath
         if (!path) throw new Error(vscode.l10n.t('The root certificate is not available yet.'))
         if (!this.store || this.storePath !== path) {

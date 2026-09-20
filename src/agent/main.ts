@@ -62,6 +62,7 @@ async function handle(request: Request): Promise<unknown> {
     switch (request.method) {
         case 'hello':
         case 'settings': {
+            if (request.method === 'hello') await engine.prepareCertificates()
             const restart = engine.running && request.settings.port !== engine.settings.port
             engine.settings = { ...engine.settings, ...request.settings }
             engine.enforceEntryLimit()

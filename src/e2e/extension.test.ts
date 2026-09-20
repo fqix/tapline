@@ -6,6 +6,7 @@ import { execFile } from 'node:child_process'
 import http from 'node:http'
 import net from 'node:net'
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
@@ -128,6 +129,16 @@ suite('Tapline end to end', function () {
             'tapline.configureMcp'
         ])
             assert.ok(commands.includes(name), `${name} is registered`)
+    })
+
+    test('prepares the root certificate before capture or OS trust operations', async () => {
+        await api.client.connect()
+        assert.equal(api.client.running, false)
+        assert.ok(existsSync(api.client.certificatePath), 'CA exists before capture starts')
+        assert.ok(
+            existsSync(api.client.truststorePath),
+            'Java trust store exists before capture starts'
+        )
     })
 
     test('starts capture on the configured port without a trusted certificate', async () => {

@@ -171,6 +171,13 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
 
     // ---- lifecycle ---------------------------------------------------------
 
+    /** Prepare files before a client checks OS trust, without starting capture. */
+    async prepareCertificates() {
+        this.root = await ensureRootIdentity(this.directory)
+        ensureTruststore(this.directory, this.root.certificate)
+        return this.root
+    }
+
     async start() {
         if (this.running) return
         if (this.starting) return this.starting
@@ -181,8 +188,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     private async listen() {
         const manifest = await verifyCore(this.corePath)
         this.coreVersion = manifest.version
-        this.root = await ensureRootIdentity(this.directory)
-        ensureTruststore(this.directory, this.root.certificate)
+        const root = await this.prepareCertificates()
         await new Promise<void>((resolve, reject) => {
             const probe = net.createServer()
             probe.once('error', reject)
@@ -196,7 +202,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
                 directory: this.directory,
                 host: '127.0.0.1',
                 port: this.settings.port,
-                root: this.root,
+                root,
                 intercept: (host) => this.intercepts(host),
                 upstreamCA: this.upstreamCA
             },
