@@ -2,7 +2,7 @@
     "name": "tapline",
     "displayName": "Tapline",
     "description": "%extension.description%",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "publisher": "fqix",
     "license": "MIT",
     "private": true,

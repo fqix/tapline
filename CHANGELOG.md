@@ -5,6 +5,14 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1]
+
+### Fixed
+
+- Inject proxy and certificate environment variables into VS Code extension debugging
+  sessions (`extensionHost` and `pwa-extensionHost`). Start capture before launching
+  or restarting the debug session for the environment to take effect.
+
 ## [0.6.0]
 
 ### Added
