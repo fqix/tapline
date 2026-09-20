@@ -107,6 +107,7 @@
             {
                 "command": "tapline.start",
                 "title": "%command.start%",
+                "enablement": "!tapline.starting",
                 "category": "Tapline",
                 "icon": "$(play)"
             },

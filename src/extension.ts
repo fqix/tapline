@@ -173,9 +173,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         status
     )
 
+    let starting: Promise<boolean> | undefined
     const sync = () => {
         void vscode.commands.executeCommand('setContext', 'tapline.running', client!.running)
-        if (!client!.connected) {
+        void vscode.commands.executeCommand('setContext', 'tapline.starting', !!starting)
+        if (starting) {
+            status.text = '$(loading~spin) Tapline'
+            status.tooltip = vscode.l10n.t('Starting Tapline capture…')
+        } else if (!client!.connected) {
             status.text = '$(circle-slash) Tapline'
             status.tooltip = vscode.l10n.t('Tapline capture agent is not connected')
         } else if (!client!.running) {
@@ -236,28 +241,50 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
             await vscode.commands.executeCommand('tapline.traffic.focus')
     }
     /** Start capture once the OS trusts the root CA; resolves `false` when it did not start. */
-    const startCapture = async (modal = true) => {
-        if (!(await certificate.ensureTrusted(modal))) return false
-        try {
-            await client!.start()
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
-            const choice = await vscode.window.showErrorMessage(
-                vscode.l10n.t('Tapline could not start capture: {0}', message),
-                vscode.l10n.t('Show Logs'),
-                ...(/port/i.test(message) ? [vscode.l10n.t('Change Port')] : [])
+    const startCapture = (modal = true): Promise<boolean> => {
+        if (starting) return starting
+        starting = Promise.resolve(
+            vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: vscode.l10n.t('Starting Tapline capture…')
+                },
+                async () => {
+                    try {
+                        if (!(await certificate.ensureTrusted(modal))) return false
+                        await client!.start()
+                        return true
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : String(error)
+                        client!.output.error(`Could not start capture: ${message}`)
+                        // A dismissed/ignored notification must not keep Start disabled.
+                        void vscode.window
+                            .showErrorMessage(
+                                vscode.l10n.t('Tapline could not start capture: {0}', message),
+                                vscode.l10n.t('Show Logs'),
+                                ...(/port/i.test(message) ? [vscode.l10n.t('Change Port')] : [])
+                            )
+                            .then((choice) => {
+                                if (choice === vscode.l10n.t('Show Logs')) client!.output.show()
+                                else if (choice === vscode.l10n.t('Change Port'))
+                                    void vscode.commands.executeCommand(
+                                        'workbench.action.openSettings',
+                                        'tapline.port'
+                                    )
+                            })
+                        return false
+                    }
+                }
             )
-            if (choice === vscode.l10n.t('Show Logs')) client!.output.show()
-            else if (choice === vscode.l10n.t('Change Port'))
-                await vscode.commands.executeCommand(
-                    'workbench.action.openSettings',
-                    'tapline.port'
-                )
-            return false
-        }
-        return true
+        ).finally(() => {
+            starting = undefined
+            sync()
+        })
+        sync()
+        return starting
     }
     command('tapline.start', async () => {
+        if (starting) return
         if (await startCapture()) void started()
     })
     command('tapline.stop', async () => {

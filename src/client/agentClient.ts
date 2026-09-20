@@ -160,8 +160,10 @@ export class AgentClient implements vscode.Disposable {
 
     /** Connect to a running agent or spawn one; resolves once the mirror is populated. */
     connect(): Promise<void> {
+        if (this.disposed) return Promise.reject(new Error('Tapline client is disposed'))
         if (this.ready) return this.ready
         this.ready = this.establish().catch((error) => {
+            this.socket?.destroy()
             this.ready = undefined
             throw error
         })
@@ -196,7 +198,7 @@ export class AgentClient implements vscode.Disposable {
             }
         }
         this.attach(socket)
-        this.state = await this.call('hello', { settings: this.settings() })
+        this.state = await this.request('hello', { settings: this.settings() })
         // A window running a newer build (update or rebuild) replaces the shared agent so
         // engine changes take effect without closing every window.
         const build = this.build()
@@ -210,7 +212,7 @@ export class AgentClient implements vscode.Disposable {
                 const closed = new Promise<void>((resolve) => socket.once('close', resolve))
                 // Agents that predate the build stamp do not know `shutdown`; SIGTERM runs
                 // the same clean shutdown (they never survive the window on their own).
-                if (this.state.build) await this.call('shutdown', {}).catch(() => {})
+                if (this.state.build) await this.request('shutdown', {}).catch(() => {})
                 else if (this.state.pid) process.kill(this.state.pid, 'SIGTERM')
                 await Promise.race([closed, new Promise((r) => setTimeout(r, 5000))])
             } catch (error) {
@@ -218,19 +220,26 @@ export class AgentClient implements vscode.Disposable {
             } finally {
                 this.restarting = false
             }
-            if (this.socket) return this.resync()
+            if (this.socket) return this.resync(30000)
             await this.establish(true)
-            if (wasRunning) await this.start()
+            if (wasRunning) await this.apply(this.request('start', {}))
             return
         }
-        await this.resync()
+        await this.resync(30000)
     }
 
     private dial(path: string) {
         return new Promise<net.Socket>((resolve, reject) => {
             const socket = net.connect(path)
-            socket.once('connect', () => resolve(socket))
-            socket.once('error', reject)
+            socket.setTimeout(3000, () => socket.destroy(new Error('Agent connection timed out')))
+            socket.once('connect', () => {
+                socket.setTimeout(0)
+                resolve(socket)
+            })
+            socket.once('error', (error) => {
+                socket.destroy()
+                reject(error)
+            })
         })
     }
 
@@ -253,6 +262,9 @@ export class AgentClient implements vscode.Disposable {
             this.output.warn(`agent: ${line}`)
         )
         child.on('exit', (code) => this.output.info(`Capture agent exited (${code})`))
+        child.on('error', (error) =>
+            this.output.error(`Capture agent spawn failed: ${error.message}`)
+        )
         child.unref()
     }
 
@@ -302,16 +314,15 @@ export class AgentClient implements vscode.Disposable {
             else if (log.level === 'warn') this.output.warn(log.message)
             else this.output.info(log.message)
         } else if (event.type === 'reset') {
-            void this.resync()
+            void this.resync().catch((error) => this.output.error(String(error)))
             return
         }
         this.events.fire(event)
     }
 
     /** `reset` means the agent's transaction set changed (clear/delete/eviction). */
-    private async resync() {
-        const snapshot = await this.call('snapshot', {}).catch(() => undefined)
-        if (!snapshot) return
+    private async resync(timeout = 0) {
+        const snapshot = await this.request('snapshot', {}, timeout)
         this.transactions.clear()
         for (const t of snapshot.transactions) this.transactions.set(t.id, t)
         this.state = snapshot.state
@@ -319,11 +330,52 @@ export class AgentClient implements vscode.Disposable {
     }
 
     async call<M extends Method>(method: M, args: Args<M>): Promise<Responses[M]> {
-        if (!this.socket) await this.connect()
-        const socket = this.socket!
+        await this.connect()
+        return this.request(method, args)
+    }
+
+    /** Handshake uses the wire directly; public calls wait for hello and the snapshot. */
+    private request<M extends Method>(
+        method: M,
+        args: Args<M>,
+        timeout = ['hello', 'start', 'shutdown'].includes(method) ? 30000 : 0
+    ): Promise<Responses[M]> {
+        const socket = this.socket
+        if (!socket || socket.destroyed)
+            return Promise.reject(
+                new Error(vscode.l10n.t('Lost connection to the Tapline capture agent'))
+            )
         const id = ++this.sequence
         return new Promise<Responses[M]>((resolve, reject) => {
-            this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject })
+            // Normal RPCs can queue behind a long replay or a user's breakpoint edit.
+            // Bound startup/handshake only; do not interrupt those capture operations.
+            const timer = !timeout
+                ? undefined
+                : setTimeout(() => {
+                      const error = new Error(
+                          vscode.l10n.t(
+                              'Tapline capture agent timed out while handling {0}. See the Tapline output channel.',
+                              method
+                          )
+                      )
+                      this.output.error(error.message)
+                      this.pending.get(id)?.reject(error)
+                      socket.destroy()
+                  }, timeout)
+            const finish = () => {
+                clearTimeout(timer)
+                this.pending.delete(id)
+            }
+            this.pending.set(id, {
+                resolve: (value) => {
+                    finish()
+                    resolve(value as Responses[M])
+                },
+                reject: (error) => {
+                    finish()
+                    reject(error)
+                }
+            })
             socket.write(JSON.stringify({ id, method, ...args }) + '\n')
         })
     }
