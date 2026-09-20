@@ -17,7 +17,7 @@ if (!directory || !corePath) {
     process.exit(2)
 }
 mkdirSync(directory, { recursive: true, mode: 0o700 })
-/** Identifies this build; a client from a newer build asks this agent to shut down. */
+/** Identifies the running build for client diagnostics. */
 const build = statSync(process.argv[1]).mtimeMs
 const clients = new Set<net.Socket>()
 const engine = new Engine(directory, corePath)

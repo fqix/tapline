@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import net from 'node:net'
 import { createInterface } from 'node:readline'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type * as vscode from 'vscode'
@@ -107,6 +107,50 @@ describe('capture agent client lifecycle', () => {
         expect(requests).toEqual(['hello', 'snapshot', 'start'])
         expect(client.running).toBe(true)
     })
+
+    it.each(['older', 'newer', 'unstamped'] as const)(
+        'reuses a compatible %s build across reconnects without stopping capture',
+        async (kind) => {
+            mkdirSync(join(directory, 'dist'))
+            const script = join(directory, 'dist', 'agent.js')
+            writeFileSync(script, '// local build')
+            const build = statSync(script).mtimeMs
+            const remote = {
+                ...state,
+                running: true,
+                build: kind === 'unstamped' ? undefined : build + (kind === 'older' ? -1 : 1)
+            }
+            const transaction = { id: 'existing-traffic' }
+            const kill = vi.spyOn(process, 'kill').mockReturnValue(true)
+            respond = (socket, request) =>
+                reply(
+                    socket,
+                    request.id,
+                    request.method === 'snapshot'
+                        ? { state: remote, transactions: [transaction] }
+                        : remote
+                )
+            try {
+                await client.connect()
+                expect(client.running).toBe(true)
+                expect(client.transactions.get(transaction.id)).toEqual(transaction)
+                // Simulate a transient disconnect with another build still serving.
+                const socket = [...sockets][0]
+                await new Promise<void>((resolve) => {
+                    socket.once('close', resolve)
+                    socket.destroy()
+                })
+                await vi.waitFor(() => expect(client.connected).toBe(false))
+                await client.connect()
+                expect(client.running).toBe(true)
+                expect(client.transactions.get(transaction.id)).toEqual(transaction)
+                expect(requests).toEqual(['hello', 'snapshot', 'hello', 'snapshot'])
+                expect(kill).not.toHaveBeenCalled()
+            } finally {
+                kill.mockRestore()
+            }
+        }
+    )
 
     it('rejects a silent start after 30 seconds and allows a new connection', async () => {
         await client.connect()
