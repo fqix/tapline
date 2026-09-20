@@ -145,10 +145,11 @@ bodies through the agent, which records them and passes them on unchanged.
 
 ## Development
 
-Requires Node 22+, Go 1.27+ and git.
+Requires Node 24 LTS, Go 1.27+ and git.
 
 ```sh
 git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
+nvm use               # Node 24 LTS (.nvmrc)
 npm ci
 npm run core:build     # patch and build sing-box into core/<platform>-<arch>/
 npm run build          # esbuild → dist/

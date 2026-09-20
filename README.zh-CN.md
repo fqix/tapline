@@ -134,10 +134,11 @@ sing-box 用 Tapline CA 签发的叶证书终止 TLS，把正文流式传给 age
 
 ## 开发
 
-需要 Node 22+、Go 1.27+ 和 git。
+需要 Node 24 LTS、Go 1.27+ 和 git。
 
 ```sh
 git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
+nvm use               # Node 24 LTS (.nvmrc)
 npm ci
 npm run core:build     # 打补丁并构建 sing-box 到 core/<platform>-<arch>/
 npm run build          # esbuild → dist/
