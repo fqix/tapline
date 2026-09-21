@@ -5,6 +5,25 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0]
+
+### Added
+
+- Show request and response JSON as a collapsible field/value tree, with array
+  indexes, child counts, and expand-all / collapse-all controls.
+- Confirm single and bulk deletion of captured requests.
+
+### Fixed
+
+- Avoid extension-host startup crashes caused by automatically injecting
+  `NODE_EXTRA_CA_CERTS`; retain extra CA trust for regular Node.js debugging.
+- Render toolbar tooltips inside the webview, supporting hover and keyboard focus.
+
+### Changed
+
+- Show a text cURL button in the inspector and notifications after successful copies.
+- Remove the redundant copy-URL inspector action and Show Traffic startup button.
+
 ## [0.6.1]
 
 ### Fixed
