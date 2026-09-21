@@ -21,6 +21,7 @@ export function Overview({ x, onFocus }: { x: Transaction; onFocus(id: string): 
             `${x.scheme}${x.httpVersion ? ` · HTTP/${x.httpVersion}` : ''}${x.tls ? ' · TLS' : ''}`
         ],
         [t('client'), x.client],
+        [t('server'), x.serverAddress ?? '—'],
         [t('time'), new Date(x.timestamp).toLocaleString()],
         [t('duration'), x.state === 'pending' ? '…' : duration(x.duration)],
         [

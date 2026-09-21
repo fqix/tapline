@@ -114,7 +114,7 @@ describe('sortRows', () => {
         expect(
             sortRows(rows, { column: 'responseBytes', ascending: false }).map((r) => r.id)
         ).toEqual(['t1', 't2', 't3'])
-        expect(sortRows(rows, { column: 'host', ascending: true }).map((r) => r.id)).toEqual([
+        expect(sortRows(rows, { column: 'url', ascending: true }).map((r) => r.id)).toEqual([
             't2',
             't3',
             't1'
@@ -129,7 +129,7 @@ describe('sortRows', () => {
             column: 'responseBytes',
             ascending: false
         })
-        expect(toggleSort(defaultSort, 'host')).toEqual({ column: 'host', ascending: true })
+        expect(toggleSort(defaultSort, 'url')).toEqual({ column: 'url', ascending: true })
     })
 })
 

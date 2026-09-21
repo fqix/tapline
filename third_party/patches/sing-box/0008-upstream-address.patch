@@ -1,0 +1,72 @@
+diff --git a/service/fluxyinspector/internal/proxy/proxy.go b/service/fluxyinspector/internal/proxy/proxy.go
+index ef292b0..ea33ed1 100644
+--- a/service/fluxyinspector/internal/proxy/proxy.go
++++ b/service/fluxyinspector/internal/proxy/proxy.go
+@@ -184,6 +184,15 @@ func (r *runtime) onRequest(req *http.Request, pc *goproxy.ProxyCtx) (*http.Requ
+ 	return req, nil
+ }
+ 
++// address is the upstream endpoint the response came from: the TCP/TLS peer, or the
++// QUIC destination for HTTP/3 (which does not run the httptrace hooks).
++func (ex *exchange) address() string {
++	if address := ex.timing.Address(); address != "" {
++		return address
++	}
++	return ex.h3Destination
++}
++
+ func (r *runtime) setRoundTripper(pc *goproxy.ProxyCtx, options ipc.RequestOptions, route string, ex *exchange, websocket bool) {
+ 	pc.RoundTripper = goproxy.RoundTripperFunc(func(req *http.Request, _ *goproxy.ProxyCtx) (*http.Response, error) {
+ 		h2c := req.URL.Scheme == "http" && (req.ProtoMajor == 2 || strings.HasPrefix(req.Header.Get("Content-Type"), "application/grpc"))
+@@ -243,6 +252,7 @@ func (r *runtime) onResponse(resp *http.Response, pc *goproxy.ProxyCtx) *http.Re
+ 	output := r.peer.Reader(ctx, session.id+":response:out", trailers)
+ 	result, err := session.askBody(ctx, map[string]any{
+ 		"type": "response", "response": responseMetadata(resp), "timings": ex.timing.Snapshot(),
++		"address": ex.address(),
+ 	}, body.body, func() http.Header { return resp.Trailer })
+ 	if err != nil {
+ 		return failedResponse(pc.Req, session, err)
+diff --git a/service/fluxyinspector/internal/upstream/timing.go b/service/fluxyinspector/internal/upstream/timing.go
+index 78189e6..4642e5b 100644
+--- a/service/fluxyinspector/internal/upstream/timing.go
++++ b/service/fluxyinspector/internal/upstream/timing.go
+@@ -11,6 +11,8 @@ type Timing struct {
+ 	mu                             sync.Mutex
+ 	start, dns, connect, tls, sent time.Time
+ 	values                         map[string]float64
++	// Remote address of the connection the request went out on (reused ones included).
++	address string
+ }
+ 
+ func NewTiming(start time.Time) *Timing {
+@@ -24,7 +26,15 @@ func (t *Timing) Trace() *httptrace.ClientTrace {
+ 		}
+ 	}
+ 	return &httptrace.ClientTrace{
+-		GetConn:           func(string) { t.mu.Lock(); set("blocked", t.start); t.mu.Unlock() },
++		GetConn: func(string) { t.mu.Lock(); set("blocked", t.start); t.mu.Unlock() },
++		GotConn: func(info httptrace.GotConnInfo) {
++			if info.Conn == nil || info.Conn.RemoteAddr() == nil {
++				return
++			}
++			t.mu.Lock()
++			t.address = info.Conn.RemoteAddr().String()
++			t.mu.Unlock()
++		},
+ 		DNSStart:          func(httptrace.DNSStartInfo) { t.mu.Lock(); t.dns = time.Now(); t.mu.Unlock() },
+ 		DNSDone:           func(httptrace.DNSDoneInfo) { t.mu.Lock(); set("dns", t.dns); t.mu.Unlock() },
+ 		ConnectStart:      func(string, string) { t.mu.Lock(); t.connect = time.Now(); t.mu.Unlock() },
+@@ -43,6 +53,13 @@ func (t *Timing) Trace() *httptrace.ClientTrace {
+ 	}
+ }
+ 
++// Address is the upstream endpoint ("ip:port") once a connection was obtained.
++func (t *Timing) Address() string {
++	t.mu.Lock()
++	defer t.mu.Unlock()
++	return t.address
++}
++
+ func (t *Timing) Snapshot() map[string]float64 {
+ 	t.mu.Lock()
+ 	defer t.mu.Unlock()

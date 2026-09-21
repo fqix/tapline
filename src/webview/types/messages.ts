@@ -16,6 +16,7 @@ export type Row = Pick<
     | 'timestamp'
     | 'method'
     | 'host'
+    | 'serverAddress'
     | 'path'
     | 'url'
     | 'scheme'
@@ -54,6 +55,7 @@ export function toRow(t: Transaction): Row {
         timestamp: t.timestamp,
         method: t.method,
         host: t.host,
+        serverAddress: t.serverAddress,
         path: t.path,
         url: t.url,
         scheme: t.scheme,

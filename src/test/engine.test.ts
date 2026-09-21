@@ -80,6 +80,7 @@ describeCore('engine with the bundled core', () => {
         expect(t.requestBytes).toBe(4)
         expect(t.tls).toBe(false)
         expect(t.duration).toBeGreaterThanOrEqual(0)
+        expect(t.serverAddress).toBe(`127.0.0.1:${plain.port}`)
     })
 
     it('decrypts HTTPS for matching hosts using the root CA', async () => {
@@ -104,6 +105,7 @@ describeCore('engine with the bundled core', () => {
             expect(t.requestBytes).toBeGreaterThan(0)
             expect(t.responseBytes).toBeGreaterThan(0)
             expect(t.responseBody).toBe('')
+            expect(t.serverAddress).toBe(`127.0.0.1:${secure.port}`)
         } finally {
             engine.settings.sslHosts = ['*']
         }

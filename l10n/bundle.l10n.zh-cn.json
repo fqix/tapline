@@ -281,5 +281,7 @@
     "Params": "参数",
     "No query or form parameters": "没有查询或表单参数",
     "Request and response side by side": "请求与响应左右并排",
-    "One tab strip": "单一标签栏"
+    "One tab strip": "单一标签栏",
+    "Server IP": "服务器 IP",
+    "Server": "服务器"
 }

@@ -23,7 +23,7 @@
 - **发送请求** — 从零编写请求，或对抓到的请求 _编辑并重发_；响应像其他请求一样出现在
   列表中。
 - **过滤语法** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
-size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 URL、方法或
+size>10k dur>500 ip:10.0. body:"not found" header:x-id=1 -status:2xx`；普通词匹配 URL、方法或
   状态码。_统计_ 按主机汇总当前过滤出的请求，并列出最慢和最大的响应。
 - **gRPC 解码** — 从 length-prefixed 的 body 中拆出每条消息（支持 gzip/deflate 与 gRPC-Web），
   用工作区的 `.proto`（`tapline.grpc.protoFiles`）解出字段名，没有 schema 时按字段编号解码；
@@ -55,7 +55,7 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`；普通词匹配 U
 
 ![Tapline：证书安装、HTTP 抓包、重发、Diff 与 gRPC 字段解析](docs/demo/tapline-walkthrough.gif)
 
-*使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果和背景边框，并缩短等待时间。*
+_使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果和背景边框，并缩短等待时间。_
 
 1. 安装并信任根证书，然后启动抓包。
 2. 向 **httpbin** 发送 HTTP 请求，查看参数、请求头和 JSON 响应。

@@ -3,7 +3,7 @@
 Tapline's transport and inspection core is the upstream
 [sing-box](https://github.com/SagerNet/sing-box) CLI at the revision pinned in
 [pin.json](pin.json), built with the patch series in this directory
-(`0001`–`0007`, applied in the order listed in [series](series)). The patches
+(`0001`–`0008`, applied in the order listed in [series](series)). The patches
 originate from the [Fluxy](https://github.com/fqix/fluxy) desktop app and are
 redistributed here under sing-box's GPL-3.0 licence together with the
 MIT-licensed inspector engine they embed. They keep their original `fluxy-*`
@@ -27,6 +27,7 @@ the collected licence notices. Go 1.27+ must be on `PATH` (or `TAPLINE_GO`).
 | 0005 | QUIC / HTTP/3 interception |
 | 0006 | SOCKS5 UDP reply race fix |
 | 0007 | WebSocket resend over the existing connection, serialized with normal traffic |
+| 0008 | `address` (upstream ip:port) on `response` messages |
 
 The controller protocol the extension speaks is documented inside patch 0003 at
 `service/fluxyinspector/README.md` and implemented in `src/core/inspector.ts`.

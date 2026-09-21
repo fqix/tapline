@@ -5,8 +5,17 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- _Server IP_ column in the sequence table (also in the overview, the `ip:` filter
+  term and HAR `serverIPAddress`): the upstream `ip:port` the response came from,
+  reported by the core (patch 0008), or the tunnel target for CONNECT.
+
 ### Changed
 
+- The sequence table shows one _URL_ column (scheme, host and path, with the TLS lock
+  in the icon slot) instead of separate Host and Path columns; remembered column widths
+  for the old columns are dropped.
 - The inspector shows the request and the response side by side (stacked when the
   panel is narrow), each with its own tab strip: Overview / Raw / Params / Headers /
   Body for the request, Raw / Headers / Body (plus Frames and SSE Events) for the

@@ -35,6 +35,8 @@ export interface ResponseInfo {
     httpVersion?: string
     headers: WireHeaders
     timings?: Record<string, number>
+    /** Upstream endpoint (`ip:port`) the response came from. */
+    address?: string
     /** As for requests: reading the body switches from streaming to buffering. */
     body(): Promise<Buffer>
 }
@@ -71,6 +73,8 @@ export interface ResponseDecision {
 export interface Handlers {
     connect(id: string, host: string, port: number, client: Client): boolean
     tunnelBytes(id: string, direction: 'send' | 'receive', count: number): void
+    /** The opaque tunnel reached its server. */
+    tunnelConnected(id: string, address: string): void
     request(id: string, info: RequestInfo): Promise<RequestDecision | void> | RequestDecision | void
     requestData(id: string, chunk: Buffer): void
     requestEnd(id: string, trailers: Record<string, string>): void
@@ -327,6 +331,11 @@ export class Inspector {
                 upstream.setNoDelay(true)
                 const head = Buffer.from(message.head ?? [])
                 upstream.once('connect', () => {
+                    if (upstream.remoteAddress)
+                        this.handlers.tunnelConnected(
+                            id,
+                            `${net.isIPv6(upstream.remoteAddress) ? `[${upstream.remoteAddress}]` : upstream.remoteAddress}:${upstream.remotePort}`
+                        )
                     // The core hands us the raw client socket; we answer the CONNECT
                     // ourselves, and that first write is what starts the relay.
                     socket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
@@ -404,6 +413,7 @@ export class Inspector {
                         httpVersion: response.httpVersion,
                         headers: response.headers ?? {},
                         timings: message.timings,
+                        address: typeof message.address === 'string' ? message.address : undefined,
                         body: buffered.read
                     })) || {}
                 if (!this.sessions.has(id)) return

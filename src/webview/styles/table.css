@@ -74,8 +74,8 @@ body.resizing .split-divider::before {
     flex: 1;
     min-height: 0;
     container-type: inline-size;
-    /* Column widths come from inline --w-* variables (user-resizable); path takes the rest. */
-    --cols: var(--w-seq) var(--w-status) var(--w-method) var(--w-host) minmax(120px, 1fr)
+    /* Column widths come from inline --w-* variables (user-resizable); the URL takes the rest. */
+    --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(160px, 1fr) var(--w-server)
         var(--w-start) var(--w-duration) var(--w-size) 52px;
 }
 /* Narrow panes (inspector on the right) drop the least useful columns instead of scrolling. */
@@ -84,7 +84,7 @@ body.resizing .split-divider::before {
         --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(120px, 1fr) var(--w-start)
             var(--w-duration) 52px;
     }
-    .sequence .c-host,
+    .sequence .c-server,
     .sequence .c-size {
         display: none;
     }

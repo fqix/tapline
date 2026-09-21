@@ -9,6 +9,7 @@ const syntax = [
     'status:5xx',
     'method:post',
     'host:api.*',
+    'ip:10.0.',
     'path:/v1',
     'type:json',
     'proto:grpc',

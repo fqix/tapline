@@ -25,7 +25,7 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 - **Compose** — write a request from scratch or _Edit & Resend_ a captured one; the
   reply appears in the table like any other.
 - **Filter query** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
-size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match the
+size>10k dur>500 ip:10.0. body:"not found" header:x-id=1 -status:2xx`; plain words match the
   URL, method or status. _Statistics_ summarise the filtered rows per host with the
   slowest and largest responses.
 - **gRPC decoding** — messages are split out of the length-prefixed body (gzip/deflate
@@ -64,7 +64,7 @@ size>10k dur>500 body:"not found" header:x-id=1 -status:2xx`; plain words match 
 
 ![Tapline: certificate setup, HTTP capture, replay, diff and decoded gRPC fields](docs/demo/tapline-walkthrough.gif)
 
-*Recorded in VS Code with Recordly, with focused zooms, cursor effects and a framed background. Waiting time is shortened.*
+_Recorded in VS Code with Recordly, with focused zooms, cursor effects and a framed background. Waiting time is shortened._
 
 1. Install and trust the root certificate, then start capture.
 2. Send an HTTP request to **httpbin** and inspect its parameters, headers and JSON response.

@@ -136,6 +136,8 @@ export interface Transaction {
     upstreamUrl?: string
     /** Content-Encoding the retained response body was decoded from. */
     responseEncoding?: string
+    /** Upstream endpoint (`ip:port`) the response came from, or the tunnel target. */
+    serverAddress?: string
 }
 
 // ---- rules ---------------------------------------------------------------
@@ -398,7 +400,8 @@ export function toHAR(items: Transaction[], creator = { name: 'Tapline', version
                         wait: t.timings?.wait ?? 0,
                         receive: t.timings?.receive ?? 0
                     },
-                    serverIPAddress: '',
+                    serverIPAddress:
+                        t.serverAddress?.replace(/:\d+$/, '').replace(/^\[|\]$/g, '') ?? '',
                     _client: t.client
                 }
             })

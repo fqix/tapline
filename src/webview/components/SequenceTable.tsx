@@ -11,7 +11,7 @@ import { VirtualList } from './VirtualList'
 export const ROW_HEIGHT = 22
 
 const numeric: Column[] = ['sequence', 'timestamp', 'duration', 'responseBytes']
-type Widths = Record<Exclude<Column, 'path'>, number>
+type Widths = Record<Exclude<Column, 'url'>, number>
 /** Columns follow the workbench font used by the list. */
 const workbenchScale = () => {
     const size = parseFloat(getComputedStyle(document.body).getPropertyValue('--vscode-font-size'))
@@ -23,7 +23,7 @@ const defaultWidths = (): Widths => {
         sequence: Math.round(48 * k),
         status: 68,
         method: Math.round(66 * k),
-        host: Math.round(170 * k),
+        serverAddress: Math.round(130 * k),
         timestamp: Math.round(96 * k),
         duration: 80,
         responseBytes: 80
@@ -35,8 +35,8 @@ const columnClass: Record<Column, string> = {
     sequence: 'seq',
     status: 'status',
     method: 'method',
-    host: 'host',
-    path: 'path',
+    url: 'url',
+    serverAddress: 'server',
     timestamp: 'start',
     duration: 'duration',
     responseBytes: 'size'
@@ -110,18 +110,10 @@ const RowView = memo(function RowView({
             <span role="gridcell" className={methodClass(methodLabel(row))}>
                 {methodLabel(row)}
             </span>
-            <span role="gridcell" className="mono ellipsis c-host" title={row.host}>
-                {/* Always reserve the icon slot so host names line up across rows. */}
+            <span role="gridcell" className="mono ellipsis path c-url" title={row.url}>
+                {/* One icon slot per row (paused, local, replay, WebSocket, SSE, rule, TLS) so URLs line up. */}
                 <span
-                    className={`codicon codicon-lock dim ${row.tls ? '' : 'slot-empty'}`}
-                    aria-hidden="true"
-                />
-                {row.host}
-            </span>
-            <span role="gridcell" className="mono ellipsis path" title={row.url}>
-                {/* One icon slot per row (paused, local, replay, WebSocket, SSE, rule) so paths line up. */}
-                <span
-                    className={`codicon codicon-${pathIcon(row) ?? 'circle-filled slot-empty'} dim`}
+                    className={`codicon codicon-${pathIcon(row) ?? (row.tls ? 'lock' : 'circle-filled slot-empty')} dim`}
                     title={row.rules ? t('rulesApplied') : undefined}
                     aria-hidden="true"
                 />
@@ -129,7 +121,10 @@ const RowView = memo(function RowView({
                     <span className="codicon codicon-star-full request-mark" title={t('mark')} />
                 )}
                 {row.note && <span className="codicon codicon-comment" title={row.note} />}
-                {row.scheme === 'connect' ? row.path : row.path || '/'}
+                {row.scheme === 'connect' ? row.path : row.url}
+            </span>
+            <span role="gridcell" className="mono ellipsis c-server" title={row.serverAddress}>
+                {row.serverAddress ?? ''}
             </span>
             <span role="gridcell" className="mono num c-start">
                 {clock.format(row.timestamp)}
@@ -287,7 +282,7 @@ export function SequenceTable({
                             aria-hidden="true"
                         />
                     )}
-                    {c !== 'path' && (
+                    {c !== 'url' && (
                         <span
                             className="col-resize"
                             role="separator"

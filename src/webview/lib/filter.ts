@@ -15,13 +15,20 @@ export interface Filters {
 export const defaultFilters: Filters = { text: '', quick: 'all', hideTunnels: false }
 
 export type Column =
-    'sequence' | 'status' | 'method' | 'host' | 'path' | 'timestamp' | 'duration' | 'responseBytes'
+    | 'sequence'
+    | 'status'
+    | 'method'
+    | 'url'
+    | 'serverAddress'
+    | 'timestamp'
+    | 'duration'
+    | 'responseBytes'
 export const columns: Column[] = [
     'sequence',
     'status',
     'method',
-    'host',
-    'path',
+    'url',
+    'serverAddress',
     'timestamp',
     'duration',
     'responseBytes'
@@ -47,6 +54,7 @@ export type Key =
     | 'status'
     | 'method'
     | 'host'
+    | 'server'
     | 'path'
     | 'url'
     | 'type'
@@ -76,6 +84,8 @@ const aliases: Record<string, Key> = {
     method: 'method',
     host: 'host',
     domain: 'host',
+    server: 'server',
+    ip: 'server',
     path: 'path',
     url: 'url',
     type: 'type',
@@ -183,6 +193,9 @@ export function termMatches(row: Row, term: Term): boolean {
             hit = v.includes('*')
                 ? matchWildcard(v, row.host)
                 : row.host.toLowerCase().includes(lower)
+            break
+        case 'server':
+            hit = (row.serverAddress ?? '').toLowerCase().includes(lower)
             break
         case 'path':
             hit = v.includes('*')
