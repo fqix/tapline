@@ -466,10 +466,128 @@ input[type='checkbox'] {
 }
 
 .settings-pane {
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    padding: 16px 24px;
-    box-sizing: border-box;
+    overflow: hidden;
+}
+.settings-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.settings-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 860px;
+}
+.settings-search input {
+    flex: 1;
+    min-width: 0;
+}
+.settings-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+.settings-nav {
+    width: 210px;
+    flex-shrink: 0;
+    overflow: auto;
+    padding: 16px 8px;
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border-right: 1px solid var(--border);
+}
+.settings-nav button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 9px 12px;
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--vscode-sideBar-foreground, var(--vscode-foreground));
+}
+.settings-nav button:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+.settings-nav button[aria-current='page'] {
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+    border-color: var(--vscode-contrastActiveBorder, transparent);
+}
+.settings-count {
+    font-size: var(--font-size-small);
+    opacity: 0.8;
+}
+.settings-nav .settings-rules-link {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+}
+.settings-content {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    padding: 20px 28px;
+}
+.settings-section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: baseline;
+}
+.settings-section-heading h3 {
+    font-size: 15px;
+    margin: 0;
+}
+.settings-save-status {
+    min-height: 1.5em;
+    margin: 6px 0 0;
+}
+.settings-empty {
+    padding-top: 24px;
+}
+.settings-pane button:focus-visible,
+.settings-pane input:focus-visible,
+.settings-pane textarea:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+.settings-description {
+    margin: 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+    .settings-header {
+        padding: 14px 16px;
+    }
+    .settings-layout {
+        flex-direction: column;
+    }
+    .settings-nav {
+        width: auto;
+        display: flex;
+        flex-shrink: 0;
+        gap: 4px;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .settings-nav button {
+        width: auto;
+        flex-shrink: 0;
+    }
+    .settings-nav .settings-rules-link {
+        margin-top: 0;
+        border-top: 0;
+    }
+    .settings-content {
+        padding: 16px;
+    }
 }
 .settings-heading {
     display: flex;
@@ -491,6 +609,7 @@ input[type='checkbox'] {
 }
 .settings-field label {
     line-height: 1.5;
+    font-weight: 600;
 }
 .settings-field textarea {
     width: 100%;
