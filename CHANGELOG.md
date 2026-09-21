@@ -5,11 +5,15 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0]
+
 ### Added
 
 - _Server IP_ column in the sequence table (also in the overview, the `ip:` filter
   term and HAR `serverIPAddress`): the upstream `ip:port` the response came from,
   reported by the core (patch 0008), or the tunnel target for CONNECT.
+- Header, query, cookie and form rows can be selected and copied natively and carry a
+  hover button that copies the single `name: value` line.
 
 ### Changed
 
@@ -23,6 +27,15 @@ All notable changes to Tapline are documented here. The format follows
   message as sent, with line numbers, coloured headers and pretty-printed JSON (Text
   shows it byte for byte). A button in the inspector header switches back to the
   single tab strip; the choice and the divider position are remembered.
+- Cut, copy and paste (shortcuts, context menu and drops) are blocked inside the panel
+  except in the name/value tables; the panel's own copy buttons are unaffected.
+
+### Fixed
+
+- Resizing columns to the right of the URL column moved the wrong boundary; the
+  handle now sits on those columns' left edge and follows the pointer.
+- `scripts/build-core.mjs` resets the submodule index before re-applying the patch
+  series, so staged files no longer break the build.
 
 ## [0.7.0]
 
