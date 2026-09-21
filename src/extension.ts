@@ -233,15 +233,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 client!.port
             ),
             vscode.l10n.t('New Captured Terminal'),
-            vscode.l10n.t('Copy Proxy Environment'),
-            vscode.l10n.t('Show Traffic')
+            vscode.l10n.t('Copy Proxy Environment')
         )
         if (choice === vscode.l10n.t('New Captured Terminal'))
             await vscode.commands.executeCommand('tapline.openTerminal')
         else if (choice === vscode.l10n.t('Copy Proxy Environment'))
             await environment.copyEnvironment()
-        else if (choice === vscode.l10n.t('Show Traffic'))
-            await vscode.commands.executeCommand('tapline.traffic.focus')
     }
     /** Start capture once the OS trusts the root CA; resolves `false` when it did not start. */
     const startCapture = (modal = true): Promise<boolean> => {
