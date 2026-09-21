@@ -271,6 +271,33 @@ suite('Tapline end to end', function () {
         await vscode.commands.executeCommand('tapline.compose')
     })
 
+    test('keeps Settings in a separate reusable tab from traffic', async () => {
+        const tabs = () => vscode.window.tabGroups.all.flatMap((group) => group.tabs)
+        const settingsTabs = () =>
+            tabs().filter(
+                (tab) =>
+                    tab.input instanceof vscode.TabInputWebview &&
+                    tab.input.viewType.includes('tapline.settings.panel')
+            )
+        await vscode.commands.executeCommand('tapline.settings')
+        await until(() => settingsTabs().length === 1, 10000, 'standalone Settings tab')
+        assert.ok(
+            tabs().some((tab) => tab.label === 'Tapline'),
+            'traffic remains open'
+        )
+        await vscode.commands.executeCommand('tapline.settings')
+        assert.equal(settingsTabs().length, 1, 'reuses Settings tab')
+        await vscode.window.tabGroups.close(settingsTabs())
+        await until(() => settingsTabs().length === 0, 10000, 'Settings closes')
+        assert.ok(
+            tabs().some((tab) => tab.label === 'Tapline'),
+            'closing Settings preserves traffic'
+        )
+        await vscode.commands.executeCommand('tapline.settings')
+        await until(() => settingsTabs().length === 1, 10000, 'Settings reopens')
+        await vscode.window.tabGroups.close(settingsTabs())
+    })
+
     test('decrypts and records HTTP/3 over the SOCKS5 UDP relay', async () => {
         const wasRunning = api.client.running
         const url = 'https://localhost:18443/tapline-e2e-h3?source=quic'

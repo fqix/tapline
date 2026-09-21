@@ -224,8 +224,7 @@ export function Toolbar({
             <IconButton
                 icon="settings-gear"
                 title={t('settings')}
-                active={pane === 'settings'}
-                onClick={() => onPane('settings')}
+                onClick={() => vscode.postMessage({ type: 'openSettings' })}
             />
             <span className="toolbar-sep" />
             <IconButton

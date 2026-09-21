@@ -70,7 +70,6 @@ export class TrafficPanel implements vscode.Disposable {
             }),
             preferences.onDidChange((change) => {
                 if (change.affectsConfiguration('tapline.rules')) this.postRules()
-                this.post({ type: 'settings', values: preferences.values() })
             })
         )
     }
@@ -175,24 +174,8 @@ export class TrafficPanel implements vscode.Disposable {
     private async receive(message: PanelMessage) {
         try {
             switch (message.type) {
-                case 'loadSettings':
-                    this.post({ type: 'settings', values: preferences.values() })
-                    return
-                case 'saveSetting':
-                    try {
-                        await preferences.update(message.key, message.value)
-                        this.post({
-                            type: 'settings',
-                            values: preferences.values(),
-                            saved: message.key
-                        })
-                    } catch (error) {
-                        this.post({
-                            type: 'settings',
-                            values: preferences.values(),
-                            error: String(error)
-                        })
-                    }
+                case 'openSettings':
+                    await vscode.commands.executeCommand('tapline.settings')
                     return
                 case 'ready': {
                     this.ready = true

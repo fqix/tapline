@@ -1,3 +1,4 @@
+import { SettingsPanel } from './panels/settingsPanel'
 import { preferences } from './preferences'
 import * as vscode from 'vscode'
 import { writeFile } from 'node:fs/promises'
@@ -171,6 +172,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         abort: (id) => client!.abort(id)
     }
     const panel = new TrafficPanel(context, client, actions)
+    const settingsPanel = new SettingsPanel(context)
     const status = vscode.window.createStatusBarItem(
         'tapline.status',
         vscode.StatusBarAlignment.Left,
@@ -187,6 +189,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         certificate,
         protos,
         panel,
+        settingsPanel,
         status
     )
 
@@ -443,7 +446,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 : undefined
         )
     })
-    command('tapline.settings', () => panel.showPane('settings'))
+    command('tapline.settings', () => settingsPanel.show())
     command('tapline.rules', () => panel.showPane('rules'))
     command('tapline.stats', () => panel.showPane('stats'))
     command('tapline.addBreakpoint', async (node?: TrafficNode) => {

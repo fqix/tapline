@@ -102,6 +102,7 @@ export type HostMessage =
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
+    | { type: 'openSettings' | 'closeSettings' | 'openRules' }
     | { type: 'loadSettings' }
     | { type: 'saveSetting'; key: string; value: unknown }
     | { type: 'ready' }
@@ -126,7 +127,7 @@ export type PanelMessage =
 
 export type Layout = 'stacked' | 'side'
 /** What the second split pane shows besides the inspector. */
-export type Pane = 'settings' | 'inspector' | 'stats' | 'rules' | 'composer'
+export type Pane = 'inspector' | 'stats' | 'rules' | 'composer'
 
 /** Composer contents; headers are `Name: value` lines. */
 export interface ComposeDraft {

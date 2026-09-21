@@ -24,7 +24,12 @@ export function useTraffic() {
     const [rules, setRulesState] = useState<Rule[]>([])
     /** Ids the host found for the body/header part of the filter, keyed by that query. */
     const [remote, setRemote] = useState<{ query: string; ids: Set<string> }>()
-    const [pane, setPaneState] = useState<Pane>(() => state().pane ?? 'inspector')
+    const [pane, setPaneState] = useState<Pane>(() => {
+        const saved = state().pane
+        return saved && ['inspector', 'stats', 'rules', 'composer'].includes(saved)
+            ? saved
+            : 'inspector'
+    })
     const [draft, setDraftState] = useState<ComposeDraft | undefined>(() => state().draft)
     const [pickedFile, setPickedFile] = useState<{ ruleId: string; path: string }>()
     const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)

@@ -78,7 +78,7 @@ _Recorded in VS Code with Recordly, with focused zooms, cursor effects and a fra
 
 ## Settings
 
-Open **Tapline: Settings** or the gear in the traffic panel. All settings and rules are saved in VS Code extension global storage, shared across projects in the same VS Code profile. Existing explicit global settings are migrated once; workspace settings are no longer used. Settings are no longer written to `settings.json`. The keys below identify controls in the panel.
+Open **Tapline: Settings** or the gear in the traffic panel to open a separate Settings tab. All settings and rules are saved in VS Code extension global storage, shared across projects in the same VS Code profile. Existing explicit global settings are migrated once; workspace settings are no longer used. Settings are no longer written to `settings.json`. The keys below identify controls in the panel.
 
 | Setting                                     | Default          | Purpose                                   |
 | ------------------------------------------- | ---------------- | ----------------------------------------- |
