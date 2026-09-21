@@ -5,6 +5,36 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0]
+
+### Added
+
+- _Tapline: Settings_ (also the gear icon in the traffic panel) opens global
+  preferences in their own editor tab, with category navigation and bilingual
+  (English/简体中文) search across setting names and descriptions.
+
+### Changed
+
+- Window isolation: by default each VS Code window gets its own capture data,
+  controls and OS-assigned proxy port, while windows in the same extension storage
+  environment still share one sing-box process and root CA. Closing a window removes
+  its inlet and connections after a 3-second reconnect grace period; the last window
+  shuts down the agent and core. Disable the new `tapline.isolateWindows` setting and
+  reload to go back to a single shared capture session. Notes and markers now belong
+  to the capture session instead of being shared globally across windows.
+- Settings and rules are saved in VS Code extension global storage instead of
+  `settings.json`, shared across projects in the same VS Code profile; existing
+  explicit global settings are migrated once, and workspace-level settings are no
+  longer used.
+- MCP keeps one fixed shared endpoint; `list_sessions` lists the active windows, and
+  all other MCP tools accept an optional `sessionId` (required once more than one
+  window is active).
+
+### Fixed
+
+- The Settings panel's Close, Save and Clear buttons use the app's own button styling
+  instead of the browser's default button appearance.
+
 ## [0.8.0]
 
 ### Added
