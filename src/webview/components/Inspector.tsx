@@ -140,12 +140,7 @@ export function Inspector({
                         />
                     )}
                     <IconButton
-                        icon="copy"
-                        title={t('copyUrl')}
-                        onClick={() => vscode.postMessage({ type: 'copy', text: x.url })}
-                    />
-                    <IconButton
-                        icon="terminal"
+                        label="cURL"
                         title={t('copyCurl')}
                         onClick={() => vscode.postMessage({ type: 'copy', text: toCurl(x) })}
                     />

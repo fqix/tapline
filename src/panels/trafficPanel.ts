@@ -184,7 +184,7 @@ export class TrafficPanel implements vscode.Disposable {
                 }
                 case 'copy':
                     await vscode.env.clipboard.writeText(message.text)
-                    void vscode.window.setStatusBarMessage(vscode.l10n.t('Copied'), 1500)
+                    void vscode.window.showInformationMessage(vscode.l10n.t('Copied'))
                     return
                 case 'compareOriginal':
                 case 'editNote':

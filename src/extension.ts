@@ -137,7 +137,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         compare,
         copyCurl: async (ids) => {
             await vscode.env.clipboard.writeText(ids.map((id) => toCurl(byId(id))).join('\n\n'))
-            void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
+            void vscode.window.showInformationMessage(vscode.l10n.t('cURL command copied'))
         },
         replay: (id) => replay(byId(id)),
         compose,
@@ -394,7 +394,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         const t = one(node)
         if (!t) return
         await vscode.env.clipboard.writeText(toCurl(t))
-        void vscode.window.setStatusBarMessage(vscode.l10n.t('cURL command copied'), 2000)
+        void vscode.window.showInformationMessage(vscode.l10n.t('cURL command copied'))
     })
     command('tapline.copyUrl', async (node?: TrafficNode) => {
         const t = one(node)
