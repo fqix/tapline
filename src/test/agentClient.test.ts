@@ -10,6 +10,14 @@ import { AgentClient } from '../client/agentClient'
 
 const config = vi.hoisted(() => ({ isolate: false as boolean | undefined, sessionId: 'window-a' }))
 
+vi.mock('../preferences', () => ({
+    preferences: {
+        onDidChange: () => ({ dispose() {} }),
+        get: (name: string, fallback: unknown) =>
+            name === 'isolateWindows' ? (config.isolate ?? fallback) : fallback
+    }
+}))
+
 vi.mock('vscode', () => ({
     env: {
         get sessionId() {

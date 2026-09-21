@@ -1,3 +1,4 @@
+import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import type { AgentClient } from '../client/agentClient'
 import { SHELLS, shellEnvironment, type Shell } from '../utils/shellEnvironment'
@@ -28,7 +29,7 @@ export class CaptureEnvironment implements vscode.Disposable {
             client.onEvent((event) => {
                 if (event.type === 'state') this.apply()
             }),
-            vscode.workspace.onDidChangeConfiguration((change) => {
+            preferences.onDidChange((change) => {
                 if (
                     change.affectsConfiguration('tapline.terminal') ||
                     change.affectsConfiguration('tapline.debug')
@@ -64,7 +65,7 @@ export class CaptureEnvironment implements vscode.Disposable {
 
     private apply() {
         const collection = this.context.environmentVariableCollection
-        const config = vscode.workspace.getConfiguration('tapline')
+        const config = preferences
         const env = config.get<boolean>('terminal.inject', true)
             ? this.environment(
                   this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
@@ -83,7 +84,7 @@ export class CaptureEnvironment implements vscode.Disposable {
     }
 
     private injectDebug(config: vscode.DebugConfiguration) {
-        const settings = vscode.workspace.getConfiguration('tapline')
+        const settings = preferences
         if (!settings.get<boolean>('debug.inject', true)) return config
         const runtimes = {
             ...defaultDebugRuntimes,
@@ -126,7 +127,7 @@ export class CaptureEnvironment implements vscode.Disposable {
         )
         if (!pick) return
         // Capture may stop or change ports while the picker is open.
-        const config = vscode.workspace.getConfiguration('tapline')
+        const config = preferences
         const env = this.environment(
             this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
         )

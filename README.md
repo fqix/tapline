@@ -24,7 +24,7 @@ or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
 - **Rules** — breakpoints that pause a request or response for editing, rewrite
   (method, URL, status, headers, body), map local (answer with a file or inline body),
   map remote (send to another origin), block and throttle. Edited in the panel, stored
-  in `tapline.rules` (see below).
+  in extension global storage (see below).
 - **Compose** — write a request from scratch or _Edit & Resend_ a captured one; the
   reply appears in the table like any other.
 - **Filter query** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
@@ -78,13 +78,15 @@ _Recorded in VS Code with Recordly, with focused zooms, cursor effects and a fra
 
 ## Settings
 
+Open **Tapline: Settings** or the gear in the traffic panel. All settings and rules are saved in VS Code extension global storage, shared across projects in the same VS Code profile. Existing explicit global settings are migrated once; workspace settings are no longer used. Settings are no longer written to `settings.json`. The keys below identify controls in the panel.
+
 | Setting                                     | Default          | Purpose                                   |
 | ------------------------------------------- | ---------------- | ----------------------------------------- |
 | `tapline.isolateWindows` | `true` | Isolate windows; reload after changing |
 | `tapline.port`                              | `3606`           | Proxy port in shared mode (automatic in isolated mode)        |
 | `tapline.autoStart`                         | `false`          | Start capture when VS Code opens          |
 | `tapline.terminal.inject`                   | `true`           | Inject variables into new terminals       |
-| `tapline.debug.inject` / `debug.types`      | `true` / node, … | Inject into launched debug sessions       |
+| `tapline.debug.inject` / `debug.runtimes`      | `true` / node, … | Inject into launched debug sessions       |
 | `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | Which hosts are decrypted                 |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Transactions kept and body bytes retained |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants            |
@@ -97,10 +99,10 @@ Rules apply in order to every request whose URL matches the rule's wildcard patt
 (`*` matches anything; a pattern without `*` is a prefix; empty matches all) and,
 optionally, one of its methods. Open the editor with the ruler button in the traffic
 panel or _Tapline: Rules…_; _Break on This URL_ in a request's context menu adds a
-breakpoint for it. Rules are ordinary settings, so they can also be written by hand:
+breakpoint for it. Rules are managed through the editor and saved globally. Example rule data:
 
 ```jsonc
-"tapline.rules": [
+[
     { "kind": "breakpoint", "url": "https://api.example.com/v1/orders*", "request": true, "response": true },
     { "kind": "rewrite", "url": "*/v1/*", "request": { "headers": { "X-Debug": "1", "Authorization": null } },
       "response": { "status": 500, "bodyReplace": { "pattern": "\"ok\":true", "replacement": "\"ok\":false" } } },

@@ -22,7 +22,7 @@
   （gzip、deflate、br、zstd）会自动解码。
 - **规则** — 断点（暂停请求或响应以便编辑）、改写（方法、URL、状态码、头、正文）、
   映射到本地（用文件或内联内容响应）、映射到远程（发到另一个源）、拦截和限速。在面板中
-  编辑，保存在 `tapline.rules`（见下文）。
+  编辑，保存在扩展全局存储中（见下文）。
 - **发送请求** — 从零编写请求，或对抓到的请求 _编辑并重发_；响应像其他请求一样出现在
   列表中。
 - **过滤语法** — `status:5xx method:post host:api.* path:/v1 type:json proto:grpc
@@ -70,13 +70,15 @@ _使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果
 
 ## 设置
 
+通过 **Tapline: 设置** 或流量面板的齿轮打开。所有设置和规则保存在 VS Code 扩展全局存储中，同一 VS Code 配置文件下的项目共用。旧的全局设置自动迁移一次，不再使用工作区配置或写入 `settings.json`。下表键名对应面板中的设置。
+
 | 设置项                                      | 默认值           | 作用                       |
 | ------------------------------------------- | ---------------- | -------------------------- |
 | `tapline.isolateWindows` | `true` | 按窗口隔离，修改后重载窗口 |
 | `tapline.port`                              | `3606`           | 共享模式代理端口；隔离模式自动分配     |
 | `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包 |
 | `tapline.terminal.inject`                   | `true`           | 向新终端注入变量           |
-| `tapline.debug.inject` / `debug.types`      | `true` / node, … | 向启动的调试会话注入变量   |
+| `tapline.debug.inject` / `debug.runtimes`      | `true` / node, … | 向启动的调试会话注入变量   |
 | `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | 解密哪些主机               |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的事务数与正文字节数   |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点  |
@@ -87,11 +89,10 @@ _使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果
 
 规则按顺序应用于 URL 匹配其通配模式（`*` 匹配任意内容；不含 `*` 时按前缀匹配；留空匹配
 全部）且方法匹配（可选）的每个请求。点击流量面板中的尺子按钮或 _Tapline: 规则…_ 打开
-编辑器；请求右键菜单中的 _在此 URL 上设置断点_ 会直接为它添加断点。规则就是普通设置，
-也可以手写：
+编辑器；请求右键菜单中的 _在此 URL 上设置断点_ 会直接为它添加断点。规则统一通过编辑器管理并全局保存。以下是规则数据示例：
 
 ```jsonc
-"tapline.rules": [
+[
     { "kind": "breakpoint", "url": "https://api.example.com/v1/orders*", "request": true, "response": true },
     { "kind": "rewrite", "url": "*/v1/*", "request": { "headers": { "X-Debug": "1", "Authorization": null } },
       "response": { "status": 500, "bodyReplace": { "pattern": "\"ok\":true", "replacement": "\"ok\":false" } } },

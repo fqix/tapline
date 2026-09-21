@@ -1,0 +1,360 @@
+export const preferenceSchema: Record<string, PreferenceSchema> = {
+    isolateWindows: {
+        type: 'boolean',
+        default: true,
+        description: '%config.isolateWindows%'
+    },
+    port: {
+        type: 'integer',
+        minimum: 1024,
+        maximum: 65535,
+        default: 3606,
+        description: '%config.port%'
+    },
+    autoStart: {
+        type: 'boolean',
+        default: false,
+        description: '%config.autoStart%'
+    },
+    'terminal.inject': {
+        type: 'boolean',
+        default: true,
+        description: '%config.terminal.inject%'
+    },
+    'debug.inject': {
+        type: 'boolean',
+        default: true,
+        description: '%config.debug.inject%'
+    },
+    'ssl.enabled': {
+        type: 'boolean',
+        default: true,
+        description: '%config.ssl.enabled%'
+    },
+    'ssl.hosts': {
+        type: 'array',
+        items: {
+            type: 'string'
+        },
+        default: ['*'],
+        description: '%config.ssl.hosts%'
+    },
+    maxEntries: {
+        type: 'integer',
+        minimum: 100,
+        maximum: 10000,
+        default: 2000,
+        description: '%config.maxEntries%'
+    },
+    maxBodyKiB: {
+        type: 'integer',
+        minimum: 0,
+        maximum: 4096,
+        default: 512,
+        description: '%config.maxBodyKiB%'
+    },
+    'terminal.profiles': {
+        type: 'array',
+        items: {
+            type: 'string',
+            enum: ['openssl', 'git', 'node', 'python', 'java', 'rust', 'deno', 'grpc']
+        },
+        default: ['openssl', 'git'],
+        description: '%config.terminal.profiles%'
+    },
+    'debug.runtimes': {
+        type: 'object',
+        additionalProperties: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: ['openssl', 'git', 'node', 'python', 'java', 'rust', 'deno', 'grpc']
+            }
+        },
+        default: {
+            node: ['node', 'grpc'],
+            'pwa-node': ['node', 'grpc'],
+            'node-terminal': ['node', 'grpc'],
+            extensionHost: ['node', 'grpc'],
+            'pwa-extensionHost': ['node', 'grpc'],
+            bun: ['node'],
+            deno: ['deno'],
+            python: ['python', 'openssl', 'grpc'],
+            debugpy: ['python', 'openssl', 'grpc'],
+            go: ['openssl', 'grpc'],
+            java: ['java'],
+            kotlin: ['java'],
+            lldb: ['openssl', 'grpc'],
+            cppdbg: ['openssl', 'grpc'],
+            'cargo-test': ['openssl', 'rust'],
+            dart: [],
+            php: ['openssl'],
+            ruby: ['openssl'],
+            rdbg: ['openssl'],
+            coreclr: []
+        },
+        description: '%config.debug.runtimes%'
+    },
+    'mcp.enabled': {
+        type: 'boolean',
+        default: true,
+        description: '%config.mcp.enabled%'
+    },
+    'mcp.port': {
+        type: 'integer',
+        minimum: 1024,
+        maximum: 65535,
+        default: 3607,
+        description: '%config.mcp.port%'
+    },
+    'grpc.protoFiles': {
+        type: 'array',
+        items: {
+            type: 'string'
+        },
+        default: ['**/*.proto'],
+        description: '%config.grpc.protoFiles%'
+    },
+    rules: {
+        type: 'array',
+        default: [],
+        markdownDescription: '%config.rules%',
+        items: {
+            type: 'object',
+            required: ['kind'],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                enabled: {
+                    type: 'boolean',
+                    default: true
+                },
+                name: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: ['breakpoint', 'rewrite', 'mapLocal', 'mapRemote', 'block', 'throttle'],
+                    enumDescriptions: [
+                        '%config.rules.kind.breakpoint%',
+                        '%config.rules.kind.rewrite%',
+                        '%config.rules.kind.mapLocal%',
+                        '%config.rules.kind.mapRemote%',
+                        '%config.rules.kind.block%',
+                        '%config.rules.kind.throttle%'
+                    ]
+                },
+                url: {
+                    type: 'string',
+                    description: '%config.rules.url%'
+                },
+                method: {
+                    type: 'string',
+                    description: '%config.rules.method%'
+                },
+                request: {
+                    type: ['boolean', 'object'],
+                    description: '%config.rules.request%',
+                    properties: {
+                        method: {
+                            type: 'string'
+                        },
+                        url: {
+                            type: 'object',
+                            properties: {
+                                pattern: {
+                                    type: 'string'
+                                },
+                                replacement: {
+                                    type: 'string'
+                                }
+                            },
+                            required: ['pattern', 'replacement']
+                        },
+                        status: {
+                            type: 'integer',
+                            minimum: 100,
+                            maximum: 599
+                        },
+                        headers: {
+                            type: 'object',
+                            additionalProperties: {
+                                type: ['string', 'null']
+                            },
+                            description: '%config.rules.headers%'
+                        },
+                        body: {
+                            type: 'string'
+                        },
+                        bodyReplace: {
+                            type: 'object',
+                            properties: {
+                                pattern: {
+                                    type: 'string'
+                                },
+                                replacement: {
+                                    type: 'string'
+                                }
+                            },
+                            required: ['pattern', 'replacement']
+                        }
+                    }
+                },
+                response: {
+                    type: ['boolean', 'object'],
+                    description: '%config.rules.response%',
+                    properties: {
+                        method: {
+                            type: 'string'
+                        },
+                        url: {
+                            type: 'object',
+                            properties: {
+                                pattern: {
+                                    type: 'string'
+                                },
+                                replacement: {
+                                    type: 'string'
+                                }
+                            },
+                            required: ['pattern', 'replacement']
+                        },
+                        status: {
+                            type: 'integer',
+                            minimum: 100,
+                            maximum: 599
+                        },
+                        headers: {
+                            type: 'object',
+                            additionalProperties: {
+                                type: ['string', 'null']
+                            },
+                            description: '%config.rules.headers%'
+                        },
+                        body: {
+                            type: 'string'
+                        },
+                        bodyReplace: {
+                            type: 'object',
+                            properties: {
+                                pattern: {
+                                    type: 'string'
+                                },
+                                replacement: {
+                                    type: 'string'
+                                }
+                            },
+                            required: ['pattern', 'replacement']
+                        }
+                    }
+                },
+                file: {
+                    type: 'string',
+                    description: '%config.rules.file%'
+                },
+                body: {
+                    type: 'string',
+                    description: '%config.rules.body%'
+                },
+                status: {
+                    type: 'integer',
+                    minimum: 100,
+                    maximum: 599
+                },
+                contentType: {
+                    type: 'string'
+                },
+                to: {
+                    type: 'string',
+                    description: '%config.rules.to%'
+                },
+                latencyMs: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                kbps: {
+                    type: 'integer',
+                    minimum: 1
+                }
+            }
+        }
+    }
+}
+
+export interface PreferenceSchema {
+    type: string | string[]
+    enumDescriptions?: string[]
+    markdownDescription?: string
+    default?: unknown
+    minimum?: number
+    maximum?: number
+    enum?: string[]
+    items?: PreferenceSchema
+    properties?: Record<string, PreferenceSchema>
+    additionalProperties?: boolean | PreferenceSchema
+    required?: string[]
+    description?: string
+}
+export const preferenceDescriptions: Record<string, { en: string; zh: string }> = {
+    isolateWindows: {
+        en: 'Isolate capture data and controls per window (default). Proxy ports are assigned automatically; tapline.port applies only in shared mode. MCP keeps a shared fixed endpoint. Reload the window after changing this setting.',
+        zh: '按窗口隔离抓包数据和控制（默认开启）。代理端口自动分配，tapline.port 仅用于共享模式；MCP 保持共享固定入口。修改后需重载窗口。'
+    },
+    port: {
+        en: 'Loopback port for the capture proxy. Keep it different from the Tapline desktop app (6060) when both run.',
+        zh: '抓包代理监听的回环端口。与 Tapline 桌面版（6060）同时运行时请保持不同。'
+    },
+    autoStart: {
+        en: 'Start capture when VS Code opens.',
+        zh: 'VS Code 启动时自动开始抓包。'
+    },
+    'terminal.inject': {
+        en: 'While capture runs, route new integrated terminals through Tapline (proxy variables plus the profiles below).',
+        zh: '抓包运行期间，让新开的集成终端经由 Tapline（代理变量 + 下方的 profile）。'
+    },
+    'debug.inject': {
+        en: 'While capture runs, add proxy and trust variables to launched debug sessions according to tapline.debug.runtimes.',
+        zh: '抓包运行期间，按 tapline.debug.runtimes 为启动的调试会话注入代理与信任变量。'
+    },
+    'ssl.enabled': {
+        en: 'Decrypt HTTPS for hosts matching tapline.ssl.hosts.',
+        zh: '对匹配 tapline.ssl.hosts 的主机解密 HTTPS。'
+    },
+    'ssl.hosts': {
+        en: 'Host patterns whose TLS traffic is decrypted (wildcards allowed).',
+        zh: '需要解密 TLS 流量的主机模式（支持通配符）。'
+    },
+    maxEntries: {
+        en: 'Maximum live transactions kept in memory.',
+        zh: '内存中保留的最大请求条数。'
+    },
+    maxBodyKiB: {
+        en: 'Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.',
+        zh: '每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。'
+    },
+    'terminal.profiles': {
+        en: 'Trust-store variable profiles injected into every new terminal. Keep this generic; use "New Captured Terminal" to open a terminal for a specific runtime (Node, Python, Java, …). Profiles: openssl (SSL_CERT_FILE, CURL_CA_BUNDLE), git, node, python, java, rust, deno, grpc.',
+        zh: '注入到每个新终端的信任库变量 profile。建议保持通用；需要特定运行时（Node、Python、Java…）时用"新建抓包终端"按运行时单独注入。可选：openssl（SSL_CERT_FILE、CURL_CA_BUNDLE）、git、node、python、java、rust、deno、grpc。'
+    },
+    'debug.runtimes': {
+        en: 'Profiles injected per debug configuration type (proxy variables are always included). Types not listed are left untouched; an empty list injects the proxy only.',
+        zh: '按调试配置类型注入的 profile（代理变量总是包含）。未列出的类型不做任何改动；空列表表示只注入代理。'
+    },
+    'mcp.enabled': {
+        en: 'Serve an MCP endpoint (http://127.0.0.1:<port>/mcp) so AI assistants such as Copilot, Claude Code and Cursor can read and replay captured traffic.',
+        zh: '提供 MCP 端点（http://127.0.0.1:<端口>/mcp），让 Copilot、Claude Code、Cursor 等 AI 助手读取和重放抓到的流量。'
+    },
+    'mcp.port': {
+        en: 'Loopback port of the MCP endpoint.',
+        zh: 'MCP 端点的本地回环端口。'
+    },
+    'grpc.protoFiles': {
+        en: 'Glob patterns (relative to the workspace) or absolute paths of .proto files used to decode gRPC messages with field names. Without a matching schema, messages are decoded by field number.',
+        zh: '用于解码 gRPC 消息的 .proto 文件：相对工作区的 glob 或绝对路径。没有匹配的 schema 时按字段编号解码。'
+    },
+    rules: {
+        en: 'rules',
+        zh: 'rules'
+    }
+}

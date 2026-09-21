@@ -1,3 +1,4 @@
+import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { isAbsolute } from 'node:path'
 import type { AgentClient } from '../client/agentClient'
@@ -19,7 +20,7 @@ export class ProtoIndex implements vscode.Disposable {
             watcher.onDidChange(() => this.schedule()),
             watcher.onDidDelete(() => this.schedule()),
             vscode.workspace.onDidChangeWorkspaceFolders(() => this.schedule()),
-            vscode.workspace.onDidChangeConfiguration((change) => {
+            preferences.onDidChange((change) => {
                 if (change.affectsConfiguration('tapline.grpc')) this.schedule()
             })
         )
@@ -27,9 +28,7 @@ export class ProtoIndex implements vscode.Disposable {
 
     /** Resolve the configured patterns to absolute paths and hand them to the client. */
     async refresh(): Promise<string[]> {
-        const patterns = vscode.workspace
-            .getConfiguration('tapline')
-            .get<string[]>('grpc.protoFiles', ['**/*.proto'])
+        const patterns = preferences.get<string[]>('grpc.protoFiles', ['**/*.proto'])
         const files = new Set<string>()
         for (const pattern of patterns) {
             if (!pattern.trim()) continue

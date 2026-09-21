@@ -1,3 +1,4 @@
+import { preferences } from './preferences'
 import * as vscode from 'vscode'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -20,6 +21,7 @@ export interface TaplineApi {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<TaplineApi> {
+    await preferences.initialize(context)
     client = new AgentClient(context)
     const view = new TrafficView(client)
     const documents = new TransactionDocuments(client)
@@ -282,10 +284,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                             .then((choice) => {
                                 if (choice === vscode.l10n.t('Show Logs')) client!.output.show()
                                 else if (choice === vscode.l10n.t('Change Port'))
-                                    void vscode.commands.executeCommand(
-                                        'workbench.action.openSettings',
-                                        'tapline.port'
-                                    )
+                                    void vscode.commands.executeCommand('tapline.settings')
                             })
                         return false
                     }
@@ -444,6 +443,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 : undefined
         )
     })
+    command('tapline.settings', () => panel.showPane('settings'))
     command('tapline.rules', () => panel.showPane('rules'))
     command('tapline.stats', () => panel.showPane('stats'))
     command('tapline.addBreakpoint', async (node?: TrafficNode) => {
@@ -498,9 +498,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         .then(() => client!.connect())
         .then(() => certificate.check().catch((error) => client!.output.warn(String(error))))
         .then(() =>
-            vscode.workspace.getConfiguration('tapline').get<boolean>('autoStart', false)
-                ? startCapture(false)
-                : undefined
+            preferences.get<boolean>('autoStart', false) ? startCapture(false) : undefined
         )
         .catch((error) => client!.output.error(String(error)))
     return { client }

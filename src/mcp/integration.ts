@@ -11,13 +11,13 @@ export async function configureMcp(client: AgentClient) {
     if (!url) {
         const choice = await vscode.window.showWarningMessage(
             vscode.l10n.t(
-                'The Tapline MCP endpoint is disabled or its port is unavailable. Check tapline.mcp.enabled and tapline.mcp.port.'
+                'The Tapline MCP endpoint is disabled or its port is unavailable. Check MCP enabled and MCP port.'
             ),
             vscode.l10n.t('Open Settings'),
             vscode.l10n.t('Show Logs')
         )
         if (choice === vscode.l10n.t('Open Settings'))
-            await vscode.commands.executeCommand('workbench.action.openSettings', 'tapline.mcp')
+            await vscode.commands.executeCommand('tapline.settings')
         else if (choice === vscode.l10n.t('Show Logs')) client.output.show()
         return
     }

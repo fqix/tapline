@@ -1,3 +1,4 @@
+import { Settings } from './components/Settings'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Composer, emptyDraft } from './components/Composer'
 import { HostOverview } from './components/Overview'
@@ -146,7 +147,9 @@ export function App() {
     const paused = useMemo(() => [...rows.values()].filter((r) => r.paused).length, [rows])
     const closePane = () => setPane('inspector')
     const second =
-        pane === 'rules' ? (
+        pane === 'settings' ? (
+            <Settings onClose={closePane} onRules={() => setPane('rules')} />
+        ) : pane === 'rules' ? (
             <Rules rules={rules} onChange={setRules} onClose={closePane} />
         ) : pane === 'composer' ? (
             <Composer draft={draft ?? emptyDraft} onChange={setDraft} onClose={closePane} />

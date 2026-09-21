@@ -221,6 +221,12 @@ export function Toolbar({
                 active={pane === 'stats'}
                 onClick={() => onPane('stats')}
             />
+            <IconButton
+                icon="settings-gear"
+                title={t('settings')}
+                active={pane === 'settings'}
+                onClick={() => onPane('settings')}
+            />
             <span className="toolbar-sep" />
             <IconButton
                 icon="layout-panel"

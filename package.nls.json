@@ -69,5 +69,6 @@
     "command.editNote": "Edit Request Note",
     "command.toggleMark": "Toggle Request Marker",
     "command.copyResponse": "Copy Response Body",
-    "command.copyEnvironment": "Copy Proxy Environment"
+    "command.copyEnvironment": "Copy Proxy Environment",
+    "command.settings": "Settings"
 }

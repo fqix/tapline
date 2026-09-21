@@ -464,3 +464,43 @@ input[type='checkbox'] {
 .filter-help .chip {
     border-color: var(--border);
 }
+
+.settings-pane {
+    overflow: auto;
+    height: 100%;
+    padding: 16px 24px;
+    box-sizing: border-box;
+}
+.settings-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.settings-heading h2 {
+    margin: 0;
+    font-size: 16px;
+}
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    max-width: 720px;
+}
+.settings-field label {
+    line-height: 1.5;
+}
+.settings-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    font-family: var(--vscode-editor-font-family);
+}
+.settings-field input[type='number'] {
+    width: 140px;
+}
+.settings-field input[type='checkbox'] {
+    accent-color: var(--vscode-focusBorder);
+}

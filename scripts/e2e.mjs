@@ -43,15 +43,17 @@ await build({
     logLevel: 'info'
 })
 
-// Scratch workspace: fixed ports away from the defaults so a developer's own capture
+// Fresh user profile exercises legacy global-setting migration. Fixed ports away from the defaults so a developer's own capture
 // (3606/3607) never collides, and TLS decryption off so capture starts without a CA.
 const workspace = join(OUT, 'e2e-workspace')
-mkdirSync(join(workspace, '.vscode'), { recursive: true })
+const userSettings = join(OUT, 'e2e-user-data', 'User')
+mkdirSync(userSettings, { recursive: true })
 mkdirSync(join(workspace, 'mocks'), { recursive: true })
 writeFileSync(
-    join(workspace, '.vscode', 'settings.json'),
+    join(userSettings, 'settings.json'),
     JSON.stringify(
         {
+            'tapline.isolateWindows': false,
             'tapline.port': 3626,
             'tapline.mcp.port': 3627,
             'tapline.ssl.enabled': false,

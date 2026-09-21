@@ -1,3 +1,4 @@
+import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { execFile } from 'node:child_process'
 import type { AgentClient } from '../client/agentClient'
@@ -126,7 +127,7 @@ export class CertificateTrust implements vscode.Disposable {
     }
 
     private required() {
-        return vscode.workspace.getConfiguration('tapline').get<boolean>('ssl.enabled', true)
+        return preferences.get<boolean>('ssl.enabled', true)
     }
 
     /**

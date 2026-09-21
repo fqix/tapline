@@ -1,3 +1,4 @@
+import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import type { AgentClient } from '../client/agentClient'
@@ -67,8 +68,9 @@ export class TrafficPanel implements vscode.Disposable {
                     }
                 } else if (event.type === 'state') this.postAll()
             }),
-            vscode.workspace.onDidChangeConfiguration((change) => {
+            preferences.onDidChange((change) => {
                 if (change.affectsConfiguration('tapline.rules')) this.postRules()
+                this.post({ type: 'settings', values: preferences.values() })
             })
         )
     }
@@ -173,6 +175,25 @@ export class TrafficPanel implements vscode.Disposable {
     private async receive(message: PanelMessage) {
         try {
             switch (message.type) {
+                case 'loadSettings':
+                    this.post({ type: 'settings', values: preferences.values() })
+                    return
+                case 'saveSetting':
+                    try {
+                        await preferences.update(message.key, message.value)
+                        this.post({
+                            type: 'settings',
+                            values: preferences.values(),
+                            saved: message.key
+                        })
+                    } catch (error) {
+                        this.post({
+                            type: 'settings',
+                            values: preferences.values(),
+                            error: String(error)
+                        })
+                    }
+                    return
                 case 'ready': {
                     this.ready = true
                     this.postAll()
@@ -469,6 +490,7 @@ function panelStrings(): Record<string, string> {
         slowest: vscode.l10n.t('Slowest responses'),
         largest: vscode.l10n.t('Largest responses'),
         rules: vscode.l10n.t('Rules'),
+        settings: vscode.l10n.t('Settings'),
         rulesHint: vscode.l10n.t('applied in order · saved to tapline.rules'),
         addRule: vscode.l10n.t('Add rule'),
         noRules: vscode.l10n.t(

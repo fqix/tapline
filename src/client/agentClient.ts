@@ -1,3 +1,4 @@
+import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
@@ -45,9 +46,7 @@ export class AgentClient implements vscode.Disposable {
         clients: 0,
         pid: 0
     }
-    private readonly isolated = vscode.workspace
-        .getConfiguration('tapline')
-        .get('isolateWindows', true)
+    private readonly isolated = preferences.get('isolateWindows', true)
     private readonly session = this.isolated ? vscode.env.sessionId || randomUUID() : ''
     private socket?: net.Socket
     private ready?: Promise<void>
@@ -65,7 +64,7 @@ export class AgentClient implements vscode.Disposable {
     constructor(private context: vscode.ExtensionContext) {
         this.output = vscode.window.createOutputChannel('Tapline', { log: true })
         context.subscriptions.push(
-            vscode.workspace.onDidChangeConfiguration((change) => {
+            preferences.onDidChange((change) => {
                 if (change.affectsConfiguration('tapline.isolateWindows')) {
                     void vscode.window
                         .showInformationMessage(
@@ -95,7 +94,7 @@ export class AgentClient implements vscode.Disposable {
     }
 
     private settings(): Settings {
-        const config = vscode.workspace.getConfiguration('tapline')
+        const config = preferences
         return {
             port: this.isolated ? 0 : config.get<number>('port', defaultSettings.port),
             ssl: config.get<boolean>('ssl.enabled', defaultSettings.ssl),
@@ -117,7 +116,7 @@ export class AgentClient implements vscode.Disposable {
      * as written so relative paths survive a round trip.
      */
     rules(resolve = false): Rule[] {
-        const config = vscode.workspace.getConfiguration('tapline')
+        const config = preferences
         const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
         return config
             .get<Rule[]>('rules', [])
@@ -138,15 +137,7 @@ export class AgentClient implements vscode.Disposable {
 
     /** Persist rules to the user's settings; the change event pushes them to the agent. */
     async saveRules(rules: Rule[]) {
-        const config = vscode.workspace.getConfiguration('tapline')
-        const inspected = config.inspect<Rule[]>('rules')
-        const target =
-            inspected?.workspaceFolderValue !== undefined
-                ? vscode.ConfigurationTarget.WorkspaceFolder
-                : inspected?.workspaceValue !== undefined
-                  ? vscode.ConfigurationTarget.Workspace
-                  : vscode.ConfigurationTarget.Global
-        await config.update('rules', rules, target)
+        await preferences.update('rules', rules)
     }
 
     get running() {

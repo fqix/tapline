@@ -81,9 +81,9 @@ function echoServer() {
 }
 
 const setRules = async (rules: Rule[]) => {
-    await vscode.workspace
-        .getConfiguration('tapline')
-        .update('rules', rules, vscode.ConfigurationTarget.Workspace)
+    await vscode.extensions
+        .getExtension<TaplineApi>('fqix.tapline')!
+        .exports.client.saveRules(rules)
     // The client pushes settings to the agent on the change event; give it a moment.
     await new Promise((r) => setTimeout(r, 400))
 }
@@ -119,6 +119,7 @@ suite('Tapline end to end', function () {
             'tapline.openSequence',
             'tapline.compose',
             'tapline.rules',
+            'tapline.settings',
             'tapline.stats',
             'tapline.exportHar',
             'tapline.compare',

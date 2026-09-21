@@ -81,6 +81,7 @@ export function toRow(t: Transaction): Row {
 
 /** Messages from the extension host to the panel. */
 export type HostMessage =
+    | { type: 'settings'; values: Record<string, unknown>; saved?: string; error?: string }
     /** `reset` replaces the whole table; otherwise the rows are upserts. */
     | { type: 'rows'; rows: Row[]; reset: boolean }
     /** Full record for the selected row, pushed on selection and on every change to it. */
@@ -101,6 +102,8 @@ export type HostMessage =
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
+    | { type: 'loadSettings' }
+    | { type: 'saveSetting'; key: string; value: unknown }
     | { type: 'ready' }
     | { type: 'compareOriginal' | 'editNote' | 'toggleMark' | 'copyResponse'; id: string }
     | { type: 'copy'; text: string }
@@ -123,7 +126,7 @@ export type PanelMessage =
 
 export type Layout = 'stacked' | 'side'
 /** What the second split pane shows besides the inspector. */
-export type Pane = 'inspector' | 'stats' | 'rules' | 'composer'
+export type Pane = 'settings' | 'inspector' | 'stats' | 'rules' | 'composer'
 
 /** Composer contents; headers are `Name: value` lines. */
 export interface ComposeDraft {
