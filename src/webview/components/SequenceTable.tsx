@@ -226,13 +226,21 @@ export function SequenceTable({
         return () => window.removeEventListener('keydown', onKey)
     }, [rows, index, selected, selection, onSelect, onClearFilters])
     const selectedSet = useMemo(() => new Set(selection), [selection])
-    const [widths, setWidths] = useState<Widths>(() => ({
-        ...defaultWidths(),
-        ...(state().columns as Partial<Widths> | undefined)
-    }))
-    /** Drag the handle at a header's right edge; double-click restores the default. */
+    const [widths, setWidths] = useState<Widths>(() => {
+        const defaults = defaultWidths()
+        // Widths remembered for columns that no longer exist (Host, Path) are dropped.
+        const remembered = Object.entries(state().columns ?? {}).filter(([c]) => c in defaults)
+        return { ...defaults, ...Object.fromEntries(remembered) }
+    })
+    /**
+     * Drag a column boundary; double-click restores the default. Columns left of the
+     * flexible URL column carry the handle on their right edge and grow with the
+     * pointer; columns right of it are anchored to the table's right edge, so their
+     * handle sits on the left edge and the width moves against the pointer. Either
+     * way the boundary under the pointer follows it.
+     */
     const startResize = useCallback(
-        (column: keyof Widths, event: React.PointerEvent) => {
+        (column: keyof Widths, sign: 1 | -1, event: React.PointerEvent) => {
             event.preventDefault()
             event.stopPropagation()
             // Capturing keeps every event (including the final click) on the handle, so
@@ -243,7 +251,7 @@ export function SequenceTable({
             const initial = widths[column]
             let latest = initial
             const move = (e: PointerEvent) => {
-                latest = Math.max(MIN_WIDTH, Math.round(initial + e.clientX - origin))
+                latest = Math.max(MIN_WIDTH, Math.round(initial + sign * (e.clientX - origin)))
                 setWidths((w) => ({ ...w, [column]: latest }))
             }
             const up = () => {
@@ -266,6 +274,7 @@ export function SequenceTable({
     const style = Object.fromEntries(
         Object.entries(widths).map(([c, w]) => [`--w-${columnClass[c as Column]}`, `${w}px`])
     ) as React.CSSProperties
+    const flexible = columns.indexOf('url')
     const header = (
         <div className="grid-head" role="row">
             {columns.map((c) => (
@@ -284,10 +293,12 @@ export function SequenceTable({
                     )}
                     {c !== 'url' && (
                         <span
-                            className="col-resize"
+                            className={`col-resize ${columns.indexOf(c) > flexible ? 'left' : ''}`}
                             role="separator"
                             aria-orientation="vertical"
-                            onPointerDown={(e) => startResize(c, e)}
+                            onPointerDown={(e) =>
+                                startResize(c, columns.indexOf(c) > flexible ? -1 : 1, e)
+                            }
                             onClick={(e) => e.stopPropagation()}
                             onDoubleClick={(e) => {
                                 e.stopPropagation()

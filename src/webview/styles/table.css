@@ -159,6 +159,10 @@ body.resizing .split-divider::before {
     cursor: col-resize;
     z-index: 1;
 }
+.col-resize.left {
+    left: -4px;
+    right: auto;
+}
 .col-resize::after {
     content: '';
     position: absolute;
