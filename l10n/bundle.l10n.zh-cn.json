@@ -124,6 +124,8 @@
     "Pretty": "格式化",
     "Copy URL": "复制 URL",
     "Delete": "删除",
+    "Delete {0} captured request(s)?": "确定删除 {0} 条抓包记录吗？",
+    "This removes the selected capture records and cannot be undone.": "将删除选中的抓包记录，此操作无法撤销。",
     "Show original": "查看原请求",
     "No requests captured yet": "尚未捕获到请求",
     "No requests match the filter": "没有符合过滤条件的请求",

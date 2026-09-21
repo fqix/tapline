@@ -147,7 +147,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 TransactionDocuments.uri(byId(id), `${side}-body`),
                 { preview: true, viewColumn: vscode.ViewColumn.Beside }
             )),
-        delete: (ids) => client!.delete(ids),
+        delete: async (ids) => {
+            const selected = [...new Set(ids)].filter((id) => client!.transactions.has(id))
+            if (!selected.length) return
+            const confirm = vscode.l10n.t('Delete')
+            const choice = await vscode.window.showWarningMessage(
+                vscode.l10n.t('Delete {0} captured request(s)?', selected.length),
+                {
+                    modal: true,
+                    detail: vscode.l10n.t(
+                        'This removes the selected capture records and cannot be undone.'
+                    )
+                },
+                confirm
+            )
+            if (choice === confirm) await client!.delete(selected)
+        },
         exportHar: (ids) => exportHar(ids.map(byId)),
         saveRules: (rules) => client!.saveRules(rules),
         resume: (id, edit) => client!.resume(id, edit),
@@ -407,7 +422,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     command('tapline.openSequence', () => panel.show())
     command('tapline.delete', async (node?: TrafficNode) => {
         const ids = view.selected(node).map((t) => t.id)
-        if (ids.length) await client!.delete(ids)
+        await actions.delete(ids)
     })
     command('tapline.exportHar', (node?: TrafficNode) =>
         exportHar(node ? view.selected(node) : [...client!.transactions.values()])
