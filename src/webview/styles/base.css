@@ -120,6 +120,22 @@ button {
 .icon-button:hover {
     background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
 }
+.icon-tooltip {
+    position: fixed;
+    z-index: 10000;
+    max-width: calc(100vw - 12px);
+    box-sizing: border-box;
+    padding: 4px 8px;
+    border: 1px solid var(--vscode-editorHoverWidget-border, #777);
+    border-radius: 3px;
+    background: var(--vscode-editorHoverWidget-background, var(--vscode-editor-background));
+    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.25));
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+}
 .icon-button:active {
     background: var(--vscode-toolbar-activeBackground, rgba(128, 128, 128, 0.3));
 }
