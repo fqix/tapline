@@ -34,7 +34,7 @@ const output = (command, args, options = {}) =>
         ...options
     }).trim()
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex')
-const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007'].map((prefix) => {
+const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008'].map((prefix) => {
     const name = readFileSync(join(PATCHES, 'series'), 'utf8')
         .split('\n')
         .find((line) => line.startsWith(prefix))
@@ -56,7 +56,10 @@ function checkout() {
                 'Run `git submodule update --init --recursive` and retry.'
         )
     }
-    // Always rebuild from the pristine revision, then apply the series in order.
+    // Always rebuild from the pristine revision, then apply the series in order. The
+    // index is reset too: staged files would survive the checkout and make patches
+    // that create them fail with "already exists".
+    run('git', ['reset', '--quiet'], { cwd: SOURCE })
     run('git', ['checkout', '--quiet', '--force', '--', '.'], { cwd: SOURCE })
     run('git', ['clean', '--quiet', '-fdx', '-e', '/go.work*'], { cwd: SOURCE })
     for (const patch of patches) {
