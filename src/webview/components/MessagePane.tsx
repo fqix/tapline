@@ -31,7 +31,7 @@ export function MessagePane({
 }) {
     const key = side === 'request' ? 'requestTab' : 'responseTab'
     const [tab, setTab] = useState<Tab>(
-        () => (state()[key] as Tab) ?? (side === 'request' ? 'headers' : 'body')
+        () => (state()[key] as Tab) ?? (side === 'request' ? 'overview' : 'body')
     )
     const choose = (next: Tab) => {
         setTab(next)
