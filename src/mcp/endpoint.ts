@@ -1,7 +1,7 @@
 // Streamable HTTP MCP endpoint served by the capture agent on the loopback interface.
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import http from 'node:http'
-import { createServer, type TrafficSource } from './server'
+import { createServer, type TrafficSource, type SessionSource } from './server'
 
 export const MCP_PATH = '/mcp'
 
@@ -15,7 +15,7 @@ export class McpEndpoint {
     port = 0
 
     constructor(
-        private source: TrafficSource,
+        private source: TrafficSource | SessionSource,
         private log: (message: string) => void = () => {}
     ) {}
 
@@ -71,6 +71,10 @@ export class McpEndpoint {
         const server = this.server
         this.server = undefined
         this.port = 0
-        return new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()))
+        return new Promise<void>((resolve) => {
+            if (!server) return resolve()
+            server.close(() => resolve())
+            server.closeAllConnections()
+        })
     }
 }

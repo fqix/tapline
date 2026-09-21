@@ -1,4 +1,6 @@
 {
+    "Reload this window to change capture isolation.": "重载此窗口以切换抓包隔离模式。",
+    "Reload Window": "重载窗口",
     "Starting Tapline capture…": "正在启动 Tapline 抓包…",
     "Tapline capture agent timed out while handling {0}. See the Tapline output channel.": "Tapline 抓包代理处理 {0} 超时，请查看 Tapline 输出面板。",
     "The Tapline capture agent did not start. See the Tapline output channel.": "Tapline 抓包代理进程未能启动，请查看 Tapline 输出面板。",

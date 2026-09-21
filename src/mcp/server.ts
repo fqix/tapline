@@ -1,5 +1,6 @@
 // MCP tools and resources over the capture agent's transaction mirror.
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { z } from 'zod'
 import type { Request, Responses } from '../agent/protocol'
 import {
@@ -99,7 +100,21 @@ const headerText = (h: Headers) =>
         .map(([k, v]) => `${k}: ${v}`)
         .join('\n')
 
-export function createServer(agent: TrafficSource) {
+export interface SessionSource {
+    sessions(): Array<AgentState & { sessionId: string; workspaceName: string }>
+    select(sessionId?: string): TrafficSource
+}
+
+export function createServer(source: TrafficSource | SessionSource) {
+    const scope = new AsyncLocalStorage<TrafficSource>()
+    const select = (sessionId?: string) => ('select' in source ? source.select(sessionId) : source)
+    const agent = new Proxy({} as TrafficSource, {
+        get: (_, property: keyof TrafficSource) => {
+            const current = scope.getStore() ?? select()
+            const value = current[property]
+            return typeof value === 'function' ? value.bind(current) : value
+        }
+    })
     const server = new McpServer(
         { name: 'tapline', version: VERSION },
         {
@@ -109,9 +124,21 @@ export function createServer(agent: TrafficSource) {
                 'requests, get_request for headers and bodies, and replay or send to issue ' +
                 'requests through the proxy. Bodies are truncated in get_request; use get_body ' +
                 'to page through large ones. Requests must be captured while the capture is ' +
-                'running (see status / start_capture).'
+                'running (see status / start_capture). Use list_sessions and specify sessionId when multiple windows are connected.'
         }
     )
+
+    if ('sessions' in source)
+        server.registerTool(
+            'list_sessions',
+            {
+                title: 'Capture sessions',
+                description:
+                    'List active windows and sessionIds. Select a sessionId for all other tools.',
+                annotations: { readOnlyHint: true }
+            },
+            () => text(source.sessions())
+        )
 
     const ordered = () => [...agent.transactions.values()].sort((a, b) => a.sequence - b.sequence)
     const find = (id: string) => {
@@ -124,7 +151,10 @@ export function createServer(agent: TrafficSource) {
         <A>(fn: (args: A) => Promise<unknown> | unknown) =>
         async (args: A) => {
             try {
-                return text(await fn(args))
+                return await scope.run(
+                    select((args as { sessionId?: string })?.sessionId),
+                    async () => text(await fn(args))
+                )
             } catch (error) {
                 return failure(error instanceof Error ? error.message : String(error))
             }
@@ -133,6 +163,7 @@ export function createServer(agent: TrafficSource) {
     server.registerTool(
         'status',
         {
+            inputSchema: { sessionId: z.string().optional() },
             title: 'Capture status',
             description:
                 'Whether Tapline is capturing, on which proxy port, and how many requests are retained.',
@@ -162,6 +193,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'Captured requests, newest last, without headers or bodies. Filter by host, method, status (e.g. 404, 5xx, pending, error), a substring of the URL, or a time window.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 host: z.string().optional().describe('Exact host name'),
                 method: z.string().optional().describe('HTTP method, case-insensitive'),
                 status: z
@@ -202,6 +239,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'Full request and response: headers, bodies (truncated to maxBodyChars), timings, WebSocket frames and SSE events.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 id: z.string(),
                 maxBodyChars: z.number().int().min(0).max(1_000_000).default(BODY_LIMIT),
                 raw: z
@@ -265,6 +308,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'A window of a request or response body, for bodies larger than get_request returns.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 id: z.string(),
                 side: z.enum(['request', 'response']),
                 offset: z.number().int().min(0).default(0),
@@ -292,6 +341,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'Regular-expression search over URLs, headers and text bodies of captured requests.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 pattern: z.string().describe('JavaScript regular expression, case-insensitive'),
                 scope: z.enum(['url', 'headers', 'body', 'all']).default('all'),
                 limit: z.number().int().min(1).max(200).default(30)
@@ -336,7 +391,15 @@ export function createServer(agent: TrafficSource) {
             title: 'Replay a request',
             description:
                 'Send a captured request again through the proxy and return the new transaction.',
-            inputSchema: { id: z.string() }
+            inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
+                id: z.string()
+            }
         },
         guard(async ({ id }) => {
             const t = find(id)
@@ -362,6 +425,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'Issue an HTTP request through the Tapline proxy so it is captured like any other; returns the completed transaction.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 url: z.string().url(),
                 method: z.string().default('GET'),
                 headers: z.record(z.string(), z.string()).default({}),
@@ -384,7 +453,11 @@ export function createServer(agent: TrafficSource) {
 
     server.registerTool(
         'start_capture',
-        { title: 'Start capture', description: 'Start the capture proxy.' },
+        {
+            inputSchema: { sessionId: z.string().optional() },
+            title: 'Start capture',
+            description: 'Start the capture proxy.'
+        },
         guard(async () => {
             const s = await agent.call('start', {})
             return { running: s.running, proxy: `http://127.0.0.1:${s.port}` }
@@ -392,7 +465,11 @@ export function createServer(agent: TrafficSource) {
     )
     server.registerTool(
         'stop_capture',
-        { title: 'Stop capture', description: 'Stop the capture proxy.' },
+        {
+            inputSchema: { sessionId: z.string().optional() },
+            title: 'Stop capture',
+            description: 'Stop the capture proxy.'
+        },
         guard(async () => ({ running: (await agent.call('stop', {})).running }))
     )
     server.registerTool(
@@ -400,7 +477,15 @@ export function createServer(agent: TrafficSource) {
         {
             title: 'Pause or resume recording',
             description: 'Keep the proxy running but pause or resume recording of new requests.',
-            inputSchema: { recording: z.boolean() }
+            inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
+                recording: z.boolean()
+            }
         },
         guard(async ({ recording }) => ({
             recording: (await agent.call('record', { value: recording })).recording
@@ -409,6 +494,7 @@ export function createServer(agent: TrafficSource) {
     server.registerTool(
         'clear',
         {
+            inputSchema: { sessionId: z.string().optional() },
             title: 'Clear captured requests',
             description: 'Discard every captured request.',
             annotations: { destructiveHint: true }
@@ -423,7 +509,15 @@ export function createServer(agent: TrafficSource) {
         {
             title: 'Delete captured requests',
             description: 'Discard the given requests.',
-            inputSchema: { ids: z.array(z.string()).min(1) },
+            inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
+                ids: z.array(z.string()).min(1)
+            },
             annotations: { destructiveHint: true }
         },
         guard(async ({ ids }) => {
@@ -439,6 +533,12 @@ export function createServer(agent: TrafficSource) {
             description:
                 'HTTP Archive (HAR 1.2) JSON of completed HTTP requests, optionally limited to the given ids or host.',
             inputSchema: {
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Window session from list_sessions; required when multiple windows are connected'
+                    ),
                 ids: z.array(z.string()).optional(),
                 host: z.string().optional(),
                 limit: z.number().int().min(1).max(500).default(100)
@@ -476,12 +576,35 @@ export function createServer(agent: TrafficSource) {
                     {
                         uri: uri.href,
                         mimeType: 'text/plain',
-                        text: renderTransaction(find(String(id)))
+                        text: scope.run(
+                            select(uri.searchParams.get('sessionId') ?? undefined),
+                            () => renderTransaction(find(String(id)))
+                        )
                     }
                 ]
             }
         }
     )
+
+    if ('sessions' in source)
+        server.registerResource(
+            'session-request',
+            new ResourceTemplate('tapline://sessions/{sessionId}/requests/{id}', {
+                list: undefined
+            }),
+            { title: 'Window captured request', mimeType: 'text/plain' },
+            async (uri, { sessionId, id }) => ({
+                contents: [
+                    {
+                        uri: uri.href,
+                        mimeType: 'text/plain',
+                        text: scope.run(select(String(sessionId)), () =>
+                            renderTransaction(find(String(id)))
+                        )
+                    }
+                ]
+            })
+        )
 
     return server
 }

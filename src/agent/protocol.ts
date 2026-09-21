@@ -10,7 +10,7 @@ import type {
 } from '../shared/model'
 
 export type Request =
-    | { method: 'hello'; settings: Settings }
+    | { method: 'hello'; settings: Settings; sessionId?: string; workspaceName?: string }
     | { method: 'settings'; settings: Settings }
     | { method: 'state' }
     | { method: 'snapshot' }
@@ -53,4 +53,4 @@ export type Message =
     { id: number; result: unknown } | { id: number; error: string } | { event: Event }
 
 /** Bumped whenever the wire format changes so stale agents are never reused. */
-export const PROTOCOL = 'tapline-agent-4'
+export const PROTOCOL = 'tapline-agent-5'

@@ -41,7 +41,7 @@ size>10k dur>500 ip:10.0. body:"not found" header:x-id=1 -status:2xx`；普通�
 - **一键根证书** — 在 macOS、Windows、Linux 的系统证书存储中安装、信任和卸载 CA。
   CA 未被信任时不会开始抓包。
 - **复制为 cURL、导出 HAR、重放**，状态栏控制，中英文界面。
-- **共享核心** — 所有 VS Code 窗口共用一个抓包代理，最后关闭的窗口负责关停。
+- **窗口隔离** — 默认每个窗口拥有独立抓包数据、控制和自动分配的代理端口；同一扩展存储环境内共用一个 sing-box 和根证书。窗口关闭后保留 3 秒重连宽限期，再动态删除其入口和连接；最后一个窗口关闭后退出代理和核心。关闭 `tapline.isolateWindows` 并重载窗口可恢复共享会话。
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等 MCP 客户端可以列出、搜索、读取、
   重放和发送抓到的请求（见下文）。
 
@@ -72,7 +72,8 @@ _使用 Recordly 实际录制 VS Code 界面，加入重点缩放、光标效果
 
 | 设置项                                      | 默认值           | 作用                       |
 | ------------------------------------------- | ---------------- | -------------------------- |
-| `tapline.port`                              | `3606`           | 抓包代理监听的回环端口     |
+| `tapline.isolateWindows` | `true` | 按窗口隔离，修改后重载窗口 |
+| `tapline.port`                              | `3606`           | 共享模式代理端口；隔离模式自动分配     |
 | `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包 |
 | `tapline.terminal.inject`                   | `true`           | 向新终端注入变量           |
 | `tapline.debug.inject` / `debug.types`      | `true` / node, … | 向启动的调试会话注入变量   |
@@ -181,3 +182,9 @@ release 上。
 ## 许可证
 
 MIT。随插件打包的 sing-box 核心为 GPL-3.0，其源码修订、补丁和声明随每个二进制一起发布。
+
+### MCP 与窗口会话
+
+MCP 使用共享固定入口（`tapline.mcp.port`）。先调用 `list_sessions` 获取窗口名称、`sessionId`、代理端口和状态。其他工具均接受 `sessionId`：只有一个会话时可省略，多个会话时必须指定。请求资源支持 `tapline://sessions/{sessionId}/requests/{id}`。外部 MCP 连接不会在所有窗口关闭后维持代理运行。如果窗口的 MCP 端口设置不同，只要其他窗口仍需要当前入口，就保留已启用的入口。
+
+代理端口由操作系统在创建入口时分配并立即绑定，并发运行的窗口不会分配到重复端口。通过状态栏或“复制代理环境变量”获取当前端口；外部程序需要连接目标窗口的端口。入口关闭后，其端口以后可能被操作系统重新使用。

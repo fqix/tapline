@@ -94,7 +94,11 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
 
     constructor(
         readonly directory: string,
-        readonly corePath: string
+        readonly corePath: string,
+        private backend?: {
+            start(engine: Engine): Promise<Inspector>
+            stop(engine: Engine): Promise<void>
+        }
     ) {
         super()
     }
@@ -186,13 +190,21 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     private async listen() {
+        if (this.backend) {
+            this.inspector = await this.backend.start(this)
+            this.running = true
+            return
+        }
         const manifest = await verifyCore(this.corePath)
         this.coreVersion = manifest.version
         const root = await this.prepareCertificates()
         await new Promise<void>((resolve, reject) => {
             const probe = net.createServer()
             probe.once('error', reject)
-            probe.listen(this.settings.port, '127.0.0.1', () => probe.close(() => resolve()))
+            probe.listen(this.settings.port, '127.0.0.1', () => {
+                this.settings.port = (probe.address() as net.AddressInfo).port
+                probe.close(() => resolve())
+            })
         }).catch((error) => {
             throw new Error(`Port ${this.settings.port} is unavailable: ${error.message}`)
         })
@@ -228,14 +240,15 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         this.inspector = undefined
         this.running = false
         for (const id of this.holds.keys()) this.release(id)
-        await inspector?.stop()
+        if (this.backend) await this.backend.stop(this)
+        else await inspector?.stop()
         for (const t of this.transactions.values())
             if (t.state === 'pending') this.finish(t, 'Capture stopped')
         this.captures.clear()
         if (inspector) this.log('Capture stopped')
     }
 
-    private intercepts(host: string) {
+    intercepts(host: string) {
         return (
             this.settings.ssl && this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
         )

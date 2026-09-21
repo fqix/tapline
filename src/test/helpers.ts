@@ -8,14 +8,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Engine } from '../core/engine'
 
-export const CORE = join(
-    __dirname,
-    '..',
-    '..',
-    'core',
-    `${process.platform}-${process.arch}`,
-    process.platform === 'win32' ? 'sing-box.exe' : 'sing-box'
-)
+export const CORE =
+    process.env.TAPLINE_TEST_CORE ||
+    join(
+        __dirname,
+        '..',
+        '..',
+        'core',
+        `${process.platform}-${process.arch}`,
+        process.platform === 'win32' ? 'sing-box.exe' : 'sing-box'
+    )
 
 export function freePort() {
     return new Promise<number>((resolve, reject) => {

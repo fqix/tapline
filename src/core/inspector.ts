@@ -97,13 +97,15 @@ export interface Handlers {
 }
 
 export interface InspectorOptions {
+    dynamicInbounds?: boolean
+    bindSession?(id: string, inbound: string): void
     corePath: string
     directory: string
     host: string
     port: number
     root: RootIdentity
     /** Whether TLS for this host is decrypted (else the CONNECT is tunnelled). */
-    intercept(host: string): boolean
+    intercept(host: string, inbound?: string): boolean
     /** Extra PEM CA the core should trust for upstream servers (tests, private CAs). */
     upstreamCA?: string
 }
@@ -174,6 +176,9 @@ export async function verifyCore(corePath: string) {
  */
 export class Inspector {
     port = 0
+    get pid() {
+        return this.child?.pid
+    }
     private child?: ChildProcess
     private wire?: Wire
     private streams?: Streams
@@ -182,6 +187,11 @@ export class Inspector {
     private sessions = new Set<string>()
     private stopping?: Promise<void>
     private websocketSend = false
+    private dynamicInbounds = false
+    private controls = new Map<
+        string,
+        { resolve(port: number): void; reject(error: Error): void }
+    >()
     private pendingSends = new Map<string, (error?: Error) => void>()
     private exitHandlers: ((error: Error) => void)[] = []
 
@@ -220,6 +230,33 @@ export class Inspector {
             } catch (error) {
                 finish(error instanceof Error ? error : new Error(String(error)))
             }
+        })
+    }
+
+    async inlet(action: 'add' | 'remove', session: string, port = 0): Promise<number> {
+        if (!this.dynamicInbounds)
+            throw new Error('Rebuild the capture core to enable window isolation')
+        const id = randomUUID()
+        return new Promise<number>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.controls.delete(id)
+                reject(new Error('Core inlet control timed out'))
+                // A late add could leave an unowned listener. Fail the core closed.
+                void this.stop()
+            }, 10000)
+            this.controls.set(id, {
+                resolve: (port) => {
+                    clearTimeout(timer)
+                    this.controls.delete(id)
+                    resolve(port)
+                },
+                reject: (error) => {
+                    clearTimeout(timer)
+                    this.controls.delete(id)
+                    reject(error)
+                }
+            })
+            this.send({ type: `inbound-${action}`, id, session, port })
         })
     }
 
@@ -297,6 +334,13 @@ export class Inspector {
     private async message(message: any) {
         const { id, type } = message
         if (message.stream) return this.streams?.receive(message)
+        if (
+            this.options.dynamicInbounds &&
+            ['connect', 'request', 'websocket'].includes(type) &&
+            !message.socket?.inbound
+        )
+            throw new Error('Missing capture inlet identity')
+        if (message.socket?.inbound && id) this.options.bindSession?.(id, message.socket.inbound)
         switch (type) {
             case 'certificate':
                 // No custom server certificates: the core mints leaves from the root CA.
@@ -306,7 +350,7 @@ export class Inspector {
                 this.send({
                     type: 'quic-result',
                     id,
-                    inspect: this.options.intercept(message.host),
+                    inspect: this.options.intercept(message.host, message.inbound),
                     route: ''
                 })
                 return
@@ -489,7 +533,9 @@ export class Inspector {
         const temporary = await mkdtemp(join(this.options.directory, 'core-'))
         this.directory = temporary
         const config = join(temporary, 'config.json')
-        await writeFile(config, JSON.stringify(coreConfig(host, port)), { mode: 0o600 })
+        const configuration = coreConfig(host, port)
+        if (this.options.dynamicInbounds) configuration.inbounds = []
+        await writeFile(config, JSON.stringify(configuration), { mode: 0o600 })
         const child = (this.child = spawn(corePath, ['run', '-c', config], {
             stdio: ['pipe', 'pipe', 'pipe'],
             windowsHide: true,
@@ -554,9 +600,14 @@ export class Inspector {
             wire.on('message', (message: any) => {
                 if (message.type === 'ready') {
                     this.websocketSend = message.websocketSend === true
+                    this.dynamicInbounds = message.dynamicInbounds === true
                     this.port = message.port
                     inspectorReady = true
                     if (coreReady) finish()
+                } else if (message.type === 'inbound-result') {
+                    const control = this.controls.get(message.id)
+                    if (message.error) control?.reject(new Error(message.error))
+                    else control?.resolve(message.port)
                 } else if (message.type === 'websocket-send-result') {
                     this.pendingSends.get(message.id)?.(
                         message.error ? new Error(message.error) : undefined
@@ -573,6 +624,7 @@ export class Inspector {
 
     private async shutdown() {
         this.websocketSend = false
+        for (const control of this.controls.values()) control.reject(new Error('Core stopped'))
         for (const finish of this.pendingSends.values()) finish(new Error('Capture stopped'))
         const child = this.child
         const exited =

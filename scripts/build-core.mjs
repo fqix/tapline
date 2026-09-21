@@ -34,12 +34,14 @@ const output = (command, args, options = {}) =>
         ...options
     }).trim()
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex')
-const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008'].map((prefix) => {
-    const name = readFileSync(join(PATCHES, 'series'), 'utf8')
-        .split('\n')
-        .find((line) => line.startsWith(prefix))
-    return { name, path: join(PATCHES, name), sha256: sha256(join(PATCHES, name)) }
-})
+const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009'].map(
+    (prefix) => {
+        const name = readFileSync(join(PATCHES, 'series'), 'utf8')
+            .split('\n')
+            .find((line) => line.startsWith(prefix))
+        return { name, path: join(PATCHES, name), sha256: sha256(join(PATCHES, name)) }
+    }
+)
 
 function checkout() {
     const git = (...args) => output('git', args, { cwd: SOURCE })

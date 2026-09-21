@@ -49,7 +49,7 @@ size>10k dur>500 ip:10.0. body:"not found" header:x-id=1 -status:2xx`; plain wor
   store on macOS, Windows and Linux. Capture waits until the CA is trusted.
 - **Compare with original** — open a replay against its original from the inspector or row menu.
 - **Notes and markers** — annotate or star requests from the inspector or row menu.
-  Annotations are shared across windows for the lifetime of the captured request;
+  Annotations belong to the capture session for the lifetime of the captured request;
   clearing or evicting it also removes its annotations.
 - **Copy response body** — copy retained content from the inspector or row menu;
   binary bodies copy as Base64.
@@ -58,8 +58,7 @@ size>10k dur>500 ip:10.0. body:"not found" header:x-id=1 -status:2xx`; plain wor
   request/response snapshots, with the earlier capture on the left. Headers are sorted,
   JSON is formatted, binary bodies use Base64, and incomplete captures are marked.
 - **Copy as cURL, export HAR, replay**, status-bar controls, English and 简体中文 UI.
-- **Shared core** — all VS Code windows use one capture agent; the last one to
-  close shuts it down.
+- **Window isolation** — each window gets its own capture data, controls and OS-assigned proxy port by default, while all windows in the same extension storage environment share one sing-box process and root CA. Closing a window dynamically removes its inlet and connections after a 3-second reconnect grace period; the last window shuts the agent and core down. Disable `tapline.isolateWindows` and reload to share one capture session.
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other MCP clients can list,
   search, read, replay and send captured requests (see below).
 
@@ -81,7 +80,8 @@ _Recorded in VS Code with Recordly, with focused zooms, cursor effects and a fra
 
 | Setting                                     | Default          | Purpose                                   |
 | ------------------------------------------- | ---------------- | ----------------------------------------- |
-| `tapline.port`                              | `3606`           | Loopback port of the capture proxy        |
+| `tapline.isolateWindows` | `true` | Isolate windows; reload after changing |
+| `tapline.port`                              | `3606`           | Proxy port in shared mode (automatic in isolated mode)        |
 | `tapline.autoStart`                         | `false`          | Start capture when VS Code opens          |
 | `tapline.terminal.inject`                   | `true`           | Inject variables into new terminals       |
 | `tapline.debug.inject` / `debug.types`      | `true` / node, … | Inject into launched debug sessions       |
@@ -194,3 +194,9 @@ attaches the VSIX files to the release.
 
 MIT. The bundled sing-box core is GPL-3.0; its source revision, patches and notices ship
 next to each binary.
+
+### MCP and window sessions
+
+MCP keeps one fixed endpoint (`tapline.mcp.port`) for the shared agent. Call `list_sessions` to see the active windows, their `sessionId`, proxy port and state. All other tools accept `sessionId`: it may be omitted with a single session, but is required with multiple sessions. Request resources can use `tapline://sessions/{sessionId}/requests/{id}`. An external MCP connection does not keep capture processes alive after all windows close. If windows request different MCP ports, the active shared endpoint is retained while another window needs it.
+
+Proxy ports are bound by the OS when each inlet is created, so concurrently active windows cannot receive the same port. Use the status bar or Copy Proxy Environment to obtain the current port; external programs must connect to the intended window's port. Closed ports may be reused later by the OS.

@@ -1,10 +1,9 @@
-// Shared capture agent: one process per VS Code user profile owns sing-box and the
-// capture engine. Every VS Code window connects as a client; when the last client
-// disconnects the agent stops capture and exits, so quitting VS Code always shuts
-// sing-box down. The extension starts it with ELECTRON_RUN_AS_NODE=1.
+// One shared agent and sing-box process, with isolated window sessions by default.
 import { createInterface } from 'node:readline'
 import net from 'node:net'
 import { existsSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { SharedCore } from './sharedCore'
 import { Engine } from '../core/engine'
 import { McpEndpoint } from '../mcp/endpoint'
 import type { AgentState, Event } from '../shared/model'
@@ -19,28 +18,55 @@ if (!directory || !corePath) {
 mkdirSync(directory, { recursive: true, mode: 0o700 })
 /** Identifies the running build for client diagnostics. */
 const build = statSync(process.argv[1]).mtimeMs
-const clients = new Set<net.Socket>()
-const engine = new Engine(directory, corePath)
+const clients = new Map<net.Socket, string>()
+const sessions = new Map<string, { engine: Engine; name: string; timer?: NodeJS.Timeout }>()
+const core = new SharedCore(directory, corePath)
 const mcp = new McpEndpoint(
     {
-        transactions: engine.transactions,
-        state: () => state(),
-        call: <M extends Request['method']>(method: M, args: object) =>
-            handle({ method, ...args } as Request) as Promise<Responses[M]>
+        sessions: () =>
+            [...sessions]
+                .filter(([id]) => [...clients.values()].includes(id))
+                .map(([id, session]) => ({
+                    sessionId: id,
+                    workspaceName: session.name,
+                    ...state(id)
+                })),
+        select: (id?: string) => {
+            const active = [...new Set(clients.values())].filter(
+                (id) => Boolean(id) && sessions.has(id)
+            )
+            if (!id && active.length === 1) id = active[0]
+            if (!id || !active.includes(id)) throw new Error('Specify sessionId from list_sessions')
+            const sessionId = id
+            return {
+                transactions: sessions.get(id)!.engine.transactions,
+                state: () => state(sessionId),
+                call: <M extends Request['method']>(method: M, args: object) =>
+                    dispatch({ method, ...args } as Request, sessionId) as Promise<Responses[M]>
+            }
+        }
     },
     (message) => process.stdout.write(message + '\n')
 )
+let operations: Promise<unknown> = Promise.resolve()
+function serial<T>(operation: () => Promise<T>): Promise<T> {
+    const result = operations.then(operation)
+    operations = result.catch(() => {})
+    return result
+}
 let exitTimer: NodeJS.Timeout | undefined
 
-function state(): AgentState {
+function state(sessionId: string): AgentState {
+    const engine = sessions.get(sessionId)!.engine
     return {
         running: engine.running,
         recording: engine.recording,
         port: engine.settings.port,
         certificatePath: engine.certificatePath,
         truststorePath: engine.truststorePath,
-        clients: clients.size,
+        clients: [...clients.values()].filter((id) => id === sessionId).length,
         pid: process.pid,
+        corePid: core.pid,
         coreVersion: engine.coreVersion,
         mcpPort: mcp.port,
         build
@@ -49,20 +75,52 @@ function state(): AgentState {
 function send(socket: net.Socket, message: Message) {
     if (!socket.destroyed) socket.write(JSON.stringify(message) + '\n')
 }
-function broadcast(event: Event) {
+function broadcast(event: Event, sessionId: string) {
     const line = JSON.stringify({ event } satisfies Message) + '\n'
-    for (const socket of clients) if (!socket.destroyed) socket.write(line)
+    for (const [socket, id] of clients)
+        if (id === sessionId && !socket.destroyed) socket.write(line)
 }
-engine.on('event', (event) => {
-    broadcast(event)
-    if (event.type === 'reset') broadcast({ type: 'state', state: state() })
-})
+function ensureSession(id: string, name = '') {
+    const existing = sessions.get(id)
+    if (existing) {
+        clearTimeout(existing.timer)
+        return existing
+    }
+    const engine = new Engine(directory, corePath, core)
+    engine.settings.port = id === 'shared' ? engine.settings.port : 0
+    core.register(
+        engine,
+        'tapline-' + createHash('sha256').update(id).digest('hex').slice(0, 32),
+        id !== 'shared'
+    )
+    const session = { engine, name }
+    sessions.set(id, session)
+    engine.on('event', (event) => {
+        if (sessions.get(id)?.engine !== engine) return
+        broadcast(event, id)
+        if (event.type === 'reset') broadcast({ type: 'state', state: state(id) }, id)
+    })
+    return session
+}
 
-async function handle(request: Request): Promise<unknown> {
+function dispatch(request: Request, sessionId: string): Promise<unknown> {
+    if (shuttingDown) return Promise.reject(new Error('Capture agent is shutting down'))
+    return ['hello', 'settings', 'start', 'stop'].includes(request.method)
+        ? serial(() => handle(request, sessionId))
+        : handle(request, sessionId)
+}
+
+async function handle(request: Request, sessionId: string): Promise<unknown> {
+    const session = sessions.get(sessionId)
+    if (!session) throw new Error('Capture session closed')
+    const engine = session.engine
     switch (request.method) {
         case 'hello':
         case 'settings': {
             if (request.method === 'hello') await engine.prepareCertificates()
+            // A zero port requests allocation once; later settings retain the active port.
+            if (sessionId !== 'shared' && request.settings.port === 0)
+                request.settings.port = engine.settings.port
             const restart = engine.running && request.settings.port !== engine.settings.port
             engine.settings = { ...engine.settings, ...request.settings }
             engine.enforceEntryLimit()
@@ -71,54 +129,64 @@ async function handle(request: Request): Promise<unknown> {
                 await engine.stop()
                 await engine.start()
             }
-            if (mcp.port !== engine.settings.mcpPort)
+            // MCP belongs to the shared agent. Conflicting window settings cannot steal its port.
+            const desiredMcp = request.settings.mcpPort
+            const others = [...sessions].filter(
+                ([id]) => id !== sessionId && [...clients.values()].includes(id)
+            )
+            if (
+                desiredMcp !== mcp.port &&
+                (!mcp.port || !others.some(([, s]) => s.engine.settings.mcpPort))
+            ) {
                 await mcp
-                    .listen(engine.settings.mcpPort)
+                    .listen(desiredMcp)
                     .catch((error) => process.stdout.write(`mcp: ${error.message}\n`))
-            broadcast({ type: 'state', state: state() })
-            return state()
+            }
+            broadcast({ type: 'state', state: state(sessionId) }, sessionId)
+            return state(sessionId)
         }
         case 'state':
-            return state()
+            return state(sessionId)
         case 'snapshot':
-            return { state: state(), transactions: [...engine.transactions.values()] }
+            return { state: state(sessionId), transactions: [...engine.transactions.values()] }
         case 'start':
             await engine.start()
-            broadcast({ type: 'state', state: state() })
-            return state()
+            broadcast({ type: 'state', state: state(sessionId) }, sessionId)
+            return state(sessionId)
         case 'stop':
             await engine.stop()
-            broadcast({ type: 'state', state: state() })
-            return state()
+            if (sessionId !== 'shared') engine.settings.port = 0
+            broadcast({ type: 'state', state: state(sessionId) }, sessionId)
+            return state(sessionId)
         case 'record':
             engine.recording = request.value
-            broadcast({ type: 'state', state: state() })
-            return state()
+            broadcast({ type: 'state', state: state(sessionId) }, sessionId)
+            return state(sessionId)
         case 'clear':
             engine.clear()
-            return state()
+            return state(sessionId)
         case 'delete':
             engine.delete(request.ids)
-            return state()
+            return state(sessionId)
         case 'annotate':
             engine.annotate(request.transaction, request)
-            return state()
+            return state(sessionId)
         case 'compose':
             return engine.compose(request.request)
         case 'resendFrame':
             await engine.resendFrame(request.transaction, request.frame)
-            return state()
+            return state(sessionId)
         case 'resume':
             engine.resume(request.transaction, request.edit)
-            return state()
+            return state(sessionId)
         case 'abort':
             engine.abort(request.transaction)
-            return state()
+            return state(sessionId)
         case 'logs':
             return engine.logs
         case 'shutdown':
             setImmediate(() => shutdown(0))
-            return state()
+            return state(sessionId)
     }
 }
 
@@ -128,14 +196,21 @@ const path = pipePath(directory)
  * Stop accepting clients first (so a reconnecting client spawns a fresh agent instead
  * of finding this one), then stop capture and exit.
  */
+let shuttingDown = false
 function shutdown(code: number) {
+    if (shuttingDown) return
+    shuttingDown = true
+    for (const session of sessions.values()) clearTimeout(session.timer)
     server.close()
     if (process.platform !== 'win32') {
         try {
             unlinkSync(path)
         } catch {}
     }
-    void Promise.all([engine.stop(), mcp.close()]).finally(() => process.exit(code))
+    void serial(async () => {
+        await core.close()
+        await mcp.close()
+    }).finally(() => process.exit(code))
 }
 
 function scheduleExit() {
@@ -148,8 +223,7 @@ function scheduleExit() {
 
 const server = net.createServer((socket) => {
     clearTimeout(exitTimer)
-    clients.add(socket)
-    broadcast({ type: 'state', state: state() })
+    clients.set(socket, '')
     let greeted = false
     let queue = Promise.resolve()
     createInterface({ input: socket }).on('line', (line) => {
@@ -160,8 +234,22 @@ const server = net.createServer((socket) => {
                 const parsed = JSON.parse(line) as { id: number } & Request
                 id = parsed.id
                 if (!greeted && parsed.method !== 'hello') throw new Error('hello first')
+                if (greeted && parsed.method === 'hello') throw new Error('Already registered')
+                const result =
+                    parsed.method === 'hello'
+                        ? await serial(async () => {
+                              if (socket.destroyed) throw new Error('Client disconnected')
+                              if (parsed.method === 'hello') {
+                                  const sessionId = parsed.sessionId || 'shared'
+                                  if (sessionId.length > 256) throw new Error('Invalid sessionId')
+                                  ensureSession(sessionId, parsed.workspaceName)
+                                  clients.set(socket, sessionId)
+                              }
+                              return handle(parsed, clients.get(socket)!)
+                          })
+                        : await dispatch(parsed, clients.get(socket)!)
                 greeted = true
-                send(socket, { id, result: await handle(parsed) })
+                send(socket, { id, result })
             } catch (error) {
                 send(socket, { id, error: error instanceof Error ? error.message : String(error) })
             }
@@ -169,8 +257,25 @@ const server = net.createServer((socket) => {
     })
     socket.on('error', () => {})
     socket.on('close', () => {
+        const sessionId = clients.get(socket)!
         clients.delete(socket)
-        broadcast({ type: 'state', state: state() })
+        const session = sessions.get(sessionId)
+        if (session && ![...clients.values()].includes(sessionId)) {
+            session.timer = setTimeout(
+                () =>
+                    void serial(async () => {
+                        if ([...clients.values()].includes(sessionId)) return
+                        await session.engine.stop()
+                        core.forget(session.engine)
+                        sessions.delete(sessionId)
+                    }).catch((error) => {
+                        process.stderr.write(String(error))
+                        shutdown(1)
+                    }),
+                3000
+            )
+        }
+        if (session) broadcast({ type: 'state', state: state(sessionId) }, sessionId)
         if (!clients.size) scheduleExit()
     })
 })

@@ -559,6 +559,11 @@
         "configuration": {
             "title": "Tapline",
             "properties": {
+                "tapline.isolateWindows": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "%config.isolateWindows%"
+                },
                 "tapline.port": {
                     "type": "integer",
                     "minimum": 1024,

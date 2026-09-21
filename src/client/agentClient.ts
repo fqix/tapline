@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { existsSync, statSync } from 'node:fs'
@@ -44,6 +45,10 @@ export class AgentClient implements vscode.Disposable {
         clients: 0,
         pid: 0
     }
+    private readonly isolated = vscode.workspace
+        .getConfiguration('tapline')
+        .get('isolateWindows', true)
+    private readonly session = this.isolated ? vscode.env.sessionId || randomUUID() : ''
     private socket?: net.Socket
     private ready?: Promise<void>
     private sequence = 0
@@ -61,6 +66,17 @@ export class AgentClient implements vscode.Disposable {
         this.output = vscode.window.createOutputChannel('Tapline', { log: true })
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration((change) => {
+                if (change.affectsConfiguration('tapline.isolateWindows')) {
+                    void vscode.window
+                        .showInformationMessage(
+                            vscode.l10n.t('Reload this window to change capture isolation.'),
+                            vscode.l10n.t('Reload Window')
+                        )
+                        .then((choice) => {
+                            if (choice)
+                                void vscode.commands.executeCommand('workbench.action.reloadWindow')
+                        })
+                }
                 if (change.affectsConfiguration('tapline') && this.socket)
                     void this.call('settings', { settings: this.settings() }).catch((error) =>
                         this.output.error(String(error))
@@ -81,7 +97,7 @@ export class AgentClient implements vscode.Disposable {
     private settings(): Settings {
         const config = vscode.workspace.getConfiguration('tapline')
         return {
-            port: config.get<number>('port', defaultSettings.port),
+            port: this.isolated ? 0 : config.get<number>('port', defaultSettings.port),
             ssl: config.get<boolean>('ssl.enabled', defaultSettings.ssl),
             sslHosts: config.get<string[]>('ssl.hosts', defaultSettings.sslHosts),
             maxEntries: config.get<number>('maxEntries', defaultSettings.maxEntries),
@@ -196,7 +212,11 @@ export class AgentClient implements vscode.Disposable {
             }
         }
         this.attach(socket)
-        this.state = await this.request('hello', { settings: this.settings() })
+        this.state = await this.request('hello', {
+            settings: this.settings(),
+            sessionId: this.session || undefined,
+            workspaceName: vscode.workspace.name
+        })
         // The pipe already scopes clients by protocol. Replacing a compatible agent
         // on a build mismatch makes windows from different builds restart each other
         // and loses captured traffic. Keep it until the last client disconnects.

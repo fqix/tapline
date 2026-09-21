@@ -8,7 +8,14 @@ import type * as vscode from 'vscode'
 import { pipePath } from '../agent/paths'
 import { AgentClient } from '../client/agentClient'
 
+const config = vi.hoisted(() => ({ isolate: false as boolean | undefined, sessionId: 'window-a' }))
+
 vi.mock('vscode', () => ({
+    env: {
+        get sessionId() {
+            return config.sessionId
+        }
+    },
     EventEmitter: class {
         event = () => ({ dispose() {} })
         fire() {}
@@ -19,7 +26,10 @@ vi.mock('vscode', () => ({
     },
     workspace: {
         onDidChangeConfiguration: () => ({ dispose() {} }),
-        getConfiguration: () => ({ get: (_name: string, fallback: unknown) => fallback })
+        getConfiguration: () => ({
+            get: (name: string, fallback: unknown) =>
+                name === 'isolateWindows' ? (config.isolate ?? fallback) : fallback
+        })
     },
     l10n: {
         t: (message: string, ...args: unknown[]) =>
@@ -47,6 +57,8 @@ describe('capture agent client lifecycle', () => {
         socket.write(JSON.stringify({ id, result }) + '\n')
 
     beforeEach(async () => {
+        config.isolate = false
+        config.sessionId = 'window-a'
         directory = mkdtempSync(join(tmpdir(), 'tapline-client-'))
         requests = []
         respond = (socket, request) =>
@@ -78,6 +90,38 @@ describe('capture agent client lifecycle', () => {
         await new Promise<void>((resolve) => server.close(() => resolve()))
         vi.useRealTimers()
         rmSync(directory, { recursive: true, force: true })
+    })
+
+    it('defaults to isolated window identities while keeping the shared agent pipe', async () => {
+        client.dispose()
+        config.isolate = undefined
+        const seen: any[] = []
+        const previous = respond
+        respond = (socket, request) => {
+            if (request.method === 'hello') seen.push(request)
+            previous(socket, request)
+        }
+        const context = {
+            extensionPath: directory,
+            globalStorageUri: { fsPath: directory },
+            subscriptions: []
+        } as unknown as vscode.ExtensionContext
+        client = new AgentClient(context)
+        await client.connect()
+        config.sessionId = 'window-b'
+        const other = new AgentClient(context)
+        try {
+            await other.connect()
+            expect(seen.map((hello) => hello.sessionId)).toEqual(['window-a', 'window-b'])
+            expect(seen.every((hello) => hello.settings.port === 0)).toBe(true)
+            client.dispose()
+            config.sessionId = 'window-a'
+            client = new AgentClient(context)
+            await client.connect()
+            expect(seen[2].sessionId).toBe('window-a')
+        } finally {
+            other.dispose()
+        }
     })
 
     it('waits for hello and snapshot before sending a start requested during connection', async () => {

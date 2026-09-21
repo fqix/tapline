@@ -277,6 +277,7 @@ export interface AgentState {
     truststorePath: string
     clients: number
     pid: number
+    corePid?: number
     coreVersion?: string
     /** Port the MCP endpoint is listening on, 0 when disabled or failed. */
     mcpPort?: number

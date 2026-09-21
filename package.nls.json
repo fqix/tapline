@@ -1,4 +1,5 @@
 {
+    "config.isolateWindows": "Isolate capture data and controls per window (default). Proxy ports are assigned automatically; tapline.port applies only in shared mode. MCP keeps a shared fixed endpoint. Reload the window after changing this setting.",
     "extension.description": "Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC and WebSocket traffic from VS Code terminals and debug sessions.",
     "view.traffic": "Traffic",
     "view.traffic.title": "Tapline Traffic",

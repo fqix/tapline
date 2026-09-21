@@ -78,7 +78,7 @@ describeCore('shared agent', () => {
         await b.connect(path)
         const settings = { ...defaultSettings, port: await freePort(), mcpPort: await freePort() }
         const hello = await a.call('hello', { settings })
-        expect(hello.clients).toBe(2)
+        expect(hello.clients).toBe(1)
         expect(hello.mcpPort).toBe(settings.mcpPort)
         // A fresh installation must be able to inspect/install the CA before capture.
         expect(hello.running).toBe(false)

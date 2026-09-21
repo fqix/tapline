@@ -1,4 +1,5 @@
 {
+    "config.isolateWindows": "按窗口隔离抓包数据和控制（默认开启）。代理端口自动分配，tapline.port 仅用于共享模式；MCP 保持共享固定入口。修改后需重载窗口。",
     "extension.description": "在 VS Code 中捕获并检查来自集成终端和调试会话的 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC 与 WebSocket 流量。",
     "view.traffic": "流量",
     "view.traffic.title": "Tapline 流量",
