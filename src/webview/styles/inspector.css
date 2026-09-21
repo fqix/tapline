@@ -163,6 +163,19 @@ table.pairs th {
 table.pairs tr + tr {
     border-top: 1px solid var(--border-faint);
 }
+table.pairs td.row-copy {
+    width: 1%;
+    padding: 0 0 0 6px;
+    user-select: none;
+    opacity: 0;
+}
+table.pairs tr:hover td.row-copy {
+    opacity: 1;
+}
+table.pairs td.row-copy .icon-button {
+    height: 18px;
+    min-width: 20px;
+}
 
 /* ---- body ---- */
 pre.body {
