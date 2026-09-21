@@ -102,10 +102,10 @@ index 049bd2c..f4f0345 100644
  	for metadata.Client == "" {
  		if len(frameTypeList) == 1 {
  			metadata.Client = C.ClientFirefox
-diff --git a/include/fluxy_inspect.go b/include/fluxy_inspect.go
+diff --git a/include/tapline_inspect.go b/include/tapline_inspect.go
 index 2412b82..bbb3e9d 100644
---- a/include/fluxy_inspect.go
-+++ b/include/fluxy_inspect.go
+--- a/include/tapline_inspect.go
++++ b/include/tapline_inspect.go
 @@ -7,6 +7,7 @@ import (
  	"net/http"
  	"net/netip"
@@ -117,7 +117,7 @@ index 2412b82..bbb3e9d 100644
 @@ -14,6 +15,7 @@ import (
  	"github.com/sagernet/sing-box/log"
  	"github.com/sagernet/sing-box/option"
- 	"github.com/sagernet/sing-box/service/fluxyinspector"
+ 	"github.com/sagernet/sing-box/service/taplineinspector"
 +	"github.com/sagernet/sing/common/bufio"
  	M "github.com/sagernet/sing/common/metadata"
  	N "github.com/sagernet/sing/common/network"
@@ -126,8 +126,8 @@ index 2412b82..bbb3e9d 100644
  			return nil, errors.New("choose an inspector service or a remote inspection endpoint")
  		}
  		return &inspectOutbound{
--			Adapter:      outbound.NewAdapter("fluxy-inspect", tag, []string{N.NetworkTCP}, nil),
-+			Adapter:      outbound.NewAdapter("fluxy-inspect", tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
+-			Adapter:      outbound.NewAdapter("tapline-inspect", tag, []string{N.NetworkTCP}, nil),
++			Adapter:      outbound.NewAdapter("tapline-inspect", tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
  			inspectorTag: options.Inspector, manager: service.FromContext[adapter.ServiceManager](ctx),
  		}, nil
  	}
@@ -175,16 +175,16 @@ index 2412b82..bbb3e9d 100644
 +func (c *inspectionPacketConn) WriteTo(p []byte, _ net.Addr) (int, error) {
 +	return c.PacketConn.WriteTo(p, c.destination)
 +}
-diff --git a/service/fluxyinspector/README.md b/service/fluxyinspector/README.md
+diff --git a/service/taplineinspector/README.md b/service/taplineinspector/README.md
 index b6ce06b..c1cfe6f 100644
---- a/service/fluxyinspector/README.md
-+++ b/service/fluxyinspector/README.md
-@@ -6,6 +6,16 @@ tree; it does not require a local checkout of Fluxy to compile. The engine's
+--- a/service/taplineinspector/README.md
++++ b/service/taplineinspector/README.md
+@@ -6,6 +6,16 @@ tree; it does not require a local checkout of Tapline to compile. The engine's
  original code is MIT licensed (see LICENSE). Its dependencies keep their own
  licenses and versions in the top-level go.mod/go.sum.
  
 +HTTP/3 uses the pinned quic-go transport and the same request/response policy
-+hooks. `fluxy-inspect` accepts routed QUIC packet flows from TUN and SOCKS5 UDP.
++hooks. `tapline-inspect` accepts routed QUIC packet flows from TUN and SOCKS5 UDP.
 +Before interception, a `quic` IPC message asks the controller for an SSL policy
 +decision (`quic-result` with `inspect` and `route`). Excluded hosts stay encrypted.
 +The optional `packet_egress` service setting names the core outbound for native
@@ -195,11 +195,11 @@ index b6ce06b..c1cfe6f 100644
 +
  ## Inspector process configuration
  
- Fluxy runs one sing-box process: Electron owns it in proxy mode, and the Helper
+ Tapline runs one sing-box process: Electron owns it in proxy mode, and the Helper
 @@ -21,7 +31,11 @@ application settings.
-   "services": [{"type": "fluxy-inspector", "tag": "inspector"}],
-   "inbounds": [{"type": "fluxy-mixed", "tag": "proxy", "listen": "127.0.0.1", "listen_port": 6060}],
-   "outbounds": [{"type": "fluxy-inspect", "tag": "inspect", "inspector": "inspector"}],
+   "services": [{"type": "tapline-inspector", "tag": "inspector"}],
+   "inbounds": [{"type": "tapline-mixed", "tag": "proxy", "listen": "127.0.0.1", "listen_port": 6060}],
+   "outbounds": [{"type": "tapline-inspect", "tag": "inspect", "inspector": "inspector"}],
 -  "route": {"final": "inspect", "rules": [{"network": "udp", "action": "reject"}]}
 +  "route": {"final": "inspect", "rules": [
 +    {"network":"udp", "action":"sniff", "sniffer":["quic"], "timeout":"300ms"},
@@ -213,13 +213,13 @@ index b6ce06b..c1cfe6f 100644
  ## Tests
  
  ```sh
--go test -race -mod=readonly -tags=with_gvisor,with_fluxy -ldflags=-checklinkname=0 ./service/fluxyinspector/... ./include ./cmd/sing-box
-+go test -race -mod=readonly -tags=with_gvisor,with_fluxy,integration -ldflags=-checklinkname=0 ./service/fluxyinspector/... ./include ./cmd/sing-box
+-go test -race -mod=readonly -tags=with_gvisor,with_tapline -ldflags=-checklinkname=0 ./service/taplineinspector/... ./include ./cmd/sing-box
++go test -race -mod=readonly -tags=with_gvisor,with_tapline,integration -ldflags=-checklinkname=0 ./service/taplineinspector/... ./include ./cmd/sing-box
  ```
-diff --git a/service/fluxyinspector/internal/ipc/wire.go b/service/fluxyinspector/internal/ipc/wire.go
+diff --git a/service/taplineinspector/internal/ipc/wire.go b/service/taplineinspector/internal/ipc/wire.go
 index 5ca2c76..e79c2a5 100644
---- a/service/fluxyinspector/internal/ipc/wire.go
-+++ b/service/fluxyinspector/internal/ipc/wire.go
+--- a/service/taplineinspector/internal/ipc/wire.go
++++ b/service/taplineinspector/internal/ipc/wire.go
 @@ -64,6 +64,7 @@ type Message struct {
  	Route         string         `json:"route,omitempty"`
  	Options       RequestOptions `json:"options,omitempty"`
@@ -228,10 +228,10 @@ index 5ca2c76..e79c2a5 100644
  	Status        int            `json:"status,omitempty"`
  	StatusMessage string         `json:"statusMessage,omitempty"`
  	Headers       map[string]any `json:"headers,omitempty"`
-diff --git a/service/fluxyinspector/internal/proxy/engine.go b/service/fluxyinspector/internal/proxy/engine.go
+diff --git a/service/taplineinspector/internal/proxy/engine.go b/service/taplineinspector/internal/proxy/engine.go
 index 312405e..3cfcf3f 100644
---- a/service/fluxyinspector/internal/proxy/engine.go
-+++ b/service/fluxyinspector/internal/proxy/engine.go
+--- a/service/taplineinspector/internal/proxy/engine.go
++++ b/service/taplineinspector/internal/proxy/engine.go
 @@ -28,20 +28,28 @@ type Engine struct {
  	closeOnce sync.Once
  	sequence  atomic.Uint64
@@ -262,11 +262,11 @@ index 312405e..3cfcf3f 100644
  		e.runtime.closeResources()
  	}()
  	return e
-diff --git a/service/fluxyinspector/internal/proxy/http3.go b/service/fluxyinspector/internal/proxy/http3.go
+diff --git a/service/taplineinspector/internal/proxy/http3.go b/service/taplineinspector/internal/proxy/http3.go
 new file mode 100644
 index 0000000..e39faa9
 --- /dev/null
-+++ b/service/fluxyinspector/internal/proxy/http3.go
++++ b/service/taplineinspector/internal/proxy/http3.go
 @@ -0,0 +1,202 @@
 +package proxy
 +
@@ -470,11 +470,11 @@ index 0000000..e39faa9
 +	}
 +	return err
 +}
-diff --git a/service/fluxyinspector/internal/proxy/http3_test.go b/service/fluxyinspector/internal/proxy/http3_test.go
+diff --git a/service/taplineinspector/internal/proxy/http3_test.go b/service/taplineinspector/internal/proxy/http3_test.go
 new file mode 100644
 index 0000000..2634e39
 --- /dev/null
-+++ b/service/fluxyinspector/internal/proxy/http3_test.go
++++ b/service/taplineinspector/internal/proxy/http3_test.go
 @@ -0,0 +1,251 @@
 +//go:build integration
 +
@@ -501,7 +501,7 @@ index 0000000..2634e39
 +
 +	"github.com/sagernet/quic-go"
 +	"github.com/sagernet/quic-go/http3"
-+	"github.com/sagernet/sing-box/service/fluxyinspector/internal/ipc"
++	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
 +)
 +
 +func TestHTTP3Inspection(t *testing.T) {
@@ -659,7 +659,7 @@ index 0000000..2634e39
 +	url := "https://example.com"
 +	request := func(path string, data []byte) error {
 +		req, _ := http.NewRequestWithContext(ctx, "POST", url+path, bytes.NewReader(data))
-+		req.Header.Set("X-Fluxy-Source", "1.2.3.4:9999")
++		req.Header.Set("X-Tapline-Source", "1.2.3.4:9999")
 +		resp, err := client.Do(req)
 +		if err != nil {
 +			return err
@@ -727,10 +727,10 @@ index 0000000..2634e39
 +	}
 +	return block.Bytes
 +}
-diff --git a/service/fluxyinspector/internal/proxy/ingress.go b/service/fluxyinspector/internal/proxy/ingress.go
+diff --git a/service/taplineinspector/internal/proxy/ingress.go b/service/taplineinspector/internal/proxy/ingress.go
 index 099ff70..7ba519d 100644
---- a/service/fluxyinspector/internal/proxy/ingress.go
-+++ b/service/fluxyinspector/internal/proxy/ingress.go
+--- a/service/taplineinspector/internal/proxy/ingress.go
++++ b/service/taplineinspector/internal/proxy/ingress.go
 @@ -73,6 +73,9 @@ func (r *runtime) acceptIngress(req *http.Request) bool {
  }
  
@@ -741,10 +741,10 @@ index 099ff70..7ba519d 100644
  	if r.ingressToken == "" {
  		return true
  	}
-diff --git a/service/fluxyinspector/internal/proxy/proxy.go b/service/fluxyinspector/internal/proxy/proxy.go
+diff --git a/service/taplineinspector/internal/proxy/proxy.go b/service/taplineinspector/internal/proxy/proxy.go
 index 392e816..ef292b0 100644
---- a/service/fluxyinspector/internal/proxy/proxy.go
-+++ b/service/fluxyinspector/internal/proxy/proxy.go
+--- a/service/taplineinspector/internal/proxy/proxy.go
++++ b/service/taplineinspector/internal/proxy/proxy.go
 @@ -10,6 +10,7 @@ import (
  	"net"
  	"net/http"
@@ -823,10 +823,10 @@ index 392e816..ef292b0 100644
  	if value, ok := r.connections.Load(req.RemoteAddr); ok {
  		if source := value.(*trackedConn).ingressSource.Load(); source != nil {
  			return map[string]any{"remoteAddress": source.IP.String(), "remotePort": source.Port, "localPort": r.ingressPort, "localAddress": "127.0.0.1"}
-diff --git a/service/fluxyinspector/internal/proxy/runtime.go b/service/fluxyinspector/internal/proxy/runtime.go
+diff --git a/service/taplineinspector/internal/proxy/runtime.go b/service/taplineinspector/internal/proxy/runtime.go
 index 32a252a..d5f348a 100644
---- a/service/fluxyinspector/internal/proxy/runtime.go
-+++ b/service/fluxyinspector/internal/proxy/runtime.go
+--- a/service/taplineinspector/internal/proxy/runtime.go
++++ b/service/taplineinspector/internal/proxy/runtime.go
 @@ -3,6 +3,7 @@ package proxy
  
  import (
@@ -841,8 +841,8 @@ index 32a252a..d5f348a 100644
  
 +	"github.com/elazarl/goproxy"
 +
- 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/ipc"
- 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/upstream"
+ 	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
+ 	"github.com/sagernet/sing-box/service/taplineinspector/internal/upstream"
  )
 @@ -28,6 +31,8 @@ type runtime struct {
  	port         int
@@ -861,11 +861,11 @@ index 32a252a..d5f348a 100644
  	capture := newCaptureListener(ctx, r.listener, &r.connections, prepareInProcess)
  	server := &http.Server{
  		Handler:           flushHandler{proxy},
-diff --git a/service/fluxyinspector/internal/upstream/http3.go b/service/fluxyinspector/internal/upstream/http3.go
+diff --git a/service/taplineinspector/internal/upstream/http3.go b/service/taplineinspector/internal/upstream/http3.go
 new file mode 100644
 index 0000000..b155001
 --- /dev/null
-+++ b/service/fluxyinspector/internal/upstream/http3.go
++++ b/service/taplineinspector/internal/upstream/http3.go
 @@ -0,0 +1,53 @@
 +package upstream
 +
@@ -920,10 +920,10 @@ index 0000000..b155001
 +		},
 +	}
 +}
-diff --git a/service/fluxyinspector/internal/upstream/transport.go b/service/fluxyinspector/internal/upstream/transport.go
+diff --git a/service/taplineinspector/internal/upstream/transport.go b/service/taplineinspector/internal/upstream/transport.go
 index e95adee..c144e25 100644
---- a/service/fluxyinspector/internal/upstream/transport.go
-+++ b/service/fluxyinspector/internal/upstream/transport.go
+--- a/service/taplineinspector/internal/upstream/transport.go
++++ b/service/taplineinspector/internal/upstream/transport.go
 @@ -24,13 +24,21 @@ type reusableTransport interface {
  }
  
@@ -958,20 +958,20 @@ index e95adee..c144e25 100644
  	if h2c {
  		result = &http2.Transport{
  			AllowHTTP: true,
-diff --git a/service/fluxyinspector/service.go b/service/fluxyinspector/service.go
+diff --git a/service/taplineinspector/service.go b/service/taplineinspector/service.go
 index 01f2e28..80feac8 100644
---- a/service/fluxyinspector/service.go
-+++ b/service/fluxyinspector/service.go
+--- a/service/taplineinspector/service.go
++++ b/service/taplineinspector/service.go
 @@ -13,12 +13,16 @@ import (
  	boxService "github.com/sagernet/sing-box/adapter/service"
  	"github.com/sagernet/sing-box/log"
- 	"github.com/sagernet/sing-box/service/fluxyinspector/internal/proxy"
+ 	"github.com/sagernet/sing-box/service/taplineinspector/internal/proxy"
 +	M "github.com/sagernet/sing/common/metadata"
 +	N "github.com/sagernet/sing/common/network"
  	"github.com/sagernet/sing/service"
  )
  
- const Type = "fluxy-inspector"
+ const Type = "tapline-inspector"
  
 -type Options struct{}
 +type Options struct {
@@ -1004,7 +1004,7 @@ index 01f2e28..80feac8 100644
  func (s *Service) Start(stage adapter.StartStage) error {
 @@ -60,7 +65,21 @@ func (s *Service) Start(stage adapter.StartStage) error {
  	if !c.claimed.CompareAndSwap(false, true) {
- 		return errors.New("only one fluxy-inspector may own the IPC control channel")
+ 		return errors.New("only one tapline-inspector may own the IPC control channel")
  	}
 -	s.engine = proxy.NewEngine(s.ctx, c.input, c.output)
 +	var packetDialer func(context.Context, string) (net.Conn, error)
@@ -1015,7 +1015,7 @@ index 01f2e28..80feac8 100644
 +				return nil, errors.New("packet egress manager is missing")
 +			}
 +			egress, ok := manager.Outbound(s.packetEgress)
-+			if !ok || egress.Type() == "fluxy-inspect" {
++			if !ok || egress.Type() == "tapline-inspect" {
 +				return nil, errors.New("invalid inspector packet egress")
 +			}
 +			return egress.DialContext(ctx, N.NetworkUDP, M.ParseSocksaddr(destination))
@@ -1032,7 +1032,7 @@ index 01f2e28..80feac8 100644
 +
 +func (s *Service) ServePacket(ctx context.Context, conn net.PacketConn, source netip.AddrPort, destination, serverName string, http3 bool) error {
 +	if s.engine == nil {
-+		return errors.New("fluxy-inspector is not started")
++		return errors.New("tapline-inspector is not started")
 +	}
 +	return s.engine.ServePacket(ctx, conn, source, destination, serverName, http3)
 +}

@@ -1,6 +1,6 @@
-diff --git a/service/fluxyinspector/internal/proxy/websocket.go b/service/fluxyinspector/internal/proxy/websocket.go
---- a/service/fluxyinspector/internal/proxy/websocket.go
-+++ b/service/fluxyinspector/internal/proxy/websocket.go
+diff --git a/service/taplineinspector/internal/proxy/websocket.go b/service/taplineinspector/internal/proxy/websocket.go
+--- a/service/taplineinspector/internal/proxy/websocket.go
++++ b/service/taplineinspector/internal/proxy/websocket.go
 @@ -2,12 +2,15 @@
  
  import (
@@ -176,9 +176,9 @@ diff --git a/service/fluxyinspector/internal/proxy/websocket.go b/service/fluxyi
 +		reply(err)
 +	})
 +}
-diff --git a/service/fluxyinspector/internal/proxy/session.go b/service/fluxyinspector/internal/proxy/session.go
---- a/service/fluxyinspector/internal/proxy/session.go
-+++ b/service/fluxyinspector/internal/proxy/session.go
+diff --git a/service/taplineinspector/internal/proxy/session.go b/service/taplineinspector/internal/proxy/session.go
+--- a/service/taplineinspector/internal/proxy/session.go
++++ b/service/taplineinspector/internal/proxy/session.go
 @@ -23,6 +23,8 @@
  	workers        sync.WaitGroup
  	local          bool
@@ -188,9 +188,9 @@ diff --git a/service/fluxyinspector/internal/proxy/session.go b/service/fluxyins
  	delivered      atomic.Bool
  	disconnectOnce sync.Once
  }
-diff --git a/service/fluxyinspector/internal/proxy/runtime.go b/service/fluxyinspector/internal/proxy/runtime.go
---- a/service/fluxyinspector/internal/proxy/runtime.go
-+++ b/service/fluxyinspector/internal/proxy/runtime.go
+diff --git a/service/taplineinspector/internal/proxy/runtime.go b/service/taplineinspector/internal/proxy/runtime.go
+--- a/service/taplineinspector/internal/proxy/runtime.go
++++ b/service/taplineinspector/internal/proxy/runtime.go
 @@ -81,7 +81,7 @@
  			r.peer.Fail()
  		}
@@ -211,9 +211,9 @@ diff --git a/service/fluxyinspector/internal/proxy/runtime.go b/service/fluxyins
  		}
  		if msg.Type == "abort" {
  			if value, ok := r.sessions.Load(msg.ID); ok {
-diff --git a/service/fluxyinspector/internal/ipc/wire.go b/service/fluxyinspector/internal/ipc/wire.go
---- a/service/fluxyinspector/internal/ipc/wire.go
-+++ b/service/fluxyinspector/internal/ipc/wire.go
+diff --git a/service/taplineinspector/internal/ipc/wire.go b/service/taplineinspector/internal/ipc/wire.go
+--- a/service/taplineinspector/internal/ipc/wire.go
++++ b/service/taplineinspector/internal/ipc/wire.go
 @@ -48,6 +48,7 @@
  }
  
@@ -222,10 +222,10 @@ diff --git a/service/fluxyinspector/internal/ipc/wire.go b/service/fluxyinspecto
  	Type          string         `json:"type"`
  	ID            string         `json:"id,omitempty"`
  	Stream        string         `json:"stream,omitempty"`
-diff --git a/service/fluxyinspector/internal/proxy/websocket_send_test.go b/service/fluxyinspector/internal/proxy/websocket_send_test.go
+diff --git a/service/taplineinspector/internal/proxy/websocket_send_test.go b/service/taplineinspector/internal/proxy/websocket_send_test.go
 new file mode 100644
 --- /dev/null
-+++ b/service/fluxyinspector/internal/proxy/websocket_send_test.go
++++ b/service/taplineinspector/internal/proxy/websocket_send_test.go
 @@ -0,0 +1,120 @@
 +package proxy
 +
@@ -240,7 +240,7 @@ new file mode 100644
 +	"time"
 +
 +	"github.com/gobwas/ws"
-+	"github.com/sagernet/sing-box/service/fluxyinspector/internal/ipc"
++	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
 +)
 +
 +func TestWebSocketWriterSerializesMessages(t *testing.T) {

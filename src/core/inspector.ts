@@ -111,9 +111,9 @@ export interface InspectorOptions {
 export function coreConfig(host: string, port: number) {
     return {
         log: { level: 'info', output: 'stderr', disabled: false, timestamp: false },
-        services: [{ type: 'fluxy-inspector', tag: 'inspector' }],
-        inbounds: [{ type: 'fluxy-mixed', tag: 'proxy', listen: host, listen_port: port }],
-        outbounds: [{ type: 'fluxy-inspect', tag: 'inspect', inspector: 'inspector' }],
+        services: [{ type: 'tapline-inspector', tag: 'inspector' }],
+        inbounds: [{ type: 'tapline-mixed', tag: 'proxy', listen: host, listen_port: port }],
+        outbounds: [{ type: 'tapline-inspect', tag: 'inspect', inspector: 'inspector' }],
         route: {
             final: 'inspect',
             rules: [
@@ -495,8 +495,8 @@ export class Inspector {
             windowsHide: true,
             env: {
                 ...process.env,
-                FLUXY_HELPER_STDIN: '1',
-                FLUXY_HELPER_PARENT: String(process.pid)
+                TAPLINE_HELPER_STDIN: '1',
+                TAPLINE_HELPER_PARENT: String(process.pid)
             }
         }))
         const wire = (this.wire = new Wire(child.stdin!))

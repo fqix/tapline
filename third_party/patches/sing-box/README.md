@@ -6,8 +6,8 @@ Tapline's transport and inspection core is the upstream
 (`0001`–`0008`, applied in the order listed in [series](series)). The patches
 originate from the [Fluxy](https://github.com/fqix/fluxy) desktop app and are
 redistributed here under sing-box's GPL-3.0 licence together with the
-MIT-licensed inspector engine they embed. They keep their original `fluxy-*`
-protocol and service names; Tapline only generates configuration for them.
+MIT-licensed inspector engine they embed. Tapline uses `tapline-*` protocol and service names, the `with_tapline` build tag,
+and `TAPLINE_HELPER_*` environment variables. The controller and core must be built together.
 
 The upstream source tree is checked out as a git submodule at
 [../../sing-box/](../../sing-box/) and pinned to the revision recorded in
@@ -20,9 +20,9 @@ the collected licence notices. Go 1.27+ must be on `PATH` (or `TAPLINE_GO`).
 
 | Patch | Purpose |
 | --- | --- |
-| 0001 | `fluxy-mixed` inbound and `fluxy-inspect` outbound; shutdown on stdin EOF |
+| 0001 | `tapline-mixed` inbound and `tapline-inspect` outbound; shutdown on stdin EOF |
 | 0002 | Reduced transport profile: TUN/HTTP/SOCKS/direct only, no VPN protocols |
-| 0003 | Embedded `fluxy-inspector` service (goproxy engine, framed stdin/stdout IPC) |
+| 0003 | Embedded `tapline-inspector` service (goproxy engine, framed stdin/stdout IPC) |
 | 0004 | Network manager startup race fix |
 | 0005 | QUIC / HTTP/3 interception |
 | 0006 | SOCKS5 UDP reply race fix |
@@ -30,7 +30,7 @@ the collected licence notices. Go 1.27+ must be on `PATH` (or `TAPLINE_GO`).
 | 0008 | `address` (upstream ip:port) on `response` messages |
 
 The controller protocol the extension speaks is documented inside patch 0003 at
-`service/fluxyinspector/README.md` and implemented in `src/core/inspector.ts`.
+`service/taplineinspector/README.md` and implemented in `src/core/inspector.ts`.
 
 Patch 0007 advertises `websocketSend: true` in `ready`. The controller can send
 `websocket-send` with a unique `id`, the target `session`, `data` bytes and `binary`.

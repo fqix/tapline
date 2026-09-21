@@ -1,8 +1,8 @@
-0001-fluxy-transport.patch
-0002-fluxy-transport-profile.patch
-0003-fluxy-inspector-service.patch
+0001-tapline-transport.patch
+0002-tapline-transport-profile.patch
+0003-tapline-inspector-service.patch
 0004-network-startup-race.patch
-0005-fluxy-http3.patch
+0005-tapline-http3.patch
 0006-socks-udp-race.patch
 0007-websocket-resend.patch
 0008-upstream-address.patch

@@ -1,7 +1,7 @@
-diff --git a/service/fluxyinspector/internal/proxy/proxy.go b/service/fluxyinspector/internal/proxy/proxy.go
+diff --git a/service/taplineinspector/internal/proxy/proxy.go b/service/taplineinspector/internal/proxy/proxy.go
 index ef292b0..ea33ed1 100644
---- a/service/fluxyinspector/internal/proxy/proxy.go
-+++ b/service/fluxyinspector/internal/proxy/proxy.go
+--- a/service/taplineinspector/internal/proxy/proxy.go
++++ b/service/taplineinspector/internal/proxy/proxy.go
 @@ -184,6 +184,15 @@ func (r *runtime) onRequest(req *http.Request, pc *goproxy.ProxyCtx) (*http.Requ
  	return req, nil
  }
@@ -26,10 +26,10 @@ index ef292b0..ea33ed1 100644
  	}, body.body, func() http.Header { return resp.Trailer })
  	if err != nil {
  		return failedResponse(pc.Req, session, err)
-diff --git a/service/fluxyinspector/internal/upstream/timing.go b/service/fluxyinspector/internal/upstream/timing.go
+diff --git a/service/taplineinspector/internal/upstream/timing.go b/service/taplineinspector/internal/upstream/timing.go
 index 78189e6..4642e5b 100644
---- a/service/fluxyinspector/internal/upstream/timing.go
-+++ b/service/fluxyinspector/internal/upstream/timing.go
+--- a/service/taplineinspector/internal/upstream/timing.go
++++ b/service/taplineinspector/internal/upstream/timing.go
 @@ -11,6 +11,8 @@ type Timing struct {
  	mu                             sync.Mutex
  	start, dns, connect, tls, sent time.Time
