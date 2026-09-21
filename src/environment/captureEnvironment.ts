@@ -92,6 +92,10 @@ export class CaptureEnvironment implements vscode.Disposable {
         if (!(config.type in runtimes)) return config
         const env = this.environment(this.valid(runtimes[config.type]))
         if (!env) return config
+        // Electron's extension-host utility process can crash during startup when
+        // NODE_EXTRA_CA_CERTS is supplied. Use the system-trusted CA there instead.
+        if (config.type === 'extensionHost' || config.type === 'pwa-extensionHost')
+            delete env.NODE_EXTRA_CA_CERTS
         return { ...config, env: { ...env, ...(config.env ?? {}) } }
     }
 

@@ -8,7 +8,8 @@ const ui = vi.hoisted(() => ({
     write: vi.fn(),
     info: vi.fn(),
     update: vi.fn(),
-    get: vi.fn()
+    get: vi.fn(),
+    registerDebug: vi.fn(() => ({ dispose() {} }))
 }))
 vi.mock('vscode', () => ({
     window: { showQuickPick: ui.pick, showInformationMessage: ui.info, showErrorMessage: vi.fn() },
@@ -17,7 +18,7 @@ vi.mock('vscode', () => ({
         getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }),
         onDidChangeConfiguration: () => ({ dispose() {} })
     },
-    debug: { registerDebugConfigurationProvider: () => ({ dispose() {} }) },
+    debug: { registerDebugConfigurationProvider: ui.registerDebug },
     l10n: { t: (text: string) => text }
 }))
 
@@ -87,5 +88,46 @@ describe('copy environment command', () => {
         await environment.copyEnvironment()
         expect(ui.write).not.toHaveBeenCalled()
         expect(ui.info).toHaveBeenCalled()
+    })
+})
+
+describe('debug environment injection', () => {
+    function resolve(config: vscode.DebugConfiguration) {
+        setup()
+        const provider = ui.registerDebug.mock.calls[0] as unknown as [
+            string,
+            vscode.DebugConfigurationProvider
+        ]
+        return provider[1].resolveDebugConfigurationWithSubstitutedVariables!(
+            undefined,
+            config,
+            {} as vscode.CancellationToken
+        ) as vscode.DebugConfiguration
+    }
+
+    it.each(['extensionHost', 'pwa-extensionHost'])(
+        'avoids the Electron CA startup crash for %s while keeping proxy routing',
+        (type) => {
+            const config = resolve({ type, name: 'Extension', request: 'launch' })
+            expect(config.env.NODE_EXTRA_CA_CERTS).toBeUndefined()
+            expect(config.env.HTTPS_PROXY).toBe('http://127.0.0.1:3638')
+            expect(config.env.NODE_USE_ENV_PROXY).toBe('1')
+        }
+    )
+
+    it('keeps extra CA trust for normal Node debugging', () => {
+        const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
+        expect(config.env.NODE_EXTRA_CA_CERTS).toBe('/tmp/test ca.pem')
+    })
+
+    it('preserves explicit debug environment overrides', () => {
+        const config = resolve({
+            type: 'extensionHost',
+            name: 'Extension',
+            request: 'launch',
+            env: { NODE_EXTRA_CA_CERTS: '/custom/ca.pem', HTTPS_PROXY: 'http://localhost:9999' }
+        })
+        expect(config.env.NODE_EXTRA_CA_CERTS).toBe('/custom/ca.pem')
+        expect(config.env.HTTPS_PROXY).toBe('http://localhost:9999')
     })
 })
