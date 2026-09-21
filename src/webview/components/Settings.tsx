@@ -63,7 +63,9 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
             <header className="settings-header">
                 <div className="settings-heading">
                     <h2>{zh ? '设置' : 'Settings'}</h2>
-                    <button onClick={onClose}>{zh ? '关闭' : 'Close'}</button>
+                    <button type="button" className="button secondary" onClick={onClose}>
+                        {zh ? '关闭' : 'Close'}
+                    </button>
                 </div>
                 <p className="muted">
                     {zh
@@ -84,7 +86,11 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                             setCategory('all')
                         }}
                     />
-                    {query && <button onClick={clearSearch}>{zh ? '清除' : 'Clear'}</button>}
+                    {query && (
+                        <button type="button" className="button secondary" onClick={clearSearch}>
+                            {zh ? '清除' : 'Clear'}
+                        </button>
+                    )}
                 </div>
             </header>
             <div className="settings-layout">
@@ -130,7 +136,11 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                     ? '尝试其他关键词，或查看全部设置。'
                                     : 'Try another keyword, or view all settings.'}
                             </p>
-                            <button onClick={clearSearch}>
+                            <button
+                                type="button"
+                                className="button secondary"
+                                onClick={clearSearch}
+                            >
                                 {zh ? '查看全部设置' : 'View all settings'}
                             </button>
                         </div>
@@ -205,6 +215,8 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                 </small>
                                             )}
                                             <button
+                                                type="button"
+                                                className="button"
                                                 disabled={pending || drafts[key] === undefined}
                                                 onClick={() => {
                                                     try {
