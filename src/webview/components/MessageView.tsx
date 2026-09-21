@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Headers, Transaction } from '../../shared/model'
 import { bytes } from '../../shared/model'
 import {
@@ -16,9 +17,10 @@ import { IconButton } from './IconButton'
 import { PairsTable } from './PairsTable'
 import { Section } from './Section'
 
-const pairs = (h: Headers): Pair[] => Object.entries(h).map(([name, value]) => ({ name, value }))
+export const pairs = (h: Headers): Pair[] =>
+    Object.entries(h).map(([name, value]) => ({ name, value }))
 
-function Pairs({
+export function Pairs({
     id,
     title,
     items,
@@ -99,6 +101,16 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
                     items={pairs(x.responseTrailers)}
                 />
             )}
+            <JwtSections headers={headers} side={side} />
+            <BodyView x={x} side={side} />
+        </div>
+    )
+}
+
+/** One section per JSON Web Token found in the headers, with the decoded parts. */
+export function JwtSections({ headers, side }: { headers: Headers; side: 'request' | 'response' }) {
+    return (
+        <>
             {findJwts(headers).map((jwt, i) => (
                 <Section
                     key={`${jwt.source}-${i}`}
@@ -132,7 +144,16 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
                     <pre className="body">{JSON.stringify(jwt.payload, null, 2)}</pre>
                 </Section>
             ))}
-            <BodyView x={x} side={side} />
-        </div>
+        </>
     )
+}
+
+/** Why a side has nothing to show yet (tunnel, pending, failed), or undefined. */
+export function messageNote(x: Transaction, side: 'request' | 'response'): ReactNode {
+    if (x.scheme === 'connect') return <p className="note">{t('tunnel')}</p>
+    if (side === 'response' && x.state === 'pending' && x.status === undefined)
+        return <p className="muted padded">{t('pending')}</p>
+    if (side === 'response' && x.state === 'error' && x.status === undefined)
+        return <p className="note error">{x.error}</p>
+    return undefined
 }

@@ -150,4 +150,9 @@ export interface PanelState {
     draft?: ComposeDraft
     /** Id of the rule shown in the editor. */
     rule?: string
+    /** Request and response side by side, or one tab strip. */
+    inspector?: 'split' | 'tabs'
+    inspectorRatio?: number
+    requestTab?: string
+    responseTab?: string
 }

@@ -276,5 +276,10 @@
     "Start capture before copying the proxy environment.": "请先启动抓包，再复制代理环境变量。",
     "Choose the shell where you will paste the commands": "选择要粘贴命令的 Shell",
     "These environment values contain characters that CMD cannot safely paste. Choose PowerShell instead.": "环境变量中包含 CMD 无法安全粘贴的字符，请改用 PowerShell。",
-    "Proxy environment copied for {0}. Paste into your terminal to apply.": "已复制 {0} 代理环境变量，粘贴到终端即可生效。"
+    "Proxy environment copied for {0}. Paste into your terminal to apply.": "已复制 {0} 代理环境变量，粘贴到终端即可生效。",
+    "Raw": "原始",
+    "Params": "参数",
+    "No query or form parameters": "没有查询或表单参数",
+    "Request and response side by side": "请求与响应左右并排",
+    "One tab strip": "单一标签栏"
 }

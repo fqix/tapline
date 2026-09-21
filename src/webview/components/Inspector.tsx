@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toCurl, type Transaction } from '../../shared/model'
 import { t } from '../lib/i18n'
 import { saveState, state, vscode } from '../lib/vscode'
@@ -6,9 +6,29 @@ import type { ComposeDraft } from '../types/messages'
 import { Editor, headersToText, textToHeaders, type EditorValue } from './Editor'
 import { Frames, ServerEvents } from './Frames'
 import { IconButton } from './IconButton'
+import { MessagePane } from './MessagePane'
 import { MessageView } from './MessageView'
 import { Overview } from './Overview'
+import { SplitPane } from './SplitPane'
 import { methodClass, methodLabel, StatusBadge } from './StatusBadge'
+
+/** Below this width the request and response panes stack instead of sitting side by side. */
+const SIDE_BY_SIDE_MIN = 720
+
+/** Width of an element, tracked with a ResizeObserver. */
+function useWidth<T extends HTMLElement>() {
+    const ref = useRef<T>(null)
+    const [width, setWidth] = useState(0)
+    useEffect(() => {
+        const element = ref.current
+        if (!element) return
+        const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+        observer.observe(element)
+        setWidth(element.getBoundingClientRect().width)
+        return () => observer.disconnect()
+    }, [])
+    return [ref, width] as const
+}
 
 type Tab = 'overview' | 'request' | 'response' | 'frames' | 'events'
 
@@ -87,6 +107,13 @@ export function Inspector({
         setTab(next)
         saveState({ tab: next })
     }
+    const [mode, setMode] = useState<'split' | 'tabs'>(() => state().inspector ?? 'split')
+    const toggleMode = () => {
+        const next = mode === 'split' ? 'tabs' : 'split'
+        setMode(next)
+        saveState({ inspector: next })
+    }
+    const [container, width] = useWidth<HTMLDivElement>()
     const websocket = x.frames.length > 0 || x.status === 101 || x.scheme.startsWith('ws')
     const tabs: Tab[] = [
         'overview',
@@ -98,7 +125,7 @@ export function Inspector({
     const active = tabs.includes(tab) ? tab : 'overview'
     const replayable = x.scheme !== 'connect' && !websocket && !x.requestBinary
     return (
-        <div className="inspector">
+        <div className={`inspector mode-${mode}`} ref={container}>
             <header className="inspector-head">
                 <StatusBadge x={{ ...x, grpcStatus: x.grpc?.status }} />
                 <span className={methodClass(methodLabel({ method: x.method, grpc: !!x.grpc }))}>
@@ -172,38 +199,61 @@ export function Inspector({
                         onClick={() => vscode.postMessage({ type: 'openText', id: x.id })}
                     />
                     <IconButton
+                        icon={mode === 'split' ? 'list-flat' : 'split-horizontal'}
+                        title={t(mode === 'split' ? 'inspectorTabs' : 'inspectorSplit')}
+                        onClick={toggleMode}
+                    />
+                    <IconButton
                         icon="trash"
                         title={t('delete')}
                         onClick={() => vscode.postMessage({ type: 'delete', ids: [x.id] })}
                     />
                 </span>
             </header>
-            <nav className="tabs" role="tablist">
-                {tabs.map((name) => (
-                    <button
-                        key={name}
-                        type="button"
-                        role="tab"
-                        aria-selected={active === name}
-                        className={active === name ? 'active' : ''}
-                        onClick={() => choose(name)}
-                    >
-                        {t(name)}
-                        {name === 'frames' && <span className="tab-count">{x.frames.length}</span>}
-                        {name === 'events' && x.events && (
-                            <span className="tab-count">{x.events.length}</span>
-                        )}
-                    </button>
-                ))}
-            </nav>
-            <div className="inspector-body">
-                {x.paused && <BreakpointBar x={x} />}
-                {active === 'overview' && <Overview x={x} onFocus={onFocus} />}
-                {active === 'request' && <MessageView key={x.id} x={x} side="request" />}
-                {active === 'response' && <MessageView key={x.id} x={x} side="response" />}
-                {active === 'frames' && <Frames key={x.id} x={x} />}
-                {active === 'events' && <ServerEvents key={x.id} x={x} />}
-            </div>
+            {mode === 'split' && (
+                <div className="inspector-body split-body">
+                    {x.paused && <BreakpointBar x={x} />}
+                    <SplitPane
+                        layout={width >= SIDE_BY_SIDE_MIN ? 'side' : 'stacked'}
+                        stateKey="inspectorRatio"
+                        minimum={0.2}
+                        first={<MessagePane key={x.id} x={x} side="request" onFocus={onFocus} />}
+                        second={<MessagePane key={x.id} x={x} side="response" onFocus={onFocus} />}
+                    />
+                </div>
+            )}
+            {mode === 'tabs' && (
+                <nav className="tabs" role="tablist">
+                    {tabs.map((name) => (
+                        <button
+                            key={name}
+                            type="button"
+                            role="tab"
+                            aria-selected={active === name}
+                            className={active === name ? 'active' : ''}
+                            onClick={() => choose(name)}
+                        >
+                            {t(name)}
+                            {name === 'frames' && (
+                                <span className="tab-count">{x.frames.length}</span>
+                            )}
+                            {name === 'events' && x.events && (
+                                <span className="tab-count">{x.events.length}</span>
+                            )}
+                        </button>
+                    ))}
+                </nav>
+            )}
+            {mode === 'tabs' && (
+                <div className="inspector-body">
+                    {x.paused && <BreakpointBar x={x} />}
+                    {active === 'overview' && <Overview x={x} onFocus={onFocus} />}
+                    {active === 'request' && <MessageView key={x.id} x={x} side="request" />}
+                    {active === 'response' && <MessageView key={x.id} x={x} side="response" />}
+                    {active === 'frames' && <Frames key={x.id} x={x} />}
+                    {active === 'events' && <ServerEvents key={x.id} x={x} />}
+                </div>
+            )}
         </div>
     )
 }

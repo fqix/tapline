@@ -7,14 +7,17 @@ export function SplitPane({
     layout,
     first,
     second,
-    minimum = 0.15
+    minimum = 0.15,
+    stateKey = 'ratio'
 }: {
     layout: Layout
     first: ReactNode
     second: ReactNode
     minimum?: number
+    /** Where the ratio is persisted, so nested splits keep their own. */
+    stateKey?: 'ratio' | 'inspectorRatio'
 }) {
-    const [ratio, setRatio] = useState(() => state().ratio ?? 0.5)
+    const [ratio, setRatio] = useState(() => state()[stateKey] ?? 0.5)
     const container = useRef<HTMLDivElement>(null)
     const onPointerDown = useCallback(
         (event: React.PointerEvent) => {
@@ -35,13 +38,13 @@ export function SplitPane({
                 window.removeEventListener('pointermove', move)
                 window.removeEventListener('pointerup', up)
                 document.body.classList.remove('resizing')
-                saveState({ ratio: latest })
+                saveState({ [stateKey]: latest })
             }
             document.body.classList.add('resizing')
             window.addEventListener('pointermove', move)
             window.addEventListener('pointerup', up)
         },
-        [layout, minimum, ratio]
+        [layout, minimum, ratio, stateKey]
     )
     return (
         <div className={`split ${layout}`} ref={container}>

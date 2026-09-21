@@ -5,6 +5,16 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The inspector shows the request and the response side by side (stacked when the
+  panel is narrow), each with its own tab strip: Overview / Raw / Params / Headers /
+  Body for the request, Raw / Headers / Body (plus Frames and SSE Events) for the
+  response, with method, protocol and status badges. The new _Raw_ tab renders the
+  message as sent, with line numbers, coloured headers and pretty-printed JSON (Text
+  shows it byte for byte). A button in the inspector header switches back to the
+  single tab strip; the choice and the divider position are remembered.
+
 ## [0.7.0]
 
 ### Added
