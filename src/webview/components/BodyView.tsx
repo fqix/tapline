@@ -15,6 +15,7 @@ import { tokenize } from '../lib/jsonHighlight'
 import { saveState, state, vscode } from '../lib/vscode'
 import { GrpcMessages } from './GrpcMessages'
 import { IconButton } from './IconButton'
+import { JsonBody } from './JsonBody'
 import { Section } from './Section'
 
 type View = 'messages' | 'pretty' | 'image' | 'text' | 'hex'
@@ -113,6 +114,7 @@ export function BodyView({ x, side }: { x: Transaction; side: 'request' | 'respo
     }, [current, hits])
     const step = (delta: number) =>
         hits.length && setCurrent((c) => (c + delta + hits.length) % hits.length)
+    const folding = active === 'pretty' && json && !finding && text.length <= HIGHLIGHT_LIMIT
     if (!size && !body)
         return (
             <Section id={`${side}-body`} title={t('body')} count={bytes(0)}>
@@ -210,7 +212,8 @@ export function BodyView({ x, side }: { x: Transaction; side: 'request' | 'respo
             {binary && active === 'text' && (
                 <p className="muted">{t('binary', bodyBytes(body, true).length)}</p>
             )}
-            {active !== 'messages' && active !== 'image' && (
+            {folding && <JsonBody key={`${x.id}:${side}:${text}`} text={text} />}
+            {!folding && active !== 'messages' && active !== 'image' && (
                 <pre className={`body ${active === 'hex' ? 'hex' : ''}`}>
                     {hits.length
                         ? marked(text, hits, needle, current)

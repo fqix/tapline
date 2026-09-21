@@ -670,3 +670,83 @@ table.stats td.seq {
 .request-mark {
     color: var(--vscode-editorWarning-foreground);
 }
+
+.json-body {
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius);
+    background: var(--vscode-editor-background);
+}
+.json-fold-actions {
+    display: flex;
+    gap: 12px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-faint);
+}
+.json-tree-scroll {
+    overflow: auto;
+    user-select: text;
+}
+.json-tree {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font: inherit;
+}
+.json-tree th {
+    text-align: left;
+    font-weight: 600;
+    background: var(--vscode-sideBarSectionHeader-background);
+    padding: 5px 10px;
+}
+.json-tree th:first-child {
+    width: 42%;
+}
+.json-tree td {
+    padding: 3px 10px;
+    vertical-align: top;
+    border-top: 1px solid var(--border-faint);
+}
+.json-tree th + th,
+.json-tree td + td {
+    border-left: 1px solid var(--border-faint);
+}
+.json-tree tbody tr:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+.json-tree td.json-name {
+    padding: 3px 0;
+}
+.json-field {
+    display: flex;
+    align-items: flex-start;
+    min-height: 18px;
+}
+.json-field-name,
+.json-value {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.json-value.tk-object,
+.json-value.tk-array {
+    color: var(--vscode-descriptionForeground);
+}
+.json-fold,
+.json-fold-space {
+    display: inline-flex;
+    flex: 0 0 20px;
+    width: 20px;
+    justify-content: center;
+}
+.json-fold {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--vscode-icon-foreground, var(--vscode-foreground));
+}
+.json-fold:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+}
+.json-fold:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
