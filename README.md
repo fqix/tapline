@@ -2,6 +2,9 @@
 
 English | [简体中文](README.zh-CN.md)
 
+[![VS Code Marketplace installs](https://vsmarketplacebadges.dev/installs-short/fqix.tapline.svg?label=VS%20Code%20Marketplace%20installs)](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/fqix/tapline?label=Open%20VSX%20downloads)](https://open-vsx.org/extension/fqix/tapline)
+
 Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC, WebSocket and SSE traffic
 without leaving VS Code. Integrated terminals and debug sessions are routed through a
 local proxy that decrypts TLS with its own root CA; nothing else on the system changes.

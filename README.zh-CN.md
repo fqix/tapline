@@ -2,6 +2,9 @@
 
 [English](README.md) | 简体中文
 
+[![VS Code Marketplace installs](https://vsmarketplacebadges.dev/installs-short/fqix.tapline.svg?label=VS%20Code%20Marketplace%20installs)](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/fqix/tapline?label=Open%20VSX%20downloads)](https://open-vsx.org/extension/fqix/tapline)
+
 不离开 VS Code 即可捕获并检查 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC、WebSocket 和 SSE
 流量。集成终端和调试会话经由本地代理转发，代理用自己的根 CA 解密 TLS；系统其他部分
 不受影响。
