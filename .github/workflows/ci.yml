@@ -73,7 +73,11 @@ jobs:
         # platform packages (esbuild publishes one package per runner platform).
         run: |
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci
+          # curlconverter's native tree-sitter addons do not support every Node 24
+          # target. Build and tests use our WASM parser instead; only esbuild needs
+          # its install script for this pipeline (VSIX packaging does not sign).
+          npm ci --ignore-scripts
+          npm rebuild esbuild
 
       - name: Check formatting
         run: npm run format:check
