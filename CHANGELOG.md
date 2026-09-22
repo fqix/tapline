@@ -5,42 +5,46 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
-### Removed
-
-- The shared capture mode and its `tapline.isolateWindows` setting: every window is
-  its own capture session (the previous default) on an OS-assigned port.
-- `tapline.port`, `tapline.ssl.enabled`, `tapline.terminal.inject` and
-  `tapline.debug.inject`: the port is always assigned automatically, HTTPS decryption
-  and injection into terminals and debug sessions are always on. Set
-  `tapline.ssl.hosts` to `[]` to capture without decryption (and without a trusted
-  certificate); `tapline.terminal.profiles` still chooses what terminals get.
-- `tapline.debug.runtimes`: debug sessions get the built-in variable set for their
-  configuration type (Node, Python, Java, Go, …).
+## [0.10.0] - 2026-09-22
 
 ### Added
 
-- Debug and run sessions print the environment Tapline injected (proxy port and every
-  `NAME=value`) to their debug console.
+- Import cURL commands with curlconverter's WebAssembly parser, including multiline
+  commands, UTF-8 data files, authentication, cookies and query data. Import warnings
+  identify missing files, multipart file references and unsupported transport options.
+- Selectable query parameters and headers, Basic/Bearer/custom authorization, and six
+  composer body modes: none, form-data, x-www-form-urlencoded, raw, binary and GraphQL.
+- Multipart text/file fields, binary file uploads, URL-encoded form descriptions and
+  bulk editing, plus GraphQL query, variables and operation name fields.
+- Debug and run sessions print the injected proxy and certificate environment
+  variables to their debug console.
+- Regression coverage for all 48 ReqBin cURL example entries, with documented import
+  limitations and additional body serialization tests.
 
 ### Changed
 
-- The terminal and debug environment settings show the environment variables they
-  resolve to on this machine and explain
-  what each profile name stands for, instead of only listing profile names.
-- The composer and breakpoint editor: method, URL and _Send_ share one request bar
-  (with the method in its colour and a ⌘↩ / Ctrl+↩ hint); Params, Headers and Body are
-  tabs with counts. Query parameters and headers are edited as name/value rows (headers
-  autocomplete common names, with a bulk text mode); the body tab flags invalid JSON and
-  can format it.
+- The request editor groups Params, Authorization, Headers and Body into tabs with
+  content indicators. The request bar includes the method, URL and Send shortcut;
+  raw JSON supports validation and formatting.
+- Terminal environment settings preview resolved variables and explain each profile.
+  Debug sessions use the built-in variable set for their configuration type.
 
-### Added
+### Fixed
 
-- The composer imports curl commands: paste one anywhere in the composer (a browser's
-  _Copy as cURL_, a shell history line) or use _Import cURL…_ in its header. Parsing uses
-  [curlconverter](https://github.com/curlconverter/curlconverter) (its WebAssembly bash
-  parser, in the extension host), so the full curl option set is understood — `-d` /
-  `--data-*` / `--json` bodies, `-F` multipart, `-u` basic auth, `-G` query data, cookies
-  and more; file references are reported instead of imported.
+- Import pasted multiline cURL commands and resolve data-file bodies; preserve explicit
+  User-Agent removal and warn about unresolved multipart files.
+- Linux ARM64 builds on Node 24 skip unused native parser installation; tests transform
+  curlconverter through the same WASM parser replacement used by the extension build.
+
+### Removed
+
+- Shared capture mode and `tapline.isolateWindows`: each window now has its own capture
+  session and an OS-assigned proxy port.
+- `tapline.port`, `tapline.ssl.enabled`, `tapline.terminal.inject`,
+  `tapline.debug.inject` and `tapline.debug.runtimes`. Ports are assigned automatically;
+  HTTPS decryption and terminal/debug injection are enabled by default. Set
+  `tapline.ssl.hosts` to `[]` to capture without decryption or a trusted certificate.
+  `tapline.terminal.profiles` still controls terminal variable profiles.
 
 ## [0.9.0]
 

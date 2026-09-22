@@ -37,7 +37,7 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 - **规则** — 断点、改写、映射到本地、映射到远程、拦截和限速（[见下文](#规则)）。
 - **发送与对比** — 从零编写请求、粘贴 curl 命令，或对抓到的请求 _编辑并重发_；任选两行或
   重发记录与原请求，在 VS Code 原生差异编辑器中对比。备注与星标在本次会话内标注请求。
-- **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……可配置）自动获得
+- **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……按调试类型自动选择）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）；
   其他程序用 _复制代理环境变量_。
@@ -48,6 +48,24 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等助手可以列出、搜索、读取、重放
   和发送抓到的请求（[见下文](#mcp-服务器)）。
 - 复制为 cURL、导出 HAR、状态栏控制、中英文界面。
+
+## 编写请求
+
+打开 _Tapline: 新建请求…_，将 cURL 命令粘贴到编辑器，或使用顶部的 _cURL_ 导入按钮。
+解析使用 curlconverter，支持多行命令和 UTF-8 数据文件，例如
+`curl -d @data.json https://example.com/api`。发送前请查看导入警告：文件缺失、multipart
+文件引用及无法映射的传输选项都会提示；上传二进制文件请在 Body 中选择文件。
+
+- **Params 和 Headers：** 以键值行编辑，勾选要发送的条目；取消勾选的内容仍保留在
+  编辑器中。Headers 也支持批量文本编辑。
+- **Authorization：** 配置 Basic、Bearer 或自定义 Authorization 请求头。
+- **Body：** 支持 `none`、`form-data`、`x-www-form-urlencoded`、`raw`、`binary` 和
+  `GraphQL`。multipart 支持文本和文件字段；URL 编码表单支持勾选、描述和批量编辑；
+  binary 按原始字节发送所选文件。GraphQL 提供 Query、Variables 和 Operation Name，
+  并校验变量 JSON。
+- 按 **⌘↩ / Ctrl+↩** 发送，然后查看捕获结果或与原请求对比。
+
+[ReqBin 测试覆盖报告](docs/reqbin-curl-coverage.md)列出了已验证的示例和导入限制。
 
 ## 设置
 
@@ -147,7 +165,8 @@ sing-box 用 Tapline CA 签发的叶证书终止 TLS，把正文流式传给 age
 ```sh
 git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
 nvm use               # Node 24 LTS (.nvmrc)
-npm ci
+npm ci --ignore-scripts # 使用 WASM 解析器，跳过未使用的原生插件
+npm rebuild esbuild
 npm run core:build     # 打补丁并构建 sing-box 到 core/<platform>-<arch>/
 npm run build          # esbuild → dist/
 npm test               # vitest：单元测试 + 针对核心的集成测试
@@ -160,7 +179,7 @@ npm run package        # 当前平台的 VSIX（package:all 构建全部六个�
 
 ## 发版
 
-CI 从不发布。在 [CHANGELOG.md](CHANGELOG.md) 中加入新版本，升级版本号、推送 tag，然后
+Push/PR CI 只构建和测试。在 [CHANGELOG.md](CHANGELOG.md) 中加入新版本，升级版本号、推送 tag，然后
 在 GitHub 上发布 release：
 
 ```sh

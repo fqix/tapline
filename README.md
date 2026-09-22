@@ -44,7 +44,7 @@ the original, decode grpcbin fields with the workspace `.proto`._
   captured one; compare any two rows, or a replay with its original, in the native diff
   editor. Notes and markers annotate requests for the session.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
-  `java`, … configurable) get `HTTP(S)_PROXY` plus the CA variables of common tools
+  `java`, …; selected automatically by debug type) get `HTTP(S)_PROXY` plus the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
   `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …); _Copy Proxy Environment_ for anything else.
 - **Root certificate** — install, trust and uninstall the CA in the OS store on macOS,
@@ -56,6 +56,27 @@ the original, decode grpcbin fields with the workspace `.proto`._
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other assistants can list,
   search, read, replay and send captured requests ([below](#mcp-server)).
 - Copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
+
+## Compose requests
+
+Open _Tapline: Compose Request_, paste a cURL command into the composer or use its
+_cURL_ import button. Parsing uses curlconverter. Multiline commands and UTF-8 data
+files such as `curl -d @data.json https://example.com/api` are supported; review import
+warnings before sending. Missing files, multipart file references and unsupported
+transport options produce warnings. For binary uploads, select the file in Body.
+
+- **Params and Headers:** edit key/value rows and check which entries to send;
+  unchecked entries remain available in the editor. Headers also support bulk editing.
+- **Authorization:** configure Basic, Bearer or a custom Authorization header.
+- **Body:** choose `none`, `form-data`, `x-www-form-urlencoded`, `raw`, `binary` or
+  `GraphQL`. Multipart supports text and file fields; URL-encoded forms support
+  checkboxes, descriptions and bulk editing. Binary sends the selected file's bytes.
+  GraphQL has Query, Variables and Operation Name fields and validates variables JSON.
+- Send with **⌘↩ / Ctrl+↩**, then inspect the captured result or compare it with the
+  original request.
+
+The [ReqBin coverage report](docs/reqbin-curl-coverage.md) records tested examples and
+import limitations.
 
 ## Settings
 
@@ -161,7 +182,8 @@ Requires Node 24 LTS, Go 1.27+ and git.
 ```sh
 git clone --recurse-submodules https://github.com/fqix/tapline.git && cd tapline
 nvm use               # Node 24 LTS (.nvmrc)
-npm ci
+npm ci --ignore-scripts # use the WASM parser; skip unused native addons
+npm rebuild esbuild
 npm run core:build     # patch and build sing-box into core/<platform>-<arch>/
 npm run build          # esbuild → dist/
 npm test               # vitest: unit tests plus integration tests against the core
@@ -174,7 +196,7 @@ platform on each push and runs the end-to-end suite on one runner per OS.
 
 ## Releasing
 
-CI never publishes. Add the version to [CHANGELOG.md](CHANGELOG.md), bump, push the tag
+Push/PR CI only builds and tests. Add the version to [CHANGELOG.md](CHANGELOG.md), bump, push the tag
 and publish a GitHub release:
 
 ```sh
