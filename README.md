@@ -35,14 +35,16 @@ the original, decode grpcbin fields with the workspace `.proto`._
   workspace's `.proto` files or, without a schema, by field number; `grpc-status` colours
   the row.
 - **Filter query** — terms such as `status:5xx`, `method:post`, `host:api.*`,
-  `path:/v1`, `type:json`, `proto:grpc`, `size>10k`, `dur>500`, `ip:10.0.`,
+  `path:/v1`, `type:json`, `type:js`, `proto:h2`, `size>10k`, `dur>500`, `ip:10.0.`,
   `body:"not found"`, `header:x-id=1`, `rule:any` and negations like `-status:2xx`; plain
-  words match URL, method or status. _Statistics_ summarises the filtered rows per host.
+  words match URL, method or status. Quick chips filter by status (2xx/3xx/4xx/5xx/errors),
+  media type (JSON, JS, HTML) and WebSocket. _Statistics_ summarises the filtered rows per host.
 - **Rules** — breakpoints, rewrite, map local, map remote, block and throttle
   ([below](#rules)).
-- **Compose and compare** — write a request, paste a curl command, or _Edit & Resend_ a
-  captured one; compare any two rows, or a replay with its original, in the native diff
-  editor. Notes and markers annotate requests for the session.
+- **Native context menu, compose and compare** — right-click requests to replay,
+  _Edit & Resend_, copy as cURL, open as text, compare, mark, annotate or delete;
+  write a request or paste a curl command; compare any two rows, or a replay with its
+  original, in the native diff editor.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, …; selected automatically by debug type) get `HTTP(S)_PROXY` plus the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
@@ -55,7 +57,7 @@ the original, decode grpcbin fields with the workspace `.proto`._
   close shuts them down.
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other assistants can list,
   search, read, replay and send captured requests ([below](#mcp-server)).
-- Copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
+- Context menus, copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
 
 ## Compose requests
 

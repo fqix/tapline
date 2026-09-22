@@ -3,13 +3,42 @@
 All notable changes to Tapline are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.11.0]
+
+### Added
+
+- Right-click context menu on traffic table rows with native commands: Replay,
+  Compose (Edit & Resend), Open as Text, Copy (cURL, URL, response body), Compare,
+  Toggle Mark, Edit Note, Add Breakpoint and Delete.
+- Protocol version column in the sequence table and inspector badges displaying
+  HTTP/1.1, HTTP/2.0 and HTTP/3.0. Supports sorting by protocol and query filters
+  such as `proto:h2`, `version:2.0`, `http/1.1`.
+- Quick filters on the toolbar for JSON, JS (JavaScript/TypeScript), HTML (web pages,
+  excluding 4xx/5xx error templates and 3xx redirects) and WS (WebSocket connections).
+- Multi-language HTTP client example suite in `examples/` for Go, Python, TypeScript
+  and Java demonstrating GET, POST and DELETE with zero external dependencies and
+  proxy environment support.
+
+### Changed
+
+- Replaced table row hover action buttons with the native context menu, freeing up
+  horizontal space and improving table legibility.
+- Increased default column widths for Method (82px) and Protocol (96px) to avoid
+  text truncation on longer methods and HTTP version labels with sort indicators.
+- Reorganized `src/` directory into modular subdirectories (`agent/`, `core/`,
+  `extension/`, `shared/`, `utils/`, `webview/`, `test/`).
 
 ### Fixed
 
 - Upgrading the extension starts and checks the new capture agent before stopping
-  the previous version; startup failures keep the previous agent and traffic intact. Same-version and newer agents remain shared across
-  windows to prevent restart loops.
+  the previous version; startup failures keep the previous agent and traffic intact.
+  Same-version and newer agents remain shared across windows to prevent restart loops.
+- Full URL queries (e.g. `http://example.com/api`) in the search bar are no longer
+  mistakenly parsed as protocol version filters.
+- Preserved sidebar tree view multi-selection and folder/host deletion in the
+  `tapline.delete` command.
+- Fixed container query column definitions in narrow panes (≤760px) to prevent
+  grid track misalignment and overflow.
 
 ## [0.10.0]
 

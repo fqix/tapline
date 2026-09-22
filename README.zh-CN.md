@@ -31,12 +31,11 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 - **gRPC** — 拆出 length-prefixed 消息（含 gzip/deflate 与 gRPC-Web），用工作区的
   `.proto` 解出字段名，没有 schema 时按字段编号解码；`grpc-status` 决定行的颜色。
 - **过滤语法** — 支持 `status:5xx`、`method:post`、`host:api.*`、`path:/v1`、
-  `type:json`、`proto:grpc`、`size>10k`、`dur>500`、`ip:10.0.`、`body:"not found"`、
+  `type:json`、`type:js`、`proto:h2`、`size>10k`、`dur>500`、`ip:10.0.`、`body:"not found"`、
   `header:x-id=1`、`rule:any` 以及 `-status:2xx` 这样的取反；普通词匹配 URL、方法或
-  状态码。_统计_ 按主机汇总当前过滤出的请求。
+  状态码。快捷标签支持一键过滤状态码（2xx/3xx/4xx/5xx/errors）、媒体类型（JSON、JS、HTML）及 WebSocket。_统计_ 按主机汇总当前过滤出的请求。
 - **规则** — 断点、改写、映射到本地、映射到远程、拦截和限速（[见下文](#规则)）。
-- **发送与对比** — 从零编写请求、粘贴 curl 命令，或对抓到的请求 _编辑并重发_；任选两行或
-  重发记录与原请求，在 VS Code 原生差异编辑器中对比。备注与星标在本次会话内标注请求。
+- **原生右键菜单、编写与对比** — 右键点击请求支持重放、_编辑并重发_、复制为 cURL、以文本打开、对比、星标、备注与删除；支持从零编写请求或粘贴 curl 命令；任选两行或重发记录与原请求在原生差异编辑器中对比。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……按调试类型自动选择）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）；
@@ -47,7 +46,7 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   同一扩展存储下的窗口共用一个 sing-box 进程和 CA，最后关闭的窗口负责关停。
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等助手可以列出、搜索、读取、重放
   和发送抓到的请求（[见下文](#mcp-服务器)）。
-- 复制为 cURL、导出 HAR、状态栏控制、中英文界面。
+- 原生右键菜单、复制为 cURL、导出 HAR、状态栏控制、中英文界面。
 
 ## 编写请求
 
