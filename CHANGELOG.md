@@ -5,7 +5,13 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-09-22
+### Fixed
+
+- Upgrading the extension starts and checks the new capture agent before stopping
+  the previous version; startup failures keep the previous agent and traffic intact. Same-version and newer agents remain shared across
+  windows to prevent restart loops.
+
+## [0.10.0]
 
 ### Added
 

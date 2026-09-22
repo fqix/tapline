@@ -58,6 +58,7 @@ describeCore('shared agent', () => {
             platform: 'node',
             format: 'cjs',
             outfile: script,
+            define: { 'process.env.TAPLINE_VERSION': JSON.stringify('0.10.0-test') },
             logLevel: 'silent'
         })
         agent = spawn(process.execPath, [script, directory, CORE], {
@@ -167,6 +168,60 @@ describeCore('shared agent', () => {
         }
     }, 30000)
 
+    it('prepares a new core before retiring the old agent and promoting its endpoint', async () => {
+        const launch = async (path?: string) => {
+            const process = spawn(
+                globalThis.process.execPath,
+                [script, directory, CORE, ...(path ? [path] : [])],
+                {
+                    stdio: ['ignore', 'pipe', 'pipe']
+                }
+            )
+            await new Promise<void>((resolve) =>
+                createInterface({ input: process.stdout! }).once('line', () => resolve())
+            )
+            return process
+        }
+        const previous = await launch()
+        const previousGone = new Promise((resolve) => previous.once('exit', resolve))
+        const stagedPath = pipePath(directory + '-staged')
+        let replacement: ChildProcess | undefined
+        const old = new TestClient()
+        const next = new TestClient()
+        const reconnected = new TestClient()
+        try {
+            await old.connect(pipePath(directory))
+            const settings = { ...defaultSettings, mcpPort: 0 }
+            await old.call('hello', { settings })
+            const oldState = await old.call('start')
+            replacement = await launch(stagedPath)
+            await next.connect(stagedPath)
+            await next.call('hello', { settings })
+            const newState = await next.call('start')
+            expect(newState.running).toBe(true)
+            expect(newState.corePid).not.toBe(oldState.corePid)
+            expect((await old.call('state')).running).toBe(true)
+            await old.call('shutdown')
+            await previousGone
+            await next.call('promote')
+            await reconnected.connect(pipePath(directory))
+            const active = await reconnected.call('hello', { settings })
+            expect(active.pid).toBe(replacement.pid)
+            expect(active.corePid).toBe(newState.corePid)
+            expect(active.running).toBe(true)
+        } finally {
+            old.socket?.destroy()
+            next.socket?.destroy()
+            reconnected.socket?.destroy()
+            previous.kill()
+            if (replacement) {
+                const gone = new Promise((resolve) => replacement!.once('exit', resolve))
+                replacement.kill()
+                await gone
+            }
+        }
+    }, 30000)
+
     it('reports its build and exits on shutdown so a newer build can replace it', async () => {
         const again = spawn(process.execPath, [script, directory, CORE], {
             stdio: ['ignore', 'pipe', 'pipe']
@@ -182,6 +237,7 @@ describeCore('shared agent', () => {
             settings: { ...defaultSettings, mcpPort: 0 }
         })
         expect(hello.build).toBeTypeOf('number')
+        expect(hello.agentVersion).toBe('0.10.0-test')
         expect((await client.call('shutdown')).pid).toBe(again.pid)
         expect(await gone).toBe(0)
         if (process.platform !== 'win32') expect(existsSync(path)).toBe(false)

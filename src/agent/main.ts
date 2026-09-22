@@ -10,9 +10,9 @@ import type { AgentState, Event } from '../shared/model'
 import { pipePath } from './paths'
 import type { Message, Request, Responses } from './protocol'
 
-const [directory, corePath] = process.argv.slice(2)
+const [directory, corePath, stagingPath] = process.argv.slice(2)
 if (!directory || !corePath) {
-    process.stderr.write('usage: agent <storage-directory> <sing-box-path>\n')
+    process.stderr.write('usage: agent <storage-directory> <sing-box-path> [staging-pipe]\n')
     process.exit(2)
 }
 mkdirSync(directory, { recursive: true, mode: 0o700 })
@@ -68,6 +68,7 @@ function state(sessionId: string): AgentState {
         pid: process.pid,
         corePid: core.pid,
         coreVersion: engine.coreVersion,
+        agentVersion: process.env.TAPLINE_VERSION,
         mcpPort: mcp.port,
         build
     }
@@ -101,7 +102,7 @@ function ensureSession(id: string, name = '') {
 
 function dispatch(request: Request, sessionId: string): Promise<unknown> {
     if (shuttingDown) return Promise.reject(new Error('Capture agent is shutting down'))
-    return ['hello', 'settings', 'start', 'stop'].includes(request.method)
+    return ['hello', 'settings', 'start', 'stop', 'promote'].includes(request.method)
         ? serial(() => handle(request, sessionId))
         : handle(request, sessionId)
 }
@@ -174,13 +175,28 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
             return state(sessionId)
         case 'logs':
             return engine.logs
+        case 'promote':
+            if (path !== canonicalPath && !promotedServer) {
+                const promoted = net.createServer(acceptClient)
+                await new Promise<void>((resolve, reject) => {
+                    promoted.once('error', reject)
+                    promoted.listen(canonicalPath, () => {
+                        promoted.removeListener('error', reject)
+                        resolve()
+                    })
+                })
+                promotedServer = promoted
+            }
+            return state(sessionId)
         case 'shutdown':
             setImmediate(() => shutdown(0))
             return state(sessionId)
     }
 }
 
-const path = pipePath(directory)
+const canonicalPath = pipePath(directory)
+const path = stagingPath || canonicalPath
+let promotedServer: net.Server | undefined
 
 /**
  * Stop accepting clients first (so a reconnecting client spawns a fresh agent instead
@@ -192,10 +208,12 @@ function shutdown(code: number) {
     shuttingDown = true
     for (const session of sessions.values()) clearTimeout(session.timer)
     server.close()
+    promotedServer?.close()
     if (process.platform !== 'win32') {
-        try {
-            unlinkSync(path)
-        } catch {}
+        for (const endpoint of promotedServer ? [path, canonicalPath] : [path])
+            try {
+                unlinkSync(endpoint)
+            } catch {}
     }
     void serial(async () => {
         await core.close()
@@ -211,7 +229,7 @@ function scheduleExit() {
     }, 3000)
 }
 
-const server = net.createServer((socket) => {
+const acceptClient = (socket: net.Socket) => {
     clearTimeout(exitTimer)
     clients.set(socket, '')
     let greeted = false
@@ -268,7 +286,8 @@ const server = net.createServer((socket) => {
         if (session) broadcast({ type: 'state', state: state(sessionId) }, sessionId)
         if (!clients.size) scheduleExit()
     })
-})
+}
+const server = net.createServer(acceptClient)
 if (process.platform !== 'win32' && existsSync(path)) {
     // Never steal a live agent's socket; only reclaim a stale file.
     const probe = net.connect(path)

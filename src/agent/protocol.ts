@@ -29,6 +29,8 @@ export type Request =
     | { method: 'logs' }
     /** Stop capture and exit so a newer build can take over; clients respawn it. */
     | { method: 'shutdown' }
+    /** Promote a healthy staged agent to the shared endpoint after upgrade. */
+    | { method: 'promote' }
 
 export interface Responses {
     hello: AgentState
@@ -47,6 +49,7 @@ export interface Responses {
     abort: AgentState
     logs: LogEntry[]
     shutdown: AgentState
+    promote: AgentState
 }
 
 export type Message =

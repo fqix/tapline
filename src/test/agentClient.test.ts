@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type * as vscode from 'vscode'
 import { pipePath } from '../agent/paths'
-import { AgentClient } from '../client/agentClient'
+import { AgentClient, needsAgentUpgrade } from '../client/agentClient'
 
 const config = vi.hoisted(() => ({ sessionId: 'window-a' }))
 
@@ -48,6 +48,7 @@ describe('capture agent client lifecycle', () => {
     let server: net.Server
     let client: AgentClient
     const sockets = new Set<net.Socket>()
+    const stagedServers: net.Server[] = []
     let requests: string[]
     let respond: (socket: net.Socket, request: { id: number; method: string }) => void
     const state = {
@@ -57,7 +58,8 @@ describe('capture agent client lifecycle', () => {
         clients: 1,
         pid: 1,
         certificatePath: '/test/ca.pem',
-        truststorePath: '/test/ca.p12'
+        truststorePath: '/test/ca.p12',
+        agentVersion: '0.10.0'
     }
     const reply = (socket: net.Socket, id: number, result: unknown) =>
         socket.write(JSON.stringify({ id, result }) + '\n')
@@ -83,6 +85,7 @@ describe('capture agent client lifecycle', () => {
         })
         await new Promise<void>((resolve) => server.listen(pipePath(directory), resolve))
         client = new AgentClient({
+            extension: { packageJSON: { version: '0.10.0' } },
             extensionPath: directory,
             globalStorageUri: { fsPath: directory },
             subscriptions: []
@@ -93,6 +96,9 @@ describe('capture agent client lifecycle', () => {
         client.dispose()
         for (const socket of sockets) socket.destroy()
         await new Promise<void>((resolve) => server.close(() => resolve()))
+        for (const staged of stagedServers.splice(0))
+            await new Promise<void>((resolve) => staged.close(() => resolve()))
+        vi.restoreAllMocks()
         vi.useRealTimers()
         rmSync(directory, { recursive: true, force: true })
     })
@@ -106,6 +112,7 @@ describe('capture agent client lifecycle', () => {
             previous(socket, request)
         }
         const context = {
+            extension: { packageJSON: { version: '0.10.0' } },
             extensionPath: directory,
             globalStorageUri: { fsPath: directory },
             subscriptions: []
@@ -157,7 +164,7 @@ describe('capture agent client lifecycle', () => {
     })
 
     it.each(['older', 'newer', 'unstamped'] as const)(
-        'reuses a compatible %s build across reconnects without stopping capture',
+        'reuses the same release with a compatible %s build across reconnects without stopping capture',
         async (kind) => {
             mkdirSync(join(directory, 'dist'))
             const script = join(directory, 'dist', 'agent.js')
@@ -199,6 +206,104 @@ describe('capture agent client lifecycle', () => {
             }
         }
     )
+
+    function stageAgent(failStart = false) {
+        vi.spyOn(client as any, 'spawnAgent').mockImplementation((...args: unknown[]) => {
+            const path = args[1] as string
+            const staged = net.createServer((socket) => {
+                sockets.add(socket)
+                socket.on('close', () => sockets.delete(socket))
+                createInterface({ input: socket }).on('line', (line) => {
+                    const request = JSON.parse(line)
+                    requests.push(`new:${request.method}`)
+                    if (failStart && request.method === 'start') {
+                        socket.write(
+                            JSON.stringify({ id: request.id, error: 'new core failed' }) + '\n'
+                        )
+                        return
+                    }
+                    reply(
+                        socket,
+                        request.id,
+                        request.method === 'snapshot' ? { state, transactions: [] } : state
+                    )
+                })
+            })
+            stagedServers.push(staged)
+            staged.listen(path)
+        })
+    }
+
+    it.each(['0.9.0', undefined])(
+        'starts and verifies the replacement before stopping agent %s',
+        async (agentVersion) => {
+            mkdirSync(join(directory, 'dist'))
+            writeFileSync(join(directory, 'dist', 'agent.js'), '// current build')
+            const remote = { ...state, agentVersion, build: 1, running: true }
+            stageAgent()
+            respond = (socket, request) => {
+                reply(socket, request.id, remote)
+                if (request.method === 'shutdown') socket.end()
+            }
+            await client.connect()
+            expect(requests).toEqual([
+                'hello',
+                'new:hello',
+                'new:start',
+                'new:snapshot',
+                'shutdown',
+                'new:promote',
+                'new:settings',
+                'new:snapshot'
+            ])
+            expect(client.state.agentVersion).toBe('0.10.0')
+        }
+    )
+
+    it('keeps the old agent and its traffic when replacement startup fails', async () => {
+        const remote = { ...state, agentVersion: '0.9.0', running: true }
+        const transaction = { id: 'preserved-traffic' }
+        stageAgent(true)
+        respond = (socket, request) =>
+            reply(
+                socket,
+                request.id,
+                request.method === 'snapshot'
+                    ? { state: remote, transactions: [transaction] }
+                    : remote
+            )
+        await client.connect()
+        expect(requests).toEqual(['hello', 'new:hello', 'new:start', 'snapshot'])
+        expect(client.running).toBe(true)
+        expect(client.state.agentVersion).toBe('0.9.0')
+        expect(client.transactions.get(transaction.id)).toEqual(transaction)
+        await client.clear()
+        expect(requests.at(-1)).toBe('clear')
+    })
+
+    it('never replaces a newer release even if its file timestamp is older', async () => {
+        mkdirSync(join(directory, 'dist'))
+        writeFileSync(join(directory, 'dist', 'agent.js'), '// older client')
+        const remote = { ...state, agentVersion: '0.11.0', build: 1 }
+        respond = (socket, request) =>
+            reply(
+                socket,
+                request.id,
+                request.method === 'snapshot' ? { state: remote, transactions: [] } : remote
+            )
+        await client.connect()
+        expect(requests).toEqual(['hello', 'snapshot'])
+        expect(client.state.agentVersion).toBe('0.11.0')
+    })
+
+    it('compares numeric release versions and keeps unstamped development clients safe', () => {
+        expect(needsAgentUpgrade('0.10.0', { ...state, agentVersion: '0.9.9' })).toBe(true)
+        expect(needsAgentUpgrade('0.9.9', { ...state, agentVersion: '0.10.0' })).toBe(false)
+        expect(needsAgentUpgrade(undefined, { ...state, agentVersion: undefined }, 1)).toBe(false)
+        expect(
+            needsAgentUpgrade('0.10.0', { ...state, agentVersion: undefined, build: 1 }, 1)
+        ).toBe(false)
+    })
 
     it('rejects a silent start after 30 seconds and allows a new connection', async () => {
         await client.connect()

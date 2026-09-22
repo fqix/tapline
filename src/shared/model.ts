@@ -280,6 +280,8 @@ export interface AgentState {
     pid: number
     corePid?: number
     coreVersion?: string
+    /** Extension release running the shared agent; used for upgrade handover. */
+    agentVersion?: string
     /** Port the MCP endpoint is listening on, 0 when disabled or failed. */
     mcpPort?: number
     /** Modification time of the agent script, so clients notice a stale agent. */
