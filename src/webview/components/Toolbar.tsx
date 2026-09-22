@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { isFiltered, quickFilters, type Filters } from '../lib/filter'
+import { isFiltered, quickFilters, type Filters, type Quick } from '../lib/filter'
 import { t } from '../lib/i18n'
 import { vscode } from '../lib/vscode'
 import type { Layout, Pane } from '../types/messages'
@@ -20,6 +20,27 @@ const syntax = [
     'rule:any',
     '-status:2xx'
 ]
+
+function quickLabel(quick: Quick): string {
+    switch (quick) {
+        case 'all':
+            return t('all')
+        case 'pending':
+            return t('pendingShort')
+        case 'error':
+            return t('errors')
+        case 'json':
+            return window.__strings?.quickJson ?? 'JSON'
+        case 'js':
+            return window.__strings?.quickJs ?? 'JS'
+        case 'html':
+            return window.__strings?.quickHtml ?? 'HTML'
+        case 'ws':
+            return window.__strings?.quickWs ?? 'WS'
+        default:
+            return quick
+    }
+}
 
 /** Filter input, quick status chips, host chip, counts, pane buttons and the layout toggle. */
 export function Toolbar({
@@ -128,13 +149,7 @@ export function Toolbar({
                         className={`chip ${quick} ${filters.quick === quick ? 'active' : ''}`}
                         onClick={() => onChange({ ...filters, quick })}
                     >
-                        {quick === 'all'
-                            ? t('all')
-                            : quick === 'pending'
-                              ? t('pendingShort')
-                              : quick === 'error'
-                                ? t('errors')
-                                : quick}
+                        {quickLabel(quick)}
                     </button>
                 ))}
             </div>

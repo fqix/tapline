@@ -2,8 +2,21 @@
 import { matchWildcard } from '../../shared/model'
 import type { Row } from '../types/messages'
 
-export type Quick = 'all' | '2xx' | '3xx' | '4xx' | '5xx' | 'pending' | 'error'
-export const quickFilters: Quick[] = ['all', '2xx', '3xx', '4xx', '5xx', 'pending', 'error']
+export type Quick =
+    'all' | '2xx' | '3xx' | '4xx' | '5xx' | 'pending' | 'error' | 'json' | 'js' | 'html' | 'ws'
+export const quickFilters: Quick[] = [
+    'all',
+    '2xx',
+    '3xx',
+    '4xx',
+    '5xx',
+    'pending',
+    'error',
+    'json',
+    'js',
+    'html',
+    'ws'
+]
 
 export interface Filters {
     text: string
@@ -167,19 +180,74 @@ function protoMatches(row: Row, value: string) {
     return row.scheme === v || `${row.scheme} http/${row.httpVersion ?? ''}`.includes(v)
 }
 
+export function isJsRow(row: Row): boolean {
+    const ct = row.contentType ?? ''
+    const isJsType =
+        ct.includes('javascript') ||
+        ct.includes('ecmascript') ||
+        ct === 'text/js' ||
+        ct === 'application/js' ||
+        ct.includes('typescript')
+    const isJsUrl =
+        /\.(?:[mc]?js|ts|jsx|tsx)($|\?)/i.test(row.path ?? '') ||
+        /\.(?:[mc]?js|ts|jsx|tsx)($|\?)/i.test(row.url ?? '')
+    return isJsType || isJsUrl
+}
+
+export function isHtmlRow(row: Row): boolean {
+    if (row.scheme === 'connect' || row.method === 'OPTIONS') return false
+    const isHtmlUrl =
+        /\.(?:html?|xhtml)($|\?)/i.test(row.path ?? '') ||
+        /\.(?:html?|xhtml)($|\?)/i.test(row.url ?? '') ||
+        /\/html($|\?)/i.test(row.path ?? '') ||
+        /\/html($|\?)/i.test(row.url ?? '')
+    const isHtmlType = (row.contentType ?? '').includes('html')
+    if (!isHtmlType && !isHtmlUrl) return false
+    // If the URL explicitly targets .html / .htm / /html, keep it even on error.
+    if (isHtmlUrl) return true
+    // Otherwise, exclude 4xx/5xx errors and redirects that merely happen to return default HTML error pages
+    if ((row.status ?? 0) >= 400 || row.state === 'error') return false
+    if (row.status === 301 || row.status === 302 || row.status === 307 || row.status === 308)
+        return false
+    return true
+}
+
+export function isJsonRow(row: Row): boolean {
+    return (
+        (row.contentType ?? '').includes('json') ||
+        /\.json($|\?)/i.test(row.path ?? '') ||
+        /\.json($|\?)/i.test(row.url ?? '')
+    )
+}
+
 /** Whether one local term holds for a row. */
 export function termMatches(row: Row, term: Term): boolean {
     const v = term.value
     const lower = v.toLowerCase()
     let hit: boolean
     switch (term.key) {
-        case 'text':
+        case 'text': {
+            const ctMatch =
+                lower === 'js'
+                    ? isJsRow(row)
+                    : (row.contentType ?? '').toLowerCase().includes(lower)
             hit =
                 row.url.toLowerCase().includes(lower) ||
                 row.method.toLowerCase().includes(lower) ||
                 String(row.status ?? '').startsWith(lower) ||
+                ctMatch ||
+                (lower === 'html' && isHtmlRow(row)) ||
+                (lower === 'json' && isJsonRow(row)) ||
+                (lower === 'ws' &&
+                    Boolean(
+                        row.websocket ||
+                        row.scheme === 'ws' ||
+                        row.scheme === 'wss' ||
+                        row.status === 101
+                    )) ||
                 (row.error ?? '').toLowerCase().includes(lower)
             break
+        }
         case 'status':
             hit = statusMatches(row, v)
             break
@@ -208,7 +276,21 @@ export function termMatches(row: Row, term: Term): boolean {
                 : row.url.toLowerCase().includes(lower)
             break
         case 'type':
-            hit = row.contentType.includes(lower)
+            hit =
+                lower === 'js'
+                    ? isJsRow(row)
+                    : lower === 'html'
+                      ? isHtmlRow(row)
+                      : lower === 'json'
+                        ? isJsonRow(row)
+                        : lower === 'ws'
+                          ? Boolean(
+                                row.websocket ||
+                                row.scheme === 'ws' ||
+                                row.scheme === 'wss' ||
+                                row.status === 101
+                            )
+                          : (row.contentType ?? '').includes(lower)
             break
         case 'proto':
             hit = protoMatches(row, v)
@@ -238,6 +320,16 @@ function quickMatches(row: Row, quick: Quick): boolean {
             return row.state === 'pending'
         case 'error':
             return row.state === 'error' || (row.status ?? 0) >= 400
+        case 'json':
+            return isJsonRow(row)
+        case 'js':
+            return isJsRow(row)
+        case 'html':
+            return isHtmlRow(row)
+        case 'ws':
+            return Boolean(
+                row.websocket || row.scheme === 'ws' || row.scheme === 'wss' || row.status === 101
+            )
         default:
             return Math.floor((row.status ?? 0) / 100) === Number(quick[0])
     }

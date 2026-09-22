@@ -4,8 +4,13 @@ import { searchTransactions } from '../../utils/search'
 import {
     defaultFilters,
     defaultSort,
+    isFiltered,
+    isHtmlRow,
+    isJsRow,
+    isJsonRow,
     matches,
     parseQuery,
+    quickFilters,
     remoteQuery,
     sortRows,
     toggleSort,
@@ -95,11 +100,231 @@ describe('matches', () => {
         expect(matches(notFound, filters({ quick: 'error' }))).toBe(true)
         expect(matches(ok, filters({ quick: 'error' }))).toBe(false)
     })
+    it('applies quick type and protocol filters', () => {
+        const jsonRow = row(10, 'https://api.example.com/data', {
+            responseHeaders: { 'Content-Type': 'application/json' }
+        })
+        const jsRow = row(11, 'https://api.example.com/assets/app.js?v=1', {
+            responseHeaders: { 'Content-Type': 'application/javascript' }
+        })
+        const htmlRow = row(12, 'https://example.com/index.html', {
+            responseHeaders: { 'Content-Type': 'text/html; charset=utf-8' }
+        })
+        const wsRow = row(13, 'wss://api.example.com/ws', {
+            status: 101,
+            scheme: 'wss',
+            frames: [
+                {
+                    id: 'f1',
+                    direction: 'receive',
+                    binary: false,
+                    time: 0,
+                    data: 'hello'
+                }
+            ]
+        })
+
+        const htmlErrorRow = row(14, 'https://api.example.com/status/500', {
+            status: 500,
+            responseHeaders: { 'Content-Type': 'text/html' }
+        })
+        const redirectRow = row(15, 'https://api.example.com/redirect', {
+            status: 302,
+            responseHeaders: { 'Content-Type': 'text/html' }
+        })
+        const optionsRow = row(16, 'https://api.example.com/get', {
+            method: 'OPTIONS',
+            status: 200,
+            responseHeaders: { 'Content-Type': 'text/html' }
+        })
+
+        expect(matches(jsonRow, filters({ quick: 'json' }))).toBe(true)
+        expect(matches(jsonRow, filters({ quick: 'js' }))).toBe(false)
+        expect(matches(jsRow, filters({ quick: 'json' }))).toBe(false)
+        expect(matches(jsRow, filters({ quick: 'js' }))).toBe(true)
+        expect(matches(htmlRow, filters({ quick: 'js' }))).toBe(false)
+        expect(matches(htmlRow, filters({ quick: 'html' }))).toBe(true)
+        expect(matches(htmlErrorRow, filters({ quick: 'html' }))).toBe(false)
+        expect(matches(redirectRow, filters({ quick: 'html' }))).toBe(false)
+        expect(matches(optionsRow, filters({ quick: 'html' }))).toBe(false)
+        expect(matches(wsRow, filters({ quick: 'html' }))).toBe(false)
+        expect(matches(wsRow, filters({ quick: 'ws' }))).toBe(true)
+        expect(matches(jsonRow, filters({ quick: 'ws' }))).toBe(false)
+    })
     it('restricts to a host and hides tunnels', () => {
         expect(matches(ok, filters({ host: 'api.example.com' }))).toBe(true)
         expect(matches(tunnel, filters({ host: 'api.example.com' }))).toBe(false)
         expect(matches(tunnel, filters({}))).toBe(true)
         expect(matches(tunnel, filters({ hideTunnels: true }))).toBe(false)
+    })
+    it('reports whether filters are active', () => {
+        expect(isFiltered(filters({}))).toBe(false)
+        expect(isFiltered(filters({ quick: 'json' }))).toBe(true)
+        expect(isFiltered(filters({ quick: 'js' }))).toBe(true)
+        expect(isFiltered(filters({ quick: 'html' }))).toBe(true)
+        expect(isFiltered(filters({ quick: 'ws' }))).toBe(true)
+    })
+})
+
+describe('quickFilters and media type helpers', () => {
+    it('defines the complete list of 11 quick filters', () => {
+        expect(quickFilters).toEqual([
+            'all',
+            '2xx',
+            '3xx',
+            '4xx',
+            '5xx',
+            'pending',
+            'error',
+            'json',
+            'js',
+            'html',
+            'ws'
+        ])
+    })
+
+    describe('isJsRow', () => {
+        it('matches javascript content-types and script extensions', () => {
+            expect(isJsRow(row(1, 'https://cdn.example.com/app.js'))).toBe(true)
+            expect(isJsRow(row(2, 'https://cdn.example.com/module.mjs?v=2'))).toBe(true)
+            expect(isJsRow(row(3, 'https://cdn.example.com/common.cjs'))).toBe(true)
+            expect(isJsRow(row(4, 'https://cdn.example.com/component.tsx'))).toBe(true)
+            expect(
+                isJsRow(
+                    row(5, 'https://api.example.com/bundle', {
+                        responseHeaders: { 'content-type': 'application/javascript; charset=utf-8' }
+                    })
+                )
+            ).toBe(true)
+            expect(
+                isJsRow(
+                    row(6, 'https://api.example.com/bundle', {
+                        responseHeaders: { 'content-type': 'text/javascript' }
+                    })
+                )
+            ).toBe(true)
+            expect(
+                isJsRow(
+                    row(7, 'https://api.example.com/bundle', {
+                        responseHeaders: { 'content-type': 'application/ecmascript' }
+                    })
+                )
+            ).toBe(true)
+        })
+
+        it('strictly excludes json and other media types', () => {
+            expect(
+                isJsRow(
+                    row(8, 'https://api.example.com/data', {
+                        responseHeaders: { 'content-type': 'application/json' }
+                    })
+                )
+            ).toBe(false)
+            expect(isJsRow(row(9, 'https://api.example.com/data.json'))).toBe(false)
+            expect(
+                isJsRow(
+                    row(10, 'https://example.com/page.html', {
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(false)
+        })
+    })
+
+    describe('isHtmlRow', () => {
+        it('matches valid HTML documents and html urls', () => {
+            expect(
+                isHtmlRow(
+                    row(1, 'https://example.com/', {
+                        status: 200,
+                        responseHeaders: { 'content-type': 'text/html; charset=utf-8' }
+                    })
+                )
+            ).toBe(true)
+            expect(isHtmlRow(row(2, 'https://example.com/about.html'))).toBe(true)
+            expect(isHtmlRow(row(3, 'https://example.com/doc.htm?ref=1'))).toBe(true)
+            expect(
+                isHtmlRow(
+                    row(4, 'https://httpbin.org/html', {
+                        status: 200,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(true)
+            expect(
+                isHtmlRow(
+                    row(5, 'https://example.com/cache', {
+                        status: 304,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(true)
+        })
+
+        it('excludes 4xx/5xx error pages, 3xx redirects, preflight and tunnel requests', () => {
+            expect(
+                isHtmlRow(
+                    row(6, 'https://api.example.com/status/404', {
+                        status: 404,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(false)
+            expect(
+                isHtmlRow(
+                    row(7, 'https://api.example.com/status/500', {
+                        status: 500,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(false)
+            expect(
+                isHtmlRow(
+                    row(8, 'https://api.example.com/redirect', {
+                        status: 302,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(false)
+            expect(
+                isHtmlRow(
+                    row(9, 'https://api.example.com/preflight', {
+                        method: 'OPTIONS',
+                        status: 200,
+                        responseHeaders: { 'content-type': 'text/html' }
+                    })
+                )
+            ).toBe(false)
+            expect(
+                isHtmlRow(
+                    row(10, 'https://tunnel.example.com', {
+                        scheme: 'connect',
+                        method: 'CONNECT'
+                    })
+                )
+            ).toBe(false)
+        })
+    })
+
+    describe('isJsonRow', () => {
+        it('matches application/json and .json urls', () => {
+            expect(
+                isJsonRow(
+                    row(1, 'https://api.example.com/items', {
+                        responseHeaders: { 'content-type': 'application/json' }
+                    })
+                )
+            ).toBe(true)
+            expect(
+                isJsonRow(
+                    row(2, 'https://api.example.com/problem', {
+                        responseHeaders: { 'content-type': 'application/problem+json' }
+                    })
+                )
+            ).toBe(true)
+            expect(isJsonRow(row(3, 'https://api.example.com/schema.json'))).toBe(true)
+            expect(isJsonRow(row(4, 'https://example.com/app.js'))).toBe(false)
+        })
     })
 })
 
@@ -235,6 +460,36 @@ describe('query language', () => {
         expect(run('dur<100')).toEqual([1, 3])
         expect(run('rule:any')).toEqual([2])
         expect(run('users -method:post')).toEqual([1])
+    })
+    it('evaluates type:js, type:html, type:json, and type:ws in query strings', () => {
+        const mediaRows = [
+            row(10, 'https://example.com/api/users', {
+                responseHeaders: { 'content-type': 'application/json' }
+            }),
+            row(20, 'https://example.com/app.js', {
+                responseHeaders: { 'content-type': 'application/javascript' }
+            }),
+            row(30, 'https://example.com/index.html', {
+                status: 200,
+                responseHeaders: { 'content-type': 'text/html' }
+            }),
+            row(40, 'wss://example.com/live', {
+                status: 101
+            })
+        ]
+        const evalQuery = (text: string) => {
+            const terms = parseQuery(text)
+            return mediaRows
+                .filter((r) => matches(r, filters({ text }), terms))
+                .map((r) => r.sequence)
+        }
+        expect(evalQuery('type:json')).toEqual([10])
+        expect(evalQuery('type:js')).toEqual([20])
+        expect(evalQuery('type:html')).toEqual([30])
+        expect(evalQuery('type:ws')).toEqual([40])
+        expect(evalQuery('js')).toEqual([20])
+        expect(evalQuery('html')).toEqual([30])
+        expect(evalQuery('ws')).toEqual([40])
     })
     it('joins host-evaluated terms by id', () => {
         expect(run('body:x')).toEqual([1, 2, 3, 4])
