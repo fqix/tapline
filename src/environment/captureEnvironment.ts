@@ -39,7 +39,8 @@ export class CaptureEnvironment implements vscode.Disposable {
             vscode.debug.registerDebugConfigurationProvider('*', {
                 resolveDebugConfigurationWithSubstitutedVariables: (_folder, config) =>
                     this.injectDebug(config)
-            })
+            }),
+            vscode.debug.onDidStartDebugSession((session) => this.announce(session))
         ]
         this.apply()
     }
@@ -98,6 +99,40 @@ export class CaptureEnvironment implements vscode.Disposable {
         if (config.type === 'extensionHost' || config.type === 'pwa-extensionHost')
             delete env.NODE_EXTRA_CA_CERTS
         return { ...config, env: { ...env, ...(config.env ?? {}) } }
+    }
+
+    /**
+     * Print what was injected to the session's debug console, so a run that is or is
+     * not being captured can be told apart without opening the settings.
+     */
+    private announce(session: vscode.DebugSession) {
+        const injected = this.injectedFor(session.configuration)
+        if (!injected) return
+        const console = vscode.debug.activeDebugConsole
+        console.appendLine(
+            vscode.l10n.t(
+                'Tapline: capturing through 127.0.0.1:{0}; environment injected into this session:',
+                this.client.port
+            )
+        )
+        for (const [name, value] of Object.entries(injected))
+            console.appendLine(`  ${name}=${value}`)
+    }
+
+    /** The variables this session received from Tapline (its own env wins on conflicts). */
+    private injectedFor(config: vscode.DebugConfiguration): Record<string, string> | undefined {
+        const env = config.env as Record<string, string> | undefined
+        if (!env || !this.client.running) return undefined
+        const proxy = `http://127.0.0.1:${this.client.port}`
+        if (env.HTTP_PROXY !== proxy && env.http_proxy !== proxy) return undefined
+        const runtimes = {
+            ...defaultDebugRuntimes,
+            ...preferences.get<Record<string, Profile[]>>('debug.runtimes', {})
+        }
+        const ours = this.environment(this.valid(runtimes[config.type])) ?? {}
+        const result: Record<string, string> = {}
+        for (const name of Object.keys(ours)) if (name in env) result[name] = env[name]
+        return Object.keys(result).length ? result : undefined
     }
 
     /** Copy commands for an existing terminal using the configured terminal profiles. */

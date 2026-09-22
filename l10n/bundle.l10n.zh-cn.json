@@ -285,5 +285,6 @@
     "Request and response side by side": "请求与响应左右并排",
     "One tab strip": "单一标签栏",
     "Server IP": "服务器 IP",
-    "Server": "服务器"
+    "Server": "服务器",
+    "Tapline: capturing through 127.0.0.1:{0}; environment injected into this session:": "Tapline：流量经 127.0.0.1:{0} 抓取；已向本次会话注入的环境变量："
 }
