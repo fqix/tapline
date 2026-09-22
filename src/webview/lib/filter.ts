@@ -1,4 +1,4 @@
-// Pure filtering and sorting for the sequence table; covered by src/test/webview.test.ts.
+// Pure filtering and sorting for the sequence table; covered by src/test/webview/webview.test.ts.
 import { matchWildcard } from '../../shared/model'
 import type { Row } from '../types/messages'
 

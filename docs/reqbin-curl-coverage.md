@@ -83,10 +83,10 @@
 ## 复现
 
 ```sh
-npm test -- src/test/curlReqbin.test.ts src/test/curl.test.ts
+npm test -- src/test/utils/curlReqbin.test.ts src/test/utils/curl.test.ts
 npm run typecheck
 npm run build
 npm test
 ```
 
-测试代码：`src/test/curlReqbin.test.ts`；来源、原命令、固定预期及排除原因：`src/test/fixtures/reqbin-curl.json`。
+测试代码：`src/test/utils/curlReqbin.test.ts`；来源、原命令、固定预期及排除原因：`src/test/fixtures/reqbin-curl.json`。

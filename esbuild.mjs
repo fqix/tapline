@@ -25,7 +25,7 @@ for (const [from, to] of [
     copyFileSync(from, to)
 
 const node = {
-    entryPoints: { extension: 'src/extension.ts', agent: 'src/agent/main.ts' },
+    entryPoints: { extension: 'src/extension/index.ts', agent: 'src/agent/main.ts' },
     bundle: true,
     platform: 'node',
     target: 'node20',

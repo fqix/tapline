@@ -1,4 +1,4 @@
-// Aggregates behind the statistics pane; pure so src/test/webview.test.ts can cover them.
+// Aggregates behind the statistics pane; pure so src/test/webview/webview.test.ts can cover them.
 import type { Row } from '../types/messages'
 
 export interface HostStats {
