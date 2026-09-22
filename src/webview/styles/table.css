@@ -77,26 +77,41 @@ body.resizing .split-divider::before {
     min-height: 0;
     container-type: inline-size;
     /* Column widths come from inline --w-* variables (user-resizable); the URL takes the rest. */
-    --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(160px, 1fr) var(--w-server)
-        var(--w-start) var(--w-duration) var(--w-size) 52px;
+    --cols: var(--w-seq) var(--w-status) var(--w-method) var(--w-proto) minmax(160px, 1fr)
+        var(--w-server) var(--w-start) var(--w-duration) var(--w-size) 52px;
 }
 /* Narrow panes (inspector on the right) drop the least useful columns instead of scrolling. */
+@container (max-width: 760px) {
+    .grid-head,
+    .grid-row {
+        --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(120px, 1fr) var(--w-server)
+            var(--w-start) var(--w-duration) var(--w-size) 52px;
+    }
+    .c-proto {
+        display: none;
+    }
+}
 @container (max-width: 640px) {
-    .sequence {
+    .grid-head,
+    .grid-row {
         --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(120px, 1fr) var(--w-start)
             var(--w-duration) 52px;
     }
-    .sequence .c-server,
-    .sequence .c-size {
+    .c-proto,
+    .c-server,
+    .c-size {
         display: none;
     }
 }
 @container (max-width: 440px) {
-    .sequence {
-        --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(100px, 1fr) var(--w-duration)
-            52px;
+    .grid-head,
+    .grid-row {
+        --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(100px, 1fr) var(--w-duration) 52px;
     }
-    .sequence .c-start {
+    .c-proto,
+    .c-server,
+    .c-size,
+    .c-start {
         display: none;
     }
 }
@@ -215,10 +230,12 @@ body.resizing-column {
 .grid-row.selected.error .path {
     color: inherit;
 }
-.grid-row .seq {
+.grid-row .seq,
+.grid-row .c-proto {
     color: var(--vscode-descriptionForeground);
 }
-.grid-row.selected .seq {
+.grid-row.selected .seq,
+.grid-row.selected .c-proto {
     color: inherit;
 }
 .grid-row .dim {

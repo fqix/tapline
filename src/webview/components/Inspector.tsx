@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { toCurl, type Transaction } from '../../shared/model'
+import { formatHttpVersion, toCurl, type Transaction } from '../../shared/model'
 import { t } from '../lib/i18n'
 import { saveState, state, vscode } from '../lib/vscode'
 import type { ComposeDraft } from '../types/messages'
@@ -131,6 +131,11 @@ export function Inspector({
                 <span className={methodClass(methodLabel({ method: x.method, grpc: !!x.grpc }))}>
                     {methodLabel({ method: x.method, grpc: !!x.grpc })}
                 </span>
+                {x.httpVersion && (
+                    <span className="pane-badge mono muted">
+                        {formatHttpVersion(x.httpVersion)}
+                    </span>
+                )}
                 <button
                     type="button"
                     className="title url mono ellipsis"

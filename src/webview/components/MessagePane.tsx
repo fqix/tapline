@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Transaction } from '../../shared/model'
-import { bytes } from '../../shared/model'
+import { bytes, formatHttpVersion } from '../../shared/model'
 import { cookies, formFields, queryParams } from '../lib/http'
 import { t } from '../lib/i18n'
 import { saveState, state } from '../lib/vscode'
@@ -81,15 +81,24 @@ export function MessagePane({
                 ))}
                 <span className="spacer" />
                 {side === 'request' ? (
-                    <span
-                        className={`pane-badge ${methodClass(methodLabel({ method: x.method, grpc: !!x.grpc }))}`}
-                    >
-                        {methodLabel({ method: x.method, grpc: !!x.grpc })}
-                    </span>
+                    <>
+                        {x.httpVersion && (
+                            <span className="pane-badge mono muted">
+                                {formatHttpVersion(x.httpVersion)}
+                            </span>
+                        )}
+                        <span
+                            className={`pane-badge ${methodClass(methodLabel({ method: x.method, grpc: !!x.grpc }))}`}
+                        >
+                            {methodLabel({ method: x.method, grpc: !!x.grpc })}
+                        </span>
+                    </>
                 ) : (
                     <>
                         {x.httpVersion && (
-                            <span className="pane-badge mono muted">HTTP/{x.httpVersion}</span>
+                            <span className="pane-badge mono muted">
+                                {formatHttpVersion(x.httpVersion)}
+                            </span>
                         )}
                         <span className="pane-badge">
                             <StatusBadge x={{ ...x, grpcStatus: x.grpc?.status }} />

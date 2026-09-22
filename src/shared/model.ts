@@ -342,6 +342,11 @@ export function duration(ms: number): string {
     return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`
 }
 
+export function formatHttpVersion(v?: string): string {
+    if (!v) return ''
+    return v.startsWith('HTTP/') ? v : `HTTP/${v}`
+}
+
 /** HAR 1.2 export of completed HTTP transactions. */
 export function toHAR(items: Transaction[], creator = { name: 'Tapline', version: '0.1.0' }) {
     const headers = (h: Headers) => Object.entries(h).map(([name, value]) => ({ name, value }))

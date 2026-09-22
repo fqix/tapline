@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { bytes, duration } from '../../shared/model'
+import { bytes, duration, formatHttpVersion } from '../../shared/model'
 import { columns, toggleSort, type Column, type Sort } from '../lib/filter'
 import { t } from '../lib/i18n'
 import { saveState, state, vscode } from '../lib/vscode'
@@ -22,7 +22,8 @@ const defaultWidths = (): Widths => {
     return {
         sequence: Math.round(48 * k),
         status: 68,
-        method: Math.round(66 * k),
+        method: Math.round(82 * k),
+        httpVersion: Math.round(96 * k),
         serverAddress: Math.round(130 * k),
         timestamp: Math.round(96 * k),
         duration: 80,
@@ -35,6 +36,7 @@ const columnClass: Record<Column, string> = {
     sequence: 'seq',
     status: 'status',
     method: 'method',
+    httpVersion: 'proto',
     url: 'url',
     serverAddress: 'server',
     timestamp: 'start',
@@ -109,6 +111,13 @@ const RowView = memo(function RowView({
             </span>
             <span role="gridcell" className={methodClass(methodLabel(row))}>
                 {methodLabel(row)}
+            </span>
+            <span
+                role="gridcell"
+                className="mono ellipsis c-proto"
+                title={formatHttpVersion(row.httpVersion)}
+            >
+                {formatHttpVersion(row.httpVersion)}
             </span>
             <span role="gridcell" className="mono ellipsis path c-url" title={row.url}>
                 {/* One icon slot per row (paused, local, replay, WebSocket, SSE, rule, TLS) so URLs line up. */}

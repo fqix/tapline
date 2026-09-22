@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Transaction } from '../../shared/model'
+import { formatHttpVersion, type Transaction } from '../../shared/model'
 import { searchTransactions } from '../../utils/search'
 import {
     defaultFilters,
@@ -62,11 +62,13 @@ describe('toRow', () => {
                 responseHeaders: { 'Content-Type': 'application/json; charset=utf-8' },
                 responseBody: '{"big":"body"}',
                 status: 101,
+                httpVersion: '2.0',
                 events: [{ id: 'e', time: 0, event: 'message', data: '', lastEventId: '' }]
             })
         )
         expect(r.contentType).toBe('application/json')
         expect(r.websocket).toBe(true)
+        expect(r.httpVersion).toBe('2.0')
         expect(r.events).toBe(1)
         expect(r).not.toHaveProperty('responseBody')
         expect(r).not.toHaveProperty('responseHeaders')
@@ -330,9 +332,9 @@ describe('quickFilters and media type helpers', () => {
 
 describe('sortRows', () => {
     const rows = [
-        row(1, 'https://b.example.com/x', { responseBytes: 30 }),
-        row(2, 'https://a.example.com/y', { responseBytes: 10 }),
-        row(3, 'https://a.example.com/z', { responseBytes: 10 })
+        row(1, 'https://b.example.com/x', { responseBytes: 30, httpVersion: '2.0' }),
+        row(2, 'https://a.example.com/y', { responseBytes: 10, httpVersion: '1.1' }),
+        row(3, 'https://a.example.com/z', { responseBytes: 10, httpVersion: '3.0' })
     ]
     it('defaults to capture order and keeps it for ties', () => {
         expect(sortRows(rows, defaultSort).map((r) => r.id)).toEqual(['t1', 't2', 't3'])
@@ -344,6 +346,9 @@ describe('sortRows', () => {
             't3',
             't1'
         ])
+        expect(sortRows(rows, { column: 'httpVersion', ascending: true }).map((r) => r.id)).toEqual(
+            ['t2', 't1', 't3']
+        )
     })
     it('toggles direction on the same column and starts sizes descending', () => {
         expect(toggleSort(defaultSort, 'timestamp')).toEqual({
@@ -409,7 +414,7 @@ describe('tokenize', () => {
 
 describe('query language', () => {
     const rows = [
-        row(1, 'https://api.example.com/v1/users', { status: 200, duration: 20 }),
+        row(1, 'http://api.example.com/v1/users', { status: 200, duration: 20 }),
         row(2, 'https://api.example.com/v1/users', {
             method: 'POST',
             status: 500,
@@ -445,6 +450,9 @@ describe('query language', () => {
             { key: 'text', op: '=', value: 'baz', negate: true },
             { key: 'text', op: '=', value: 'a b', negate: false }
         ])
+        expect(parseQuery('http://example.com/api')).toEqual([
+            { key: 'text', op: '=', value: 'http://example.com/api', negate: false }
+        ])
     })
     it('filters by status, method, host, type, proto, size and duration', () => {
         expect(run('status:5xx')).toEqual([2])
@@ -455,6 +463,11 @@ describe('query language', () => {
         expect(run('host:*.example.com path:/v1/*')).toEqual([1, 2, 4])
         expect(run('type:image')).toEqual([3])
         expect(run('proto:h2')).toEqual([3])
+        expect(run('version:2.0')).toEqual([3])
+        expect(run('protocol:2.0')).toEqual([3])
+        expect(run('http://api.example.com/v1/users')).toEqual([1])
+        expect(run('url:http://api.example.com/v1/users')).toEqual([1])
+        expect(run('https://cdn.example.com/logo.png')).toEqual([3])
         expect(run('size>10k')).toEqual([2])
         expect(run('dur>500')).toEqual([2])
         expect(run('dur<100')).toEqual([1, 3])
@@ -567,5 +580,13 @@ describe('body helpers', () => {
         expect(isMarkup({ 'content-type': 'application/xml' }, '')).toBe(true)
         expect(isMarkup({}, '<html>')).toBe(true)
         expect(isMarkup({}, '{}')).toBe(false)
+    })
+    it('formats HTTP protocol versions', () => {
+        expect(formatHttpVersion('1.1')).toBe('HTTP/1.1')
+        expect(formatHttpVersion('2.0')).toBe('HTTP/2.0')
+        expect(formatHttpVersion('3.0')).toBe('HTTP/3.0')
+        expect(formatHttpVersion('HTTP/1.1')).toBe('HTTP/1.1')
+        expect(formatHttpVersion(undefined)).toBe('')
+        expect(formatHttpVersion('')).toBe('')
     })
 })

@@ -31,6 +31,7 @@ export type Column =
     | 'sequence'
     | 'status'
     | 'method'
+    | 'httpVersion'
     | 'url'
     | 'serverAddress'
     | 'timestamp'
@@ -40,6 +41,7 @@ export const columns: Column[] = [
     'sequence',
     'status',
     'method',
+    'httpVersion',
     'url',
     'serverAddress',
     'timestamp',
@@ -105,6 +107,7 @@ const aliases: Record<string, Key> = {
     mime: 'type',
     proto: 'proto',
     protocol: 'proto',
+    version: 'proto',
     size: 'size',
     bytes: 'size',
     dur: 'dur',
@@ -126,11 +129,14 @@ export function parseQuery(text: string): Term[] {
     const terms: Term[] = []
     for (const m of text.matchAll(token)) {
         const [, minus, name, op, quoted, bare] = m
-        const key = name ? aliases[name.toLowerCase()] : undefined
-        let value = quoted ?? bare ?? ''
+        const rawValue = quoted ?? bare ?? ''
+        const isUrlScheme = op === ':' && rawValue.startsWith('//')
+        const key = name && !isUrlScheme ? aliases[name.toLowerCase()] : undefined
+        let value = rawValue
         let negate = minus === '-'
         if (!key) {
-            // Not a known key: the whole token is free text (keeps `foo:bar` searchable).
+            // Not a known key or a full URL with scheme (e.g. `http://...`):
+            // the whole token is free text (keeps `foo:bar` and URLs searchable).
             value = (name ? `${name}${op}` : '') + value
             if (!name && value.startsWith('-') && value.length > 1) {
                 negate = true
@@ -173,8 +179,26 @@ function protoMatches(row: Row, value: string) {
     if (v === 'ws' || v === 'websocket') return row.websocket
     if (v === 'sse') return row.events !== undefined
     if (v === 'grpc') return row.grpc
-    if (v === 'h2' || v === 'http2') return row.httpVersion === '2.0'
-    if (v === 'h3' || v === 'http3') return row.httpVersion === '3.0'
+    if (v === 'h1' || v === 'http1' || v === 'http/1.1' || v === '1.1')
+        return row.httpVersion === '1.1' || row.httpVersion === '1.0'
+    if (
+        v === 'h2' ||
+        v === 'http2' ||
+        v === 'http/2' ||
+        v === 'http/2.0' ||
+        v === '2.0' ||
+        v === '2'
+    )
+        return row.httpVersion === '2.0' || row.httpVersion === '2'
+    if (
+        v === 'h3' ||
+        v === 'http3' ||
+        v === 'http/3' ||
+        v === 'http/3.0' ||
+        v === '3.0' ||
+        v === '3'
+    )
+        return row.httpVersion === '3.0' || row.httpVersion === '3'
     if (v === 'tls' || v === 'https') return row.tls
     if (v === 'connect' || v === 'tunnel') return row.scheme === 'connect'
     return row.scheme === v || `${row.scheme} http/${row.httpVersion ?? ''}`.includes(v)
