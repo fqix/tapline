@@ -5,6 +5,24 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The terminal and debug environment settings show the environment variables they
+  resolve to on this machine (per debug type for `tapline.debug.runtimes`) and explain
+  what each profile name stands for, instead of only listing profile names.
+- The composer and breakpoint editor: method, URL and _Send_ share one request bar
+  (with the method in its colour and a ⌘↩ / Ctrl+↩ hint); Params, Headers and Body are
+  tabs with counts. Query parameters and headers are edited as name/value rows (headers
+  autocomplete common names, with a bulk text mode); the body tab flags invalid JSON and
+  can format it.
+
+### Added
+
+- The composer imports curl commands: paste one anywhere in the composer (a browser's
+  _Copy as cURL_, a shell history line) or use _Import cURL…_ in its header. Method, URL,
+  headers, `-d`/`--data-*`/`--json` bodies, `-F` fields, `-u` basic auth, `-G` query data
+  and `--compressed` are understood; file references are reported instead of imported.
+
 ## [0.9.0]
 
 ### Added

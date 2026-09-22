@@ -623,3 +623,54 @@ input[type='checkbox'] {
 .settings-field input[type='checkbox'] {
     accent-color: var(--vscode-focusBorder);
 }
+
+/* ---- resolved environment variables under the profile settings ---- */
+.env-preview {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.env-preview p {
+    margin: 4px 0 0;
+}
+.env-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size, 12px);
+}
+.env-table th {
+    width: 1%;
+    padding: 2px 12px 2px 0;
+    text-align: left;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--vscode-symbolIcon-propertyForeground, var(--vscode-textLink-foreground));
+    user-select: text;
+}
+.env-table td {
+    padding: 2px 0;
+    word-break: break-all;
+    user-select: text;
+}
+.env-table tr + tr {
+    border-top: 1px solid var(--border-faint);
+}
+.env-table tr.muted th {
+    color: var(--vscode-descriptionForeground);
+}
+.env-runtime,
+.env-legend {
+    padding: 4px 8px;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius);
+}
+.env-runtime summary,
+.env-legend summary {
+    cursor: pointer;
+}
+.env-runtime .env-table,
+.env-legend .env-table {
+    margin-top: 6px;
+}

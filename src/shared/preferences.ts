@@ -334,12 +334,12 @@ export const preferenceDescriptions: Record<string, { en: string; zh: string }> 
         zh: '每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。'
     },
     'terminal.profiles': {
-        en: 'Trust-store variable profiles injected into every new terminal. Keep this generic; use "New Captured Terminal" to open a terminal for a specific runtime (Node, Python, Java, …). Profiles: openssl (SSL_CERT_FILE, CURL_CA_BUNDLE), git, node, python, java, rust, deno, grpc.',
-        zh: '注入到每个新终端的信任库变量 profile。建议保持通用；需要特定运行时（Node、Python、Java…）时用"新建抓包终端"按运行时单独注入。可选：openssl（SSL_CERT_FILE、CURL_CA_BUNDLE）、git、node、python、java、rust、deno、grpc。'
+        en: 'Which sets of environment variables every new terminal gets besides the proxy variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY). Each name stands for the variables a runtime reads to trust the Tapline CA; the resolved variables are listed below. Keep this generic and use "New Captured Terminal" for a runtime-specific terminal.',
+        zh: '除代理变量（HTTP_PROXY、HTTPS_PROXY、NO_PROXY）外，每个新终端还要注入哪几组环境变量。每个名称代表某类运行时用来信任 Tapline CA 的一组变量，实际注入的变量见下方列表。建议保持通用，需要特定运行时时用"新建抓包终端"。'
     },
     'debug.runtimes': {
-        en: 'Profiles injected per debug configuration type (proxy variables are always included). Types not listed are left untouched; an empty list injects the proxy only.',
-        zh: '按调试配置类型注入的 profile（代理变量总是包含）。未列出的类型不做任何改动；空列表表示只注入代理。'
+        en: 'Which sets of environment variables each debug configuration type (the "type" in launch.json) gets; the proxy variables are always included. Types not listed are left untouched; an empty list injects the proxy only. The resolved variables per type are listed below.',
+        zh: '每种调试配置类型（launch.json 里的 "type"）注入哪几组环境变量；代理变量总是包含。未列出的类型不做任何改动；空列表表示只注入代理。每种类型实际注入的变量见下方列表。'
     },
     'mcp.enabled': {
         en: 'Serve an MCP endpoint (http://127.0.0.1:<port>/mcp) so AI assistants such as Copilot, Claude Code and Cursor can read and replay captured traffic.',

@@ -464,6 +464,23 @@ function panelStrings(): Record<string, string> {
         composeClear: vscode.l10n.t('Clear'),
         composeInvalidUrl: vscode.l10n.t('Enter an http:// or https:// URL'),
         send: vscode.l10n.t('Send'),
+        name: vscode.l10n.t('Name'),
+        value: vscode.l10n.t('Value'),
+        remove: vscode.l10n.t('Remove'),
+        bulkEdit: vscode.l10n.t('Bulk edit as text'),
+        formatJson: vscode.l10n.t('Format JSON'),
+        jsonInvalid: vscode.l10n.t('Invalid JSON'),
+        paramsNeedUrl: vscode.l10n.t('Enter a valid URL to edit its query parameters'),
+        importCurl: vscode.l10n.t('Import cURL…'),
+        importCurlHint: vscode.l10n.t(
+            'Paste a curl command — here, or straight into the URL field'
+        ),
+        import: vscode.l10n.t('Import'),
+        cancel: vscode.l10n.t('Cancel'),
+        importCurlPartial: vscode.l10n.t('Not imported:'),
+        editResendNote: vscode.l10n.t(
+            'Copied from a captured request; the reply is linked to the original for comparison'
+        ),
         sendHint: vscode.l10n.t(
             'Cmd/Ctrl+Enter sends through the proxy; the reply appears in the table'
         ),

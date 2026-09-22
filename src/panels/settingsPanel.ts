@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
+import type { AgentClient } from '../client/agentClient'
 import { preferences } from '../preferences'
 import type { HostMessage, PanelMessage } from '../webview/types/messages'
 
@@ -8,7 +9,10 @@ export class SettingsPanel implements vscode.Disposable {
     private panel?: vscode.WebviewPanel
     private readonly changes = preferences.onDidChange(() => this.post())
 
-    constructor(private readonly context: vscode.ExtensionContext) {}
+    constructor(
+        private readonly context: vscode.ExtensionContext,
+        private readonly client: AgentClient
+    ) {}
 
     show() {
         if (this.panel) {
@@ -39,7 +43,16 @@ export class SettingsPanel implements vscode.Disposable {
 
     private post(result: { saved?: string; error?: string } = {}, panel = this.panel) {
         if (!panel) return
-        const message: HostMessage = { type: 'settings', values: preferences.values(), ...result }
+        const message: HostMessage = {
+            type: 'settings',
+            values: preferences.values(),
+            target: {
+                port: this.client.port || (preferences.values().port as number),
+                certificatePath: this.client.certificatePath || '<tapline-ca.pem>',
+                truststorePath: this.client.truststorePath || '<tapline-truststore.p12>'
+            },
+            ...result
+        }
         void panel.webview.postMessage(message)
     }
 

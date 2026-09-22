@@ -172,7 +172,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         abort: (id) => client!.abort(id)
     }
     const panel = new TrafficPanel(context, client, actions)
-    const settingsPanel = new SettingsPanel(context)
+    const settingsPanel = new SettingsPanel(context, client)
     const status = vscode.window.createStatusBarItem(
         'tapline.status',
         vscode.StatusBarAlignment.Left,

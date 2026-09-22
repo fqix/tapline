@@ -1,3 +1,4 @@
+import type { CaptureTarget } from '../../utils/environment'
 import type {
     BreakpointEdit,
     ComposeRequest,
@@ -81,7 +82,14 @@ export function toRow(t: Transaction): Row {
 
 /** Messages from the extension host to the panel. */
 export type HostMessage =
-    | { type: 'settings'; values: Record<string, unknown>; saved?: string; error?: string }
+    | {
+          type: 'settings'
+          values: Record<string, unknown>
+          /** What the environment variables resolve to on this machine. */
+          target?: CaptureTarget
+          saved?: string
+          error?: string
+      }
     /** `reset` replaces the whole table; otherwise the rows are upserts. */
     | { type: 'rows'; rows: Row[]; reset: boolean }
     /** Full record for the selected row, pushed on selection and on every change to it. */

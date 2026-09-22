@@ -6,12 +6,111 @@ import {
 } from '../lib/settingsCatalog'
 import { useEffect, useState } from 'react'
 import { preferenceSchema, preferenceDescriptions } from '../../shared/preferences'
+import {
+    captureEnvironment,
+    PROFILES,
+    profileDescriptions,
+    proxyVariables,
+    type CaptureTarget,
+    type Profile
+} from '../../utils/environment'
 import { vscode } from '../lib/vscode'
 import type { HostMessage } from '../types/messages'
+
+const isProfile = (name: unknown): name is Profile =>
+    typeof name === 'string' && (PROFILES as string[]).includes(name)
+
+/** `NAME=value` rows for one set of profiles, resolved against this machine. */
+function VariableTable({ target, profiles }: { target: CaptureTarget; profiles: unknown }) {
+    const chosen = Array.isArray(profiles) ? profiles.filter(isProfile) : []
+    const env = captureEnvironment(target, chosen)
+    const proxy = new Set(Object.keys(proxyVariables(target.port)))
+    return (
+        <table className="env-table" data-clipboard="">
+            <tbody>
+                {Object.entries(env).map(([name, value]) => (
+                    <tr key={name} className={proxy.has(name) ? 'muted' : ''}>
+                        <th>{name}</th>
+                        <td>{value}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    )
+}
+
+/**
+ * What a profile setting actually injects: the variables per selection (terminals) or
+ * per debug type, plus a legend of what each profile name stands for.
+ */
+function EnvironmentPreview({
+    settingKey,
+    value,
+    target,
+    zh
+}: {
+    settingKey: string
+    value: unknown
+    target: CaptureTarget
+    zh: boolean
+}) {
+    const legend = (
+        <details className="env-legend">
+            <summary className="muted">{zh ? '名称对应的变量' : 'What each name adds'}</summary>
+            <table className="env-table">
+                <tbody>
+                    {PROFILES.map((profile) => (
+                        <tr key={profile}>
+                            <th>{profile}</th>
+                            <td>{profileDescriptions[profile]}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </details>
+    )
+    if (settingKey === 'terminal.profiles')
+        return (
+            <div className="env-preview">
+                <p className="muted">
+                    {zh ? '当前会注入到每个新终端的变量：' : 'Injected into every new terminal:'}
+                </p>
+                <VariableTable target={target} profiles={value} />
+                {legend}
+            </div>
+        )
+    const runtimes = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+    return (
+        <div className="env-preview">
+            <p className="muted">
+                {zh ? '按调试类型实际注入的变量：' : 'Injected per debug type:'}
+            </p>
+            {Object.entries(runtimes).map(([type, profiles]) => (
+                <details key={type} className="env-runtime">
+                    <summary>
+                        <span className="mono">{type}</span>
+                        <span className="muted">
+                            {' '}
+                            ·{' '}
+                            {Array.isArray(profiles) && profiles.length
+                                ? profiles.join(', ')
+                                : zh
+                                  ? '仅代理'
+                                  : 'proxy only'}
+                        </span>
+                    </summary>
+                    <VariableTable target={target} profiles={profiles} />
+                </details>
+            ))}
+            {legend}
+        </div>
+    )
+}
 
 export function Settings({ onClose, onRules }: { onClose(): void; onRules(): void }) {
     const zh = document.documentElement.lang.toLowerCase().startsWith('zh')
     const [values, setValues] = useState<Record<string, unknown>>()
+    const [target, setTarget] = useState<CaptureTarget>()
     const [drafts, setDrafts] = useState<Record<string, string>>({})
     const [status, setStatus] = useState('')
     const [pending, setPending] = useState(false)
@@ -38,6 +137,7 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
             const message = event.data
             if (message.type !== 'settings') return
             setValues(message.values)
+            if (message.target) setTarget(message.target)
             if (message.saved || message.error) {
                 setPending(false)
                 setStatus(message.error || (zh ? '已保存' : 'Saved'))
@@ -214,6 +314,16 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                         : ''}
                                                 </small>
                                             )}
+                                            {target &&
+                                                (key === 'terminal.profiles' ||
+                                                    key === 'debug.runtimes') && (
+                                                    <EnvironmentPreview
+                                                        settingKey={key}
+                                                        value={value}
+                                                        target={target}
+                                                        zh={zh}
+                                                    />
+                                                )}
                                             <button
                                                 type="button"
                                                 className="button"

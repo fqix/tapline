@@ -392,33 +392,171 @@ pre.body.hex {
 .editor {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    min-height: 0;
 }
-.editor-line {
+/* Method, URL and the action fused into one bar. */
+.request-line {
     display: flex;
-    gap: 6px;
-    align-items: center;
+    align-items: stretch;
+    height: 28px;
+    border: 1px solid var(--vscode-input-border, var(--border));
+    border-radius: var(--radius);
+    background: var(--vscode-input-background);
+    overflow: hidden;
 }
-.editor-line input[type='text'] {
+.request-line:focus-within {
+    border-color: var(--vscode-focusBorder);
+}
+.request-line select,
+.request-line input[type='text'],
+.request-line input[type='number'] {
+    border: none;
+    border-radius: 0;
+    background: none;
+    height: auto;
+}
+.request-line select:focus,
+.request-line input:focus {
+    outline: none;
+}
+.request-line select {
+    flex: none;
+    padding: 0 22px 0 10px;
+    border-right: 1px solid var(--vscode-input-border, var(--border));
+    font-weight: 600;
+    background: var(--vscode-dropdown-background);
+}
+.request-line input[type='text'] {
     flex: 1;
+    padding: 0 10px;
 }
-.editor-line .status-input {
-    width: 80px;
+.request-line .status-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 1px solid var(--vscode-input-border, var(--border));
 }
-.editor-label {
+.request-line .status-input {
+    width: 90px;
+    padding: 0 10px;
+}
+.request-line .button {
+    height: auto;
+    border: none;
+    border-left: 1px solid var(--vscode-input-border, var(--border));
+    border-radius: 0;
+    padding: 0 12px;
+}
+.request-line .button kbd {
+    font: inherit;
+    font-size: var(--font-size-small);
+    opacity: 0.7;
+    margin-left: 2px;
+}
+.editor-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
     margin-top: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.editor-tabs button[role='tab'] {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 8px;
+    border: none;
+    border-bottom: 1px solid transparent;
+    margin-bottom: -1px;
+    background: none;
     font-size: var(--font-size-small);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
+    color: var(--vscode-panelTitle-inactiveForeground, var(--vscode-descriptionForeground));
 }
-.editor textarea {
+.editor-tabs button[role='tab']:hover,
+.editor-tabs button[role='tab'].active {
+    color: var(--vscode-panelTitle-activeForeground, var(--vscode-foreground));
+}
+.editor-tabs button[role='tab'].active {
+    border-bottom-color: var(--vscode-panelTitle-activeBorder, var(--vscode-focusBorder));
+}
+.editor-page {
+    padding: 8px 0 0;
+}
+.editor-page textarea {
     width: 100%;
+    display: block;
 }
-.editor-actions {
-    display: flex;
+.editor-note {
+    margin: 4px 0 8px;
+}
+.json-state {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 4px;
+    margin-right: 4px;
+    font-size: var(--font-size-small);
+    color: var(--vscode-descriptionForeground);
+}
+.json-state.ok .codicon {
+    color: var(--ok);
+}
+.json-state.bad {
+    color: var(--bad);
+}
+.json-state .codicon {
+    font-size: 12px;
+}
+/* curl import box above the editor. */
+.curl-import {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+}
+.curl-import textarea {
+    width: 100%;
+    resize: vertical;
+}
+.curl-import-actions {
+    display: flex;
+    gap: 6px;
+}
+/* Name/value rows for headers and query parameters. */
+.pairs-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.pairs-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 2fr) minmax(160px, 5fr) 24px;
+    gap: 4px;
+    align-items: center;
+}
+.pairs-row.sentinel input {
+    opacity: 0.75;
+}
+.pairs-row.sentinel input:focus {
+    opacity: 1;
+}
+.pairs-remove {
+    display: flex;
+    justify-content: center;
+    opacity: 0;
+}
+.pairs-row:hover .pairs-remove,
+.pairs-row:focus-within .pairs-remove {
+    opacity: 1;
+}
+.pairs-remove .icon-button {
+    height: 20px;
+    min-width: 20px;
 }
 .breakpoint {
     margin: 8px 12px;

@@ -26,8 +26,8 @@ export const settingsCatalog: Record<
     },
     'terminal.profiles': {
         category: 'environment',
-        en: 'Terminal trust profiles',
-        zh: '终端信任配置'
+        en: 'Environment variables for new terminals',
+        zh: '新终端注入的环境变量'
     },
     'debug.inject': {
         category: 'environment',
@@ -36,8 +36,8 @@ export const settingsCatalog: Record<
     },
     'debug.runtimes': {
         category: 'environment',
-        en: 'Debug runtime profiles',
-        zh: '调试运行时配置'
+        en: 'Environment variables for debug sessions',
+        zh: '调试会话注入的环境变量'
     },
     'mcp.enabled': { category: 'mcp', en: 'Enable MCP server', zh: '启用 MCP 服务' },
     'mcp.port': { category: 'mcp', en: 'MCP port', zh: 'MCP 端口' },

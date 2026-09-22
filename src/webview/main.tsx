@@ -12,7 +12,9 @@ const settingsView = document.body.dataset.view === 'settings'
 // The panel offers its own copy actions (which go through the extension host); the
 // browser's cut / copy / paste — keyboard shortcuts, the context menu and drag-drop —
 // are blocked so nothing leaves or enters the webview through the system clipboard.
-// Elements marked `data-clipboard` (header tables) keep native selection and copy.
+// Elements marked `data-clipboard` (header tables, the request editor) keep the native
+// clipboard: tables for selection and copy, the editor so a URL, a body or a whole curl
+// command can be pasted in.
 const exempt = (event: Event) =>
     settingsView || (event.target instanceof Element && !!event.target.closest('[data-clipboard]'))
 const block = (event: Event) => {
@@ -25,7 +27,7 @@ document.addEventListener(
     (event) => {
         if (settingsView) return
         if ((event.metaKey || event.ctrlKey) && ['c', 'x', 'v'].includes(event.key.toLowerCase()))
-            if (!(event.key.toLowerCase() === 'c' && exempt(event))) event.preventDefault()
+            if (!exempt(event)) event.preventDefault()
     },
     true
 )
