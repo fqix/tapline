@@ -8,9 +8,14 @@ All notable changes to Tapline are documented here. The format follows
 ### Removed
 
 - The shared capture mode and its `tapline.isolateWindows` setting: every window is
-  its own capture session (the previous default). `tapline.port` is now the preferred
-  port of each window, tried when capture starts; when another window or program holds
-  it a free port is used instead. Changing it takes effect at the next start.
+  its own capture session (the previous default) on an OS-assigned port.
+- `tapline.port`, `tapline.ssl.enabled`, `tapline.terminal.inject` and
+  `tapline.debug.inject`: the port is always assigned automatically, HTTPS decryption
+  and injection into terminals and debug sessions are always on. Set
+  `tapline.ssl.hosts` to `[]` to capture without decryption (and without a trusted
+  certificate); `tapline.terminal.profiles` still chooses what terminals get.
+- `tapline.debug.runtimes`: debug sessions get the built-in variable set for their
+  configuration type (Node, Python, Java, Go, …).
 
 ### Added
 
@@ -20,7 +25,7 @@ All notable changes to Tapline are documented here. The format follows
 ### Changed
 
 - The terminal and debug environment settings show the environment variables they
-  resolve to on this machine (per debug type for `tapline.debug.runtimes`) and explain
+  resolve to on this machine and explain
   what each profile name stands for, instead of only listing profile names.
 - The composer and breakpoint editor: method, URL and _Send_ share one request bar
   (with the method in its colour and a ⌘↩ / Ctrl+↩ hint); Params, Headers and Body are

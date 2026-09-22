@@ -40,9 +40,9 @@ the original, decode grpcbin fields with the workspace `.proto`._
   words match URL, method or status. _Statistics_ summarises the filtered rows per host.
 - **Rules** — breakpoints, rewrite, map local, map remote, block and throttle
   ([below](#rules)).
-- **Compose and compare** — write a request or _Edit & Resend_ a captured one; compare
-  any two rows, or a replay with its original, in the native diff editor. Notes and
-  markers annotate requests for the session.
+- **Compose and compare** — write a request, paste a curl command, or _Edit & Resend_ a
+  captured one; compare any two rows, or a replay with its original, in the native diff
+  editor. Notes and markers annotate requests for the session.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, … configurable) get `HTTP(S)_PROXY` plus the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
@@ -50,7 +50,7 @@ the original, decode grpcbin fields with the workspace `.proto`._
 - **Root certificate** — install, trust and uninstall the CA in the OS store on macOS,
   Windows and Linux with one click ([below](#root-certificate)).
 - **One capture per window** — every VS Code window has its own traffic, controls and
-  proxy port (`tapline.port` when free, otherwise an OS-assigned one); windows in the
+  OS-assigned proxy port; windows in the
   same extension storage share one sing-box process and CA, and the last window to
   close shuts them down.
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other assistants can list,
@@ -65,11 +65,9 @@ in the same VS Code profile; `settings.json` is not used.
 
 | Setting                                     | Default          | Purpose                                           |
 | ------------------------------------------- | ---------------- | ------------------------------------------------- |
-| `tapline.port`                              | `3606`           | Preferred proxy port; a free one when it is taken |
 | `tapline.autoStart`                         | `false`          | Start capture when VS Code opens                  |
-| `tapline.terminal.inject`                   | `true`           | Inject variables into new terminals               |
-| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | Inject into launched debug sessions               |
-| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | Which hosts are decrypted                         |
+| `tapline.terminal.profiles`                 | openssl, git     | Variables injected into new terminals             |
+| `tapline.ssl.hosts`                         | `["*"]`          | Which hosts are decrypted (`[]` for none)         |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Requests kept and body bytes retained             |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants                    |
 | `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages                |
@@ -124,8 +122,8 @@ overview.
 ## Root certificate
 
 The CA lives in the extension's global storage (_Tapline: Copy Root Certificate Path_).
-With `tapline.ssl.enabled` on, capture starts only once the OS trusts it; the sidebar and
-status bar offer to install it, and _Tapline: Uninstall Root Certificate_ removes it.
+Capture starts only once the OS trusts it; the sidebar and status bar offer to install
+it, and _Tapline: Uninstall Root Certificate_ removes it.
 
 | Platform | Store                                                           |
 | -------- | --------------------------------------------------------------- |
@@ -134,7 +132,7 @@ status bar offer to install it, and _Tapline: Uninstall Root Certificate_ remove
 | Linux    | distribution anchor directory + update command, run with `sudo` |
 
 Firefox and snap/flatpak browsers keep their own stores and need a manual import. Set
-`tapline.ssl.enabled` to `false` to capture without decryption or any certificate.
+`tapline.ssl.hosts` to `[]` to capture without decryption or any certificate.
 
 ## MCP server
 

@@ -126,8 +126,9 @@ export class CertificateTrust implements vscode.Disposable {
         return this.serial(async () => this.refresh(await this.open()))
     }
 
+    /** No host to decrypt means no certificate is involved. */
     private required() {
-        return preferences.get<boolean>('ssl.enabled', true)
+        return preferences.get<string[]>('ssl.hosts', ['*']).length > 0
     }
 
     /**

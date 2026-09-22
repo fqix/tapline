@@ -43,8 +43,9 @@ await build({
     logLevel: 'info'
 })
 
-// Fresh user profile exercises legacy global-setting migration. Fixed ports away from the defaults so a developer's own capture
-// (3606/3607) never collides, and TLS decryption off so capture starts without a CA.
+// Fresh user profile exercises legacy global-setting migration. A fixed MCP port away
+// from the default so a developer's own agent never collides, and no host to decrypt so
+// capture starts without a trusted CA.
 const workspace = join(OUT, 'e2e-workspace')
 const userSettings = join(OUT, 'e2e-user-data', 'User')
 mkdirSync(userSettings, { recursive: true })
@@ -53,13 +54,9 @@ writeFileSync(
     join(userSettings, 'settings.json'),
     JSON.stringify(
         {
-            'tapline.isolateWindows': false,
-            'tapline.port': 3626,
             'tapline.mcp.port': 3627,
-            'tapline.ssl.enabled': false,
+            'tapline.ssl.hosts': [],
             'tapline.autoStart': false,
-            'tapline.terminal.inject': false,
-            'tapline.debug.inject': false,
             'tapline.rules': []
         },
         null,

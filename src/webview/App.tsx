@@ -36,7 +36,9 @@ export function App() {
         pane,
         setPane,
         draft,
-        setDraft
+        setDraft,
+        curlImport,
+        setCurlImport
     } = useTraffic()
     const [layout, setLayoutState] = useState<Layout>(() => state().layout ?? 'stacked')
     const [sort, setSort] = useState<Sort>(defaultSort)
@@ -149,7 +151,16 @@ export function App() {
         pane === 'rules' ? (
             <Rules rules={rules} onChange={setRules} onClose={closePane} />
         ) : pane === 'composer' ? (
-            <Composer draft={draft ?? emptyDraft} onChange={setDraft} onClose={closePane} />
+            <Composer
+                draft={draft ?? emptyDraft}
+                onChange={setDraft}
+                onClose={closePane}
+                curlImport={curlImport}
+                onImportCurl={(text) => {
+                    setCurlImport(undefined)
+                    vscode.postMessage({ type: 'importCurl', text })
+                }}
+            />
         ) : pane === 'stats' ? (
             <Stats rows={visible} onSelect={focusRow} onHost={showHost} onClose={closePane} />
         ) : detail ? (

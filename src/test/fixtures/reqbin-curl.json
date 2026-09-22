@@ -1,0 +1,2692 @@
+{
+    "index": "https://reqbin.com/curl",
+    "retrieved": "2026-09-22",
+    "pages": [
+        {
+            "title": "How do I send a GET request using Curl?",
+            "url": "https://reqbin.com/req/c-1n4ljxb9/curl-get-request-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Cache-Control: must-revalidate\"\n   -H \"Pragma: no-cache\"\n   -H \"Expires: 0\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cache-control": "must-revalidate",
+                            "pragma": "no-cache",
+                            "expires": "0"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -I https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   -H \"Accept: application/json\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "accept": "application/json"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -I --http2 https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -b \"session=eJwlzj0wMQG7eO4Q\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cookie": "session=eJwlzj0wMQG7eO4Q"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -r 0-15000",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "range": "bytes=0-15000"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   --limit-rate 50K",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--limit-rate"]
+                },
+                {
+                    "command": "curl -L https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I send a Curl request with a bearer token authorization header?",
+            "url": "https://reqbin.com/req/c-hlt4gkzd/curl-bearer-token-authorization-header-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   -H \"Accept: application/json\"\n   -H \"Authorization: Bearer {token}\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "accept": "application/json",
+                            "authorization": "Bearer {token}"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n     -H \"Authorization: Basic {base64string}\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Basic {base64string}"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n     -H \"Authorization: Bearer {token}\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Bearer {token}"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/get/json\n     -H \"Authorization: Bearer {token}\"\n     -d \"[post data]\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Bearer {token}",
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "[post data]"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I download a file using Curl?",
+            "url": "https://reqbin.com/req/c-egazzayq/curl-download-file",
+            "examples": [
+                {
+                    "command": "curl -o filename.txt https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -o [file name] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -o page.html https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL-1] [URL-2] [URL-3]\n   -o [file-name-1]\n   -o [file-name-2]\n   -o [file-name-3]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -# -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -s -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --limit-rate 100k -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to post JSON using Curl?",
+            "url": "https://reqbin.com/req/c-dwjszac0/curl-post-json-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -d '{\"login\":\"my_login\",\"password\":\"my_password\"}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST [URL]\n     -H \"Content-Type: application/json\"\n     -d \"[JSON data]\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n     -H 'Content-Type: application/json'\n     -d '{\"name\":\"Leo\",\"age\":26}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"name\":\"Leo\",\"age\":26}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n     -H \"Content-Type: application/json\"\n     -d @filename",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "@filename"
+                    },
+                    "missingFiles": ["filename"]
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n     -H 'Content-Type: application/json'\n     -d '{\"message\":\"Hello World!\",\"special_characters\":\"\\/\\r\\n\\t\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"message\":\"Hello World!\",\"special_characters\":\"\\/\\r\\n\\t\"}"
+                    }
+                },
+                {
+                    "command": "curl --json '{\"login\":\"my_login\",\"password\":\"my_password\"}' https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "accept": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I post request body with Curl?",
+            "url": "https://reqbin.com/req/c-d2nzjn3z/curl-post-body",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d '{\"productId\": 123456, \"quantity\": 100}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"productId\": 123456, \"quantity\": 100}"
+                    }
+                },
+                {
+                    "command": "curl -d @file.name https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@file.name"
+                    },
+                    "missingFiles": ["file.name"]
+                },
+                {
+                    "command": "curl -H \"Content-Type: application/json\"\n   -d '[post data]'\n   https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "[post data]"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d '{\"productId\": 1, \"quantity\": 10}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"productId\": 1, \"quantity\": 10}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/form\n   -H \"Content-Type: application/x-www-form-urlencoded\"\n   -d \"param1=value1&param2=value2\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/form",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "param1=value1&param2=value2"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/xml\n   -H \"Content-Type: application/xml\"\n   -d \"<Request><Login>my_login</Login><Password>my_password</Password></Request>\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/xml",
+                        "headers": {
+                            "content-type": "application/xml"
+                        },
+                        "body": "<Request><Login>my_login</Login><Password>my_password</Password></Request>"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post -d @data.txt",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@data.txt"
+                    },
+                    "missingFiles": ["data.txt"]
+                }
+            ]
+        },
+        {
+            "title": "How do I send Basic Auth Credentials with Curl?",
+            "url": "https://reqbin.com/req/c-haxm0xgr/curl-basic-auth-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n   -u \"login:password\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "authorization": "Basic bG9naW46cGFzc3dvcmQ="
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -u \"login:password\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Authorization: Basic bG9naW46cGFzc3dvcmQ=\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "authorization": "Basic bG9naW46cGFzc3dvcmQ="
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I post a request using Curl?",
+            "url": "https://reqbin.com/req/c-g5d14cew/curl-post-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json -d \"key=value\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "key=value"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: multipart/form-data\"\n   -d '[post data]'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "multipart/form-data"
+                        },
+                        "body": "[post data]"
+                    }
+                },
+                {
+                    "command": "curl -X POST -H \"[content type]\" -d \"[post data]\" [options] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d '{\"Id\": 79, \"status\": 3}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"Id\": 79, \"status\": 3}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -d '{\"e-mail\":\"my_mail\",\"password\":\"my_password\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"e-mail\":\"my_mail\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/form\n   -H \"Content-Type: application/x-www-form-urlencoded\"\n   -d \"key1=value1&key2=value2\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/form",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "key1=value1&key2=value2"
+                    }
+                },
+                {
+                    "command": "curl -d @data.json https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@data.json"
+                    },
+                    "missingFiles": ["data.json"]
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/xml\n   -H \"Content-Type: application/xml\"\n   -d \"<Request><Id>1</Id><User>Leo</User></Request>\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/xml",
+                        "headers": {
+                            "content-type": "application/xml"
+                        },
+                        "body": "<Request><Id>1</Id><User>Leo</User></Request>"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   --user \"login:password\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "authorization": "Basic bG9naW46cGFzc3dvcmQ="
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I post form data using Curl?",
+            "url": "https://reqbin.com/req/c-sma2qrvp/curl-post-form-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/form\n   -H \"Content-Type: application/x-www-form-urlencoded\"\n   -d \"param1=value1&param2=value2\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/form",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "param1=value1&param2=value2"
+                    }
+                },
+                {
+                    "command": "curl [URL] -d \"key1=value1&key2=value2\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST [URL]\n   -H \"Content-Type: application/x-www-form-urlencoded\"\n   -d \"key1=value1&key2=value2\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL] -F name=John -F [email protected]",
+                    "primary": false,
+                    "excluded": "Source email/file value is redacted by the website; not a complete command."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/post/form\n   -d \"key1=value1&key2=value2\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/form",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "key1=value1&key2=value2"
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/post/form\n   -F key1=value1\n   -F key2=value2\n   -F [email protected]",
+                    "primary": false,
+                    "excluded": "Source email/file value is redacted by the website; not a complete command."
+                }
+            ]
+        },
+        {
+            "title": "How do I post a file using Curl?",
+            "url": "https://reqbin.com/req/c-dot4w5a2/curl-post-file",
+            "examples": [
+                {
+                    "command": "curl -d @data.json\n     https://reqbin.com/echo/post/json",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@data.json"
+                    },
+                    "missingFiles": ["data.json"]
+                },
+                {
+                    "command": "curl -X PUT -d '{\"id\": 1}' https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "{\"id\": 1}"
+                    }
+                },
+                {
+                    "command": "curl -d @path/to/data.json https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@path/to/data.json"
+                    },
+                    "missingFiles": ["path/to/data.json"]
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/post/json\n   -d @path/to/data.json\n   -H \"Content-Type: application/javascript\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/javascript"
+                        },
+                        "body": "@path/to/data.json"
+                    },
+                    "missingFiles": ["path/to/data.json"]
+                },
+                {
+                    "command": "curl -d @filename [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -F logo=@filename [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I get JSON with Curl?",
+            "url": "https://reqbin.com/req/c-vdhoummp/curl-get-json-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   -H \"Accept: application/json\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "accept": "application/json"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl [options] URL",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/xml\n   -H \"Accept: application/xml\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/xml",
+                        "headers": {
+                            "accept": "application/xml"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Accept: text/html\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "accept": "text/html"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I make HTTPS requests with Curl?",
+            "url": "https://reqbin.com/req/c-lfozgltr/curl-https-request",
+            "examples": [
+                {
+                    "command": "curl -k https://expired.badssl.com",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -k https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -E cerfile.crt https://reqbin.com/echo\ncurl --cert cerfile.crt https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["-E", "multiple-commands"]
+                },
+                {
+                    "command": "curl --cacert mycompany.cert  https://www.mycompany.com/internal",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://www.mycompany.com/internal",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--cacert"]
+                }
+            ]
+        },
+        {
+            "title": "20 Most Popular Curl Flags",
+            "url": "https://reqbin.com/req/c-skhwmiil/curl-flags-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --help\ncurl -h",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -h [category]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -h [all]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -o [file name] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X [method] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -I [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -d \"key1=value1&key2=value2\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -k [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -u [user:password] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -F @field_name=@path/to/myFile",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --cookie \"Name=Value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -x \"[protocol://][host][:port]\" [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --limit-rate [speed] -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -L [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -v [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -m [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --connect-timeout [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -T [file name] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -H \"X-Header: value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -D [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -A \"value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -C [OFFSET] -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to send PUT request using Curl?",
+            "url": "https://reqbin.com/req/c-d4os3720/curl-put-example",
+            "examples": [
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -d \"PUT request data\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "PUT request data"
+                    }
+                },
+                {
+                    "command": "curl -X PUT [URL]\n   -H \"Content-Type: [content type]\"\n   -d \"[request data]\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -H \"Content-Type: application/json\"\n    -d '{\"key\": \"value\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"key\": \"value\"}"
+                    }
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -H \"Authorization: Bearer YOUR_ACCESS_TOKEN\"\n    -H \"Content-Type: application/json\"\n    -d '{\"key\": \"value\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {
+                            "authorization": "Bearer YOUR_ACCESS_TOKEN",
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"key\": \"value\"}"
+                    }
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    --data-raw \"Raw data\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "Raw data"
+                    }
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -F \"[email protected] \"",
+                    "primary": false,
+                    "excluded": "Source email/file value is redacted by the website; not a complete command."
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -d @path/to/file.json",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "@path/to/file.json"
+                    },
+                    "missingFiles": ["path/to/file.json"]
+                },
+                {
+                    "command": "curl -X PUT https://reqbin.com/echo/put/json\n    -F \"file=@path/to/file.json\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "PUT",
+                        "url": "https://reqbin.com/echo/put/json",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "forms": ["file=@path/to/file.json"],
+                    "limitations": ["multipart file"]
+                }
+            ]
+        },
+        {
+            "title": "How do I send Cookies with Curl?",
+            "url": "https://reqbin.com/req/c-bjcj04uw/curl-send-cookies-example",
+            "examples": [
+                {
+                    "command": "curl -b \"cookie_name=cookie_value\" https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cookie": "cookie_name=cookie_value"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --cookie \"Name=Value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -c cookies.txt [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -b \"name=value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -b \"cookie1_name=cookie1_value;cookie2_name=cookie2_value\" https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cookie": "cookie1_name=cookie1_value;cookie2_name=cookie2_value"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -b cookies.txt https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["cookie-file"]
+                }
+            ]
+        },
+        {
+            "title": "How do I convert Curl to HTTP Request?",
+            "url": "https://reqbin.com/req/c-w7oitglz/convert-curl-to-http-request",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n     -H \"Content-Type: application/json\"\n     -H \"Accept: application/json\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "accept": "application/json"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -d [POST data] https://reqbin.com/echo/post/form",
+                    "primary": false,
+                    "excluded": "Unquoted [POST data] is a syntax placeholder, not runnable request data."
+                }
+            ]
+        },
+        {
+            "title": "How do I use Curl with SSL connections?",
+            "url": "https://reqbin.com/req/c-bw1fsypn/curl-ssl-request",
+            "examples": [
+                {
+                    "command": "curl -k https://expired.badssl.com",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -k [URL] [URL]\ncurl --insecure [options] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --insecure https://expired.badssl.com",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --cert certificate.pem https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--cert"]
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n     --cert certificate.pem:mypassword",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--cert"]
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n     --cacert self-signed.crt",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--cacert"]
+                }
+            ]
+        },
+        {
+            "title": "How to follow redirects using Curl?",
+            "url": "https://reqbin.com/req/c-bvijc9he/curl-follow-redirect",
+            "examples": [
+                {
+                    "command": "curl https://www.reqbin.com/echo -L",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://www.reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -L --max-redirs 5 http://www.reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "http://www.reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--max-redirs"]
+                },
+                {
+                    "command": "curl -L [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -L\n   --location-trusted\n   -u \"user:password\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "authorization": "Basic dXNlcjpwYXNzd29yZA=="
+                        },
+                        "body": ""
+                    },
+                    "limitations": ["--location-trusted"]
+                },
+                {
+                    "command": "curl -L --max-redirs 10 [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -L --max-redirs -1 [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -L --post301 [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL]\n   --location\n   --location-trusted\n   --user \"user:password\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I send a HEAD request using Curl?",
+            "url": "https://reqbin.com/req/c-tmyvmbgu/curl-head-request-example",
+            "examples": [
+                {
+                    "command": "curl -I https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -I [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -I https://reqbin.com/echo\n\ncurl --head https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["multiple-commands"]
+                },
+                {
+                    "command": "curl -X HEAD",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to send HTTP header with Curl request?",
+            "url": "https://reqbin.com/req/c-ea0d5rlb/curl-send-header-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/post/json\n   -H 'X-Custom-Header: value'\n   -H 'Content-Type: application/json'\n   -d '{\"Id\": 1}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "x-custom-header": "value",
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"Id\": 1}"
+                    }
+                },
+                {
+                    "command": "curl [URL] -H \"Accept: application/json\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL]\n   -H \"Content-Type: application/json\"\n   -H \"Accept: application/json\"\n   -d \"[json data]\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -I https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Accept: application/json'\n   -H 'Content-Type: application/json'\n   -d '{\"id\": \"12345\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "accept": "application/json",
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"id\": \"12345\"}"
+                    }
+                },
+                {
+                    "command": "curl -v https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   -H \"X-Custom-Header: value\"\n   -H \"Content-Type: application/json\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "x-custom-header": "value",
+                            "content-type": "application/json"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -H \"User-Agent:\" https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "absentHeaders": ["user-agent"]
+                },
+                {
+                    "command": "curl -i https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I post XML using Curl?",
+            "url": "https://reqbin.com/req/c-yzrfjhug/curl-post-xml-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/xml\n   -H \"Content-Type: application/xml\"\n   -H \"Accept: application/xml\"\n   -d \"<Request><Login>my_login</Login><Password>my_password</Password></Request>\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/xml",
+                        "headers": {
+                            "content-type": "application/xml",
+                            "accept": "application/xml"
+                        },
+                        "body": "<Request><Login>my_login</Login><Password>my_password</Password></Request>"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/xml\n  -H \"Content-Type: application/xml\"\n  -H \"Accept: application/xml\"\n  -d \"<xml>....</xml>\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/xml",
+                        "headers": {
+                            "content-type": "application/xml",
+                            "accept": "application/xml"
+                        },
+                        "body": "<xml>....</xml>"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to send a Curl request with username and password?",
+            "url": "https://reqbin.com/req/c-fkj7kdqi/curl-request-with-credentials",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n\t--user \"name:password\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Basic bmFtZTpwYXNzd29yZA=="
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   --user \"name:password\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Basic bmFtZTpwYXNzd29yZA=="
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --proxy-user \"user:password\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --cookie \"authCookie=my_auth_cookie\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to set the User-Agent string in Curl?",
+            "url": "https://reqbin.com/req/c-ekublyqq/curl-user-agent",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n   -A \"ReqBin Curl Client/1.0\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "user-agent": "ReqBin Curl Client/1.0"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -A \"product/version\" [URL]\ncurl --user-agent \"product/version\" [URL]\ncurl -H \"User-Agent: product/version\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -H \"User-Agent:\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --user-agent \"ReqBin/1.0\" https://reqbin.com/echo\"",
+                    "primary": false,
+                    "error": "quote"
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -A \"User-Agent String\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "user-agent": "User-Agent String"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "Top 12 Curl Commands",
+            "url": "https://reqbin.com/req/c-kdnocjul/curl-commands",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --version",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [options] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -o logo.png https://reqbin.com/static/img/logo.png",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/static/img/logo.png",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -O https://reqbin.com/static/img/code/curl.png\n   -O https://reqbin.com/static/img/code/java.png\n   -O https://reqbin.com/static/img/code/python.png",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/static/img/code/curl.png",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["multiple-urls", "multiple-urls"]
+                },
+                {
+                    "command": "curl -I https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --http2 https://reqbin.com",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -L http://www.reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "http://www.reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -x proxy.domain.com:8080 -U user:password https://reqbin.com",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["-x", "-U"]
+                },
+                {
+                    "command": "curl -H \"Accept: application/json\" https://reqbin.com/echo/get/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "accept": "application/json"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -d '{\"id\": 123456}'\n   -H \"Content-Type: application/json\"\n   https://reqbin.com/echo/post/json",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"id\": 123456}"
+                    }
+                },
+                {
+                    "command": "curl --user-agent \"MyAppName 1.0\" https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "user-agent": "MyAppName 1.0"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -b \"name1=value1; name2=value2\" https://reqbin.com",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com",
+                        "headers": {
+                            "cookie": "name1=value1; name2=value2"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I set the content type for a Curl request?",
+            "url": "https://reqbin.com/req/c-woh4qwov/curl-content-type",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -H 'Accept: application/json'\n   -d '{\"Id\": 78912, \"Quantity\": 1, \"Price\": 19.00}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "accept": "application/json"
+                        },
+                        "body": "{\"Id\": 78912, \"Quantity\": 1, \"Price\": 19.00}"
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -d '{\"Id\": 78912, \"Quantity\": 1,\n\"Price\": 19.00}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"Id\": 78912, \"Quantity\": 1,\n\"Price\": 19.00}"
+                    }
+                },
+                {
+                    "command": "curl -H \"Content-Type: mime type\"\n   -d \"[request data]\"\n   [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -d '{\"id\": 1}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"id\": 1}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/xml\n   -H 'Content-Type: application/xml'\n   -d \"1\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/xml",
+                        "headers": {
+                            "content-type": "application/xml"
+                        },
+                        "body": "1"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I get XML using Curl?",
+            "url": "https://reqbin.com/req/c-eanbjsr1/curl-get-xml-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/xml\n   -H \"Accept: application/xml\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/xml",
+                        "headers": {
+                            "accept": "application/xml"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl [URL] -H \"Accept: application/xml\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST [URL]\n   -H \"Content-Type: application/xml\"\n   -H \"Accept: application/xml\"\n   -d \"[xml_data]\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I use curl -k option?",
+            "url": "https://reqbin.com/req/c-vq73orsy/curl--k",
+            "examples": [
+                {
+                    "command": "curl -k https://expired.badssl.com",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://badssl.com/",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://badssl.com/",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl: (60) SSL certificate problem: unable to get local issuer certificate",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -k https://badssl.com/",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://badssl.com/",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -k -o page.html https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I use curl -u option?",
+            "url": "https://reqbin.com/req/c-qjaws1fh/curl--u",
+            "examples": [
+                {
+                    "command": "curl -u \"login:password\" https://reqbin.com/echo/get/json",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "authorization": "Basic bG9naW46cGFzc3dvcmQ="
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -u \"login:password\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I use curl -d option?",
+            "url": "https://reqbin.com/req/c-bf0dgjoq/curl--d",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/post/form\n\t -d \"key=value&key2=value2\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/form",
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded"
+                        },
+                        "body": "key=value&key2=value2"
+                    }
+                },
+                {
+                    "command": "curl -X POST -H \"[content type]\" -d \"[post data]\" [options] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d '{\"position\": 1, \"amount\": 10}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"position\": 1, \"amount\": 10}"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How can I send a CORS request using Curl?",
+            "url": "https://reqbin.com/req/c-taimahsa/curl-cors-request",
+            "examples": [
+                {
+                    "command": "curl -H \"Origin: https://example.reqbin.com\"\n   https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "origin": "https://example.reqbin.com"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -H \"Origin: [Origin]\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -H \"Origin: https://example.reqbin.com\" https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "origin": "https://example.reqbin.com"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Origin: https://example.reqbin.com\"\n   --verbose",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "origin": "https://example.reqbin.com"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Origin: https://example.reqbin.com\"\n   -H \"Access-Control-Request-Method: POST\"\n   -H \"Access-Control-Request-Headers: X-Requested-With\"\n   -X OPTIONS",
+                    "primary": false,
+                    "expected": {
+                        "method": "OPTIONS",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "origin": "https://example.reqbin.com",
+                            "access-control-request-method": "POST",
+                            "access-control-request-headers": "X-Requested-With"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "Howto make POST request with basic authentication credentials using Curl?",
+            "url": "https://reqbin.com/req/c-2cd3jxee/curl-post-with-basic-authentication-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d '{\"login\":\"my_login\",\"password\":\"my_password\"}'\n   --user \"login:password\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "authorization": "Basic bG9naW46cGFzc3dvcmQ="
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST [URL]\n     -H [header]\n     -d [post_data]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --user \"login:password\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST [URL]\n   -H \"Content-Type: application/json\"\n   -d \"{post_data}\"\n   --user \"login:password\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I run Curl on Windows?",
+            "url": "https://reqbin.com/req/c-g95rmxs0/curl-for-windows",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to set a timeout for a Curl request?",
+            "url": "https://reqbin.com/req/c-70cqyayb/curl-timeout",
+            "examples": [
+                {
+                    "command": "curl --connect-timeout 5 https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --connect-timeout [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --max-time [SECONDS] [URL]\ncurl -m [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --max-time 10 https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   --connect-timeout 5\n   --max-time 10",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   --speed-limit 5000\n   --speed-time 15",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--speed-limit", "--speed-time"]
+                },
+                {
+                    "command": "curl --keepalive-time 180 https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--keepalive-time"]
+                },
+                {
+                    "command": "curl --no-keepalive https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--no-keepalive"]
+                }
+            ]
+        },
+        {
+            "title": "How do I send a DELETE request using Curl?",
+            "url": "https://reqbin.com/req/c-1dw4uds4/curl-delete-request-example",
+            "examples": [
+                {
+                    "command": "curl -X DELETE https://reqbin.com/echo/delete/json",
+                    "primary": true,
+                    "expected": {
+                        "method": "DELETE",
+                        "url": "https://reqbin.com/echo/delete/json",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -X DELETE [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X DELETE http://reqbin.com/echo/delete/json?id=1\n   -H \"Accept: application/json\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "DELETE",
+                        "url": "http://reqbin.com/echo/delete/json?id=1",
+                        "headers": {
+                            "accept": "application/json"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I use Curl with a proxy?",
+            "url": "https://reqbin.com/req/c-ddxflki5/curl-proxy-server",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n   -x myproxy.com:8080\n   -U login:password",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["-x", "-U"]
+                },
+                {
+                    "command": "curl -x \"[protocol://][host][:port]\" [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -x \"[protocol://][host][:port]\" -k [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --noproxy \"*\" https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["--noproxy"]
+                },
+                {
+                    "command": "curl -x \"[socks5://][host][:port]\" [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --socks5 \"[host][:port]\" [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -x \"[protocol://][host][:port]\" [URL] -U login:password",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "The most popular Curl examples",
+            "url": "https://reqbin.com/req/c-s3bfyrby/curl-examples",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl [options] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -h",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X POST [URL]\n     -H \"Content-Type: application/json\"\n     -d \"[JSON data]\"",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL] -d \"key1=value1&key2=value2\"\ncurl [URL] -F key1=value1 -F key2=value2 -F key2=@filename",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --cookie \"name=value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -k [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -I https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "HEAD",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -O [URL1] -O [URL2]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -u username:password [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -L [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -x [protocol://][host][:port] -U user:password [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -v [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How do I send OPTIONS request using Curl?",
+            "url": "https://reqbin.com/req/c-d8nxa0fl/curl-options-request",
+            "examples": [
+                {
+                    "command": "curl https://api.reqbin.com/api/v1/requests\n   -X OPTIONS\n   -H \"Access-Control-Request-Method: POST\"\n   -H \"Access-Control-Request-Headers: content-type\"\n   -H \"Origin: https://reqbin.com\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "OPTIONS",
+                        "url": "https://api.reqbin.com/api/v1/requests",
+                        "headers": {
+                            "access-control-request-method": "POST",
+                            "access-control-request-headers": "content-type",
+                            "origin": "https://reqbin.com"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl [URL] -X OPTIONS [HEADERS]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://api.reqbin.com/api/v1/requests\n   -X OPTIONS\n   -H \"Access-Control-Request-Method: POST\"\n   -H \"Origin: https://reqbin.com\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "OPTIONS",
+                        "url": "https://api.reqbin.com/api/v1/requests",
+                        "headers": {
+                            "access-control-request-method": "POST",
+                            "origin": "https://reqbin.com"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to send a PATCH request using Curl?",
+            "url": "https://reqbin.com/req/c-90t7l4bk/curl-patch-request",
+            "examples": [
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/json\n     -H 'Content-Type: application/json'\n     -H 'Accept: application/json'\n     -d '{\"Id\": 78912, \"Customer\": \"Jason Sweet\", \"Quantity\": 1}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "accept": "application/json"
+                        },
+                        "body": "{\"Id\": 78912, \"Customer\": \"Jason Sweet\", \"Quantity\": 1}"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH [URL]\n     -H [header]\n     -d [patch_data]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/json\n     -H 'Content-Type: application/json'\n     -d '{\"User\": \"Leo\", \"Id\": 1}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"User\": \"Leo\", \"Id\": 1}"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/json\n     -H 'Content-Type: [content type]'\n     -d '[patch data]'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/json",
+                        "headers": {
+                            "content-type": "[content type]"
+                        },
+                        "body": "[patch data]"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/json\n     -H \"Content-Type: application/json\"\n     -d '{\"Id\": 12345, \"Price\": 25}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"Id\": 12345, \"Price\": 25}"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/xml\n     -H \"Content-Type: application/xml\"\n     -d '<Order>\n            <Id>14</Id>\n            <Customer>UpdatedJason</Customer>\n            <Price>35.00</Price>\n         </Order>'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/xml",
+                        "headers": {
+                            "content-type": "application/xml"
+                        },
+                        "body": "<Order>\n            <Id>14</Id>\n            <Customer>UpdatedJason</Customer>\n            <Price>35.00</Price>\n         </Order>"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com\n     -H \"Content-Type: text/plain\"\n     -d 'some text'",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com",
+                        "headers": {
+                            "content-type": "text/plain"
+                        },
+                        "body": "some text"
+                    }
+                },
+                {
+                    "command": "curl -X PATCH https://reqbin.com/echo/patch/json\n     -H \"Content-Type: application/json\"\n     -d @data.json",
+                    "primary": false,
+                    "expected": {
+                        "method": "PATCH",
+                        "url": "https://reqbin.com/echo/patch/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "@data.json"
+                    },
+                    "missingFiles": ["data.json"]
+                }
+            ]
+        },
+        {
+            "title": "How do I send JSON data using Curl?",
+            "url": "https://reqbin.com/req/c-fypvcnti/curl-json-request-example",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n     -H \"Content-Type: application/json\"\n     -H \"Accept: application/json\"\n     -d '{\"Id\": 7,\"Customer\":\"Leo\"}'",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json",
+                            "accept": "application/json"
+                        },
+                        "body": "{\"Id\": 7,\"Customer\":\"Leo\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H 'Content-Type: application/json'\n   -d '{\"login\":\"my_login\",\"password\":\"my_password\"}'",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to ignore invalid and self-signed SSL certificate errors in Curl?",
+            "url": "https://reqbin.com/req/c-ug1qqqwh/curl-ignore-certificate-checks",
+            "examples": [
+                {
+                    "command": "curl -k https://expired.badssl.com",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -k [URL]\ncurl --insecure [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -k https://expired.badssl.com\ncurl --insecure https://expired.badssl.com",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://expired.badssl.com",
+                        "headers": {},
+                        "body": ""
+                    },
+                    "limitations": ["multiple-commands"]
+                }
+            ]
+        },
+        {
+            "title": "How to force Curl to close the connection after response?",
+            "url": "https://reqbin.com/req/c-ulfpjfcv/curl-command-with-close-connection-header",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n     -H \"Connection: close\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "connection": "close"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -H \"Connection: close\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to use Curl?",
+            "url": "https://reqbin.com/req/c-r8g2qivg/how-to-use-curl",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl --version\ncurl 7.55.1 (Windows) libcurl/7.55.1 WinSSL\nRelease-Date: 2017-11-14, security patched: 2019-11-05\nProtocols: dict file ftp ftps http https imap imaps pop3 pop3s smtp smtps telnet tftp\nFeatures: AsynchDNS IPv6 Largefile SSPI Kerberos SPNEGO NTLM SSL",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --version\ncurl 7.31.0 (x86_64-apple-darwin12.4.0) libcurl/7.31.0 OpenSSL/0.9.8x zlib/1.2.5\nProtocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtsp smtp smtps telnet tftp\nFeatures: IPv6 Largefile NTLM NTLM_WB SSL libz",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --version\ncurl 7.58.0 (x86_64-pc-linux-gnu) libcurl/7.58.0 OpenSSL/1.1.1 zlib/1.2.11 libidn2/2.0.4 libpsl/0.19.1 (+libidn2/2.0.4) nghttp2/1.30.0 librtmp 2.3\nRelease-Date: 2018-01-24\nProtocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtmp rtsp smb smbs smtp smtps telnet tftp\nFeatures: AsynchDNS IDN IPv6 Largefile GSS-API Kerberos SPNEGO NTLM NTLM_WB SSL libz TLS-SRP HTTP2 UnixSockets HTTPS-proxy PSL",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl [OPTIONS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -o [file name] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -d \"key1=value1&key2=value2\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -I [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --cookie \"Name=Value\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -u [Username:Password] -T [ftp://URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -u [Username:Password] -O [ftp://URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -T page.html [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -x \"[protocol://][host][:port]\" [URL] [options]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl -m [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --connection-timeout [SECONDS] [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl --limit-rate 100k -O [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                }
+            ]
+        },
+        {
+            "title": "How to send No-Cache request with Curl?",
+            "url": "https://reqbin.com/req/c-dyugjcgf/curl-no-cache-example",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n\t-H \"Cache-Control: no-cache, no-store, must-revalidate\"\n    -H \"Pragma: no-cache\"\n    -H \"Expires: 0\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cache-control": "no-cache, no-store, must-revalidate",
+                            "pragma": "no-cache",
+                            "expires": "0"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n    -H \"Cache-Control: no-cache, no-store\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "cache-control": "no-cache, no-store"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n    -H \"Pragma: no-cache\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "pragma": "no-cache"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to convert Curl to Python request?",
+            "url": "https://reqbin.com/req/python/c-xgafmluu/convert-curl-to-python-requests",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d \"{\\\"login\\\":\\\"my_login\\\",\\\"password\\\":\\\"my_password\\\"}\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "Wget vs Curl: What's the Difference?",
+            "url": "https://reqbin.com/req/c-ojpjkl15/wget-vs-curl",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo > [filename]",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -o [filename] https://reqbin.com/echo",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {},
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to pass custom headers to Curl?",
+            "url": "https://reqbin.com/req/c-tm07oqh4/curl-custom-headers",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n    -H \"X-Powered-By: ReqBin HTTP Client\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "x-powered-by": "ReqBin HTTP Client"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl https://reqbin.com/echo/get/json\n   -H \"X-Powered-By: ReqBin HTTP Client\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo/get/json",
+                        "headers": {
+                            "x-powered-by": "ReqBin HTTP Client"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How to send Curl keep-alive request?",
+            "url": "https://reqbin.com/req/c-jjwwaevv/curl-command-with-keep-alive-connection-header",
+            "examples": [
+                {
+                    "command": "curl https://reqbin.com/echo\n     -H \"Connection: keep-alive\"\n     -H \"Keep-Alive: timeout=5, max=100\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "connection": "keep-alive",
+                            "keep-alive": "timeout=5, max=100"
+                        },
+                        "body": ""
+                    }
+                },
+                {
+                    "command": "curl -H \"Connection: keep-alive\" [URL]",
+                    "primary": false,
+                    "excluded": "Syntax template, CLI help/version, output, or incomplete command without a concrete HTTP URL."
+                },
+                {
+                    "command": "curl https://reqbin.com/echo\n   -H \"Connection: keep-alive\"\n   -H \"Keep-Alive: timeout=5, max=100\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "GET",
+                        "url": "https://reqbin.com/echo",
+                        "headers": {
+                            "connection": "keep-alive",
+                            "keep-alive": "timeout=5, max=100"
+                        },
+                        "body": ""
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I convert a Curl command into a JavaScript/AJAX?",
+            "url": "https://reqbin.com/req/javascript/c-wyuctivp/convert-curl-to-javascript",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n\t -H \"Content-Type: application/json\"\n     -d \"{\\\"login\\\":\\\"my_login\\\",\\\"password\\\":\\\"my_password\\\"}\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d \"{\\\"login\\\":\\\"my_login\\\",\\\"password\\\":\\\"my_password\\\"}\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                }
+            ]
+        },
+        {
+            "title": "How do I convert Curl Commands to PHP code?",
+            "url": "https://reqbin.com/req/php/c-kvv2ga1h/convert-curl-to-php",
+            "examples": [
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n\t -H \"Content-Type: application/json\"\n     -d \"{\\\"login\\\":\\\"my_login\\\",\\\"password\\\":\\\"my_password\\\"}\"",
+                    "primary": true,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                },
+                {
+                    "command": "curl -X POST https://reqbin.com/echo/post/json\n   -H \"Content-Type: application/json\"\n   -d \"{\\\"login\\\":\\\"my_login\\\",\\\"password\\\":\\\"my_password\\\"}\"",
+                    "primary": false,
+                    "expected": {
+                        "method": "POST",
+                        "url": "https://reqbin.com/echo/post/json",
+                        "headers": {
+                            "content-type": "application/json"
+                        },
+                        "body": "{\"login\":\"my_login\",\"password\":\"my_password\"}"
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -37,7 +37,10 @@ describeCore('engine with the bundled core', () => {
                     JSON.stringify({
                         method: req.method,
                         url: req.url,
-                        body: Buffer.concat(chunks).toString()
+                        body: Buffer.concat(chunks).toString(),
+                        ...(req.url === '/binary'
+                            ? { base64: Buffer.concat(chunks).toString('base64') }
+                            : {})
                     })
                 )
             })
@@ -141,6 +144,18 @@ describeCore('engine with the bundled core', () => {
         expect(JSON.parse(replayed.responseBody).body).toBe('body')
         expect(replayed.requestHeaders['x-test']).toBe('a')
         expect(replayed.url).toBe(url)
+    })
+
+    it('sends binary compose payloads without changing their bytes', async () => {
+        const bytes = Buffer.from([0, 255, 128, 13, 10, 195, 40])
+        const reply = await engine.compose({
+            url: `http://127.0.0.1:${plain.port}/binary`,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: bytes.toString('base64'),
+            bodyEncoding: 'base64'
+        })
+        expect(JSON.parse(reply.responseBody).base64).toBe(bytes.toString('base64'))
     })
 
     it('parses server-sent events as they stream', async () => {

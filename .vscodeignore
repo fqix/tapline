@@ -4,6 +4,8 @@
 !dist/webview.js
 !dist/webview.css
 !dist/codicon.ttf
+!dist/tree-sitter.wasm
+!dist/tree-sitter-bash.wasm
 !core/sing-box*
 !core/LICENSE
 !media/**

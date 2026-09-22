@@ -67,11 +67,9 @@ export class CaptureEnvironment implements vscode.Disposable {
     private apply() {
         const collection = this.context.environmentVariableCollection
         const config = preferences
-        const env = config.get<boolean>('terminal.inject', true)
-            ? this.environment(
-                  this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
-              )
-            : undefined
+        const env = this.environment(
+            this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
+        )
         if (!env) {
             collection.clear()
             return
@@ -85,14 +83,8 @@ export class CaptureEnvironment implements vscode.Disposable {
     }
 
     private injectDebug(config: vscode.DebugConfiguration) {
-        const settings = preferences
-        if (!settings.get<boolean>('debug.inject', true)) return config
-        const runtimes = {
-            ...defaultDebugRuntimes,
-            ...settings.get<Record<string, Profile[]>>('debug.runtimes', {})
-        }
-        if (!(config.type in runtimes)) return config
-        const env = this.environment(this.valid(runtimes[config.type]))
+        if (!(config.type in defaultDebugRuntimes)) return config
+        const env = this.environment(defaultDebugRuntimes[config.type])
         if (!env) return config
         // Electron's extension-host utility process can crash during startup when
         // NODE_EXTRA_CA_CERTS is supplied. Use the system-trusted CA there instead.
@@ -125,11 +117,7 @@ export class CaptureEnvironment implements vscode.Disposable {
         if (!env || !this.client.running) return undefined
         const proxy = `http://127.0.0.1:${this.client.port}`
         if (env.HTTP_PROXY !== proxy && env.http_proxy !== proxy) return undefined
-        const runtimes = {
-            ...defaultDebugRuntimes,
-            ...preferences.get<Record<string, Profile[]>>('debug.runtimes', {})
-        }
-        const ours = this.environment(this.valid(runtimes[config.type])) ?? {}
+        const ours = this.environment(defaultDebugRuntimes[config.type] ?? []) ?? {}
         const result: Record<string, string> = {}
         for (const name of Object.keys(ours)) if (name in env) result[name] = env[name]
         return Object.keys(result).length ? result : undefined

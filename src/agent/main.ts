@@ -19,10 +19,7 @@ mkdirSync(directory, { recursive: true, mode: 0o700 })
 /** Identifies the running build for client diagnostics. */
 const build = statSync(process.argv[1]).mtimeMs
 const clients = new Map<net.Socket, string>()
-const sessions = new Map<
-    string,
-    { engine: Engine; name: string; preferred: number; timer?: NodeJS.Timeout }
->()
+const sessions = new Map<string, { engine: Engine; name: string; timer?: NodeJS.Timeout }>()
 const core = new SharedCore(directory, corePath)
 const mcp = new McpEndpoint(
     {
@@ -91,12 +88,8 @@ function ensureSession(id: string, name = '') {
     }
     const engine = new Engine(directory, corePath, core)
     engine.settings.port = 0
-    core.register(
-        engine,
-        'tapline-' + createHash('sha256').update(id).digest('hex').slice(0, 32),
-        () => sessions.get(id)?.preferred ?? 0
-    )
-    const session = { engine, name, preferred: 0 }
+    core.register(engine, 'tapline-' + createHash('sha256').update(id).digest('hex').slice(0, 32))
+    const session = { engine, name }
     sessions.set(id, session)
     engine.on('event', (event) => {
         if (sessions.get(id)?.engine !== engine) return
@@ -121,9 +114,7 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
         case 'hello':
         case 'settings': {
             if (request.method === 'hello') await engine.prepareCertificates()
-            // The configured port is only a preference, tried at the next start; the
-            // engine keeps the port it is actually bound to (0 while stopped).
-            session.preferred = request.settings.port
+            // The engine keeps the port it is actually bound to (0 while stopped).
             request.settings.port = engine.settings.port
             engine.settings = { ...engine.settings, ...request.settings }
             engine.enforceEntryLimit()

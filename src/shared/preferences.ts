@@ -1,30 +1,8 @@
 export const preferenceSchema: Record<string, PreferenceSchema> = {
-    port: {
-        type: 'integer',
-        minimum: 1024,
-        maximum: 65535,
-        default: 3606,
-        description: '%config.port%'
-    },
     autoStart: {
         type: 'boolean',
         default: false,
         description: '%config.autoStart%'
-    },
-    'terminal.inject': {
-        type: 'boolean',
-        default: true,
-        description: '%config.terminal.inject%'
-    },
-    'debug.inject': {
-        type: 'boolean',
-        default: true,
-        description: '%config.debug.inject%'
-    },
-    'ssl.enabled': {
-        type: 'boolean',
-        default: true,
-        description: '%config.ssl.enabled%'
     },
     'ssl.hosts': {
         type: 'array',
@@ -56,39 +34,6 @@ export const preferenceSchema: Record<string, PreferenceSchema> = {
         },
         default: ['openssl', 'git'],
         description: '%config.terminal.profiles%'
-    },
-    'debug.runtimes': {
-        type: 'object',
-        additionalProperties: {
-            type: 'array',
-            items: {
-                type: 'string',
-                enum: ['openssl', 'git', 'node', 'python', 'java', 'rust', 'deno', 'grpc']
-            }
-        },
-        default: {
-            node: ['node', 'grpc'],
-            'pwa-node': ['node', 'grpc'],
-            'node-terminal': ['node', 'grpc'],
-            extensionHost: ['node', 'grpc'],
-            'pwa-extensionHost': ['node', 'grpc'],
-            bun: ['node'],
-            deno: ['deno'],
-            python: ['python', 'openssl', 'grpc'],
-            debugpy: ['python', 'openssl', 'grpc'],
-            go: ['openssl', 'grpc'],
-            java: ['java'],
-            kotlin: ['java'],
-            lldb: ['openssl', 'grpc'],
-            cppdbg: ['openssl', 'grpc'],
-            'cargo-test': ['openssl', 'rust'],
-            dart: [],
-            php: ['openssl'],
-            ruby: ['openssl'],
-            rdbg: ['openssl'],
-            coreclr: []
-        },
-        description: '%config.debug.runtimes%'
     },
     'mcp.enabled': {
         type: 'boolean',
@@ -292,29 +237,13 @@ export interface PreferenceSchema {
     description?: string
 }
 export const preferenceDescriptions: Record<string, { en: string; zh: string }> = {
-    port: {
-        en: "Preferred loopback port for this window's capture proxy, tried at the next start; when another window or program holds it, a free port is used instead (see the status bar for the actual one). Keep it different from the Tapline desktop app (6060).",
-        zh: '本窗口抓包代理的首选回环端口，下次开始抓包时尝试绑定；被其他窗口或程序占用时改用空闲端口（实际端口见状态栏）。请与 Tapline 桌面版（6060）错开。'
-    },
     autoStart: {
         en: 'Start capture when VS Code opens.',
         zh: 'VS Code 启动时自动开始抓包。'
     },
-    'terminal.inject': {
-        en: 'While capture runs, route new integrated terminals through Tapline (proxy variables plus the profiles below).',
-        zh: '抓包运行期间，让新开的集成终端经由 Tapline（代理变量 + 下方的 profile）。'
-    },
-    'debug.inject': {
-        en: 'While capture runs, add proxy and trust variables to launched debug sessions according to tapline.debug.runtimes.',
-        zh: '抓包运行期间，按 tapline.debug.runtimes 为启动的调试会话注入代理与信任变量。'
-    },
-    'ssl.enabled': {
-        en: 'Decrypt HTTPS for hosts matching tapline.ssl.hosts.',
-        zh: '对匹配 tapline.ssl.hosts 的主机解密 HTTPS。'
-    },
     'ssl.hosts': {
-        en: 'Host patterns whose TLS traffic is decrypted (wildcards allowed).',
-        zh: '需要解密 TLS 流量的主机模式（支持通配符）。'
+        en: 'Host patterns whose HTTPS traffic is decrypted (wildcards allowed). An empty list captures without decryption, and then no root certificate has to be trusted.',
+        zh: '需要解密 HTTPS 流量的主机模式（支持通配符）。留空则只抓包不解密，此时也不需要信任根证书。'
     },
     maxEntries: {
         en: 'Maximum live transactions kept in memory.',
@@ -327,10 +256,6 @@ export const preferenceDescriptions: Record<string, { en: string; zh: string }> 
     'terminal.profiles': {
         en: 'Which sets of environment variables every new terminal gets besides the proxy variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY). Each name stands for the variables a runtime reads to trust the Tapline CA; the resolved variables are listed below. Keep this generic and use "New Captured Terminal" for a runtime-specific terminal.',
         zh: '除代理变量（HTTP_PROXY、HTTPS_PROXY、NO_PROXY）外，每个新终端还要注入哪几组环境变量。每个名称代表某类运行时用来信任 Tapline CA 的一组变量，实际注入的变量见下方列表。建议保持通用，需要特定运行时时用"新建抓包终端"。'
-    },
-    'debug.runtimes': {
-        en: 'Which sets of environment variables each debug configuration type (the "type" in launch.json) gets; the proxy variables are always included. Types not listed are left untouched; an empty list injects the proxy only. The resolved variables per type are listed below.',
-        zh: '每种调试配置类型（launch.json 里的 "type"）注入哪几组环境变量；代理变量总是包含。未列出的类型不做任何改动；空列表表示只注入代理。每种类型实际注入的变量见下方列表。'
     },
     'mcp.enabled': {
         en: 'Serve an MCP endpoint (http://127.0.0.1:<port>/mcp) so AI assistants such as Copilot, Claude Code and Cursor can read and replay captured traffic.',

@@ -230,8 +230,8 @@ export function ruleMatches(rule: Pick<Rule, 'url' | 'method'>, method: string, 
 export const ruleLabel = (rule: Rule) => rule.name?.trim() || rule.kind
 
 export interface Settings {
+    /** Proxy port; 0 asks the core for a free one. */
     port: number
-    ssl: boolean
     sslHosts: string[]
     maxEntries: number
     maxBodyBytes: number
@@ -244,8 +244,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
-    port: 3606,
-    ssl: true,
+    port: 0,
     sslHosts: ['*'],
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,
@@ -265,6 +264,8 @@ export interface ComposeRequest {
     method: string
     headers: Headers
     body: string
+    /** Binary payloads are transported losslessly through the webview as base64. */
+    bodyEncoding?: 'base64'
     replayOf?: string
 }
 

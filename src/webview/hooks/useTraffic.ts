@@ -31,6 +31,8 @@ export function useTraffic() {
             : 'inspector'
     })
     const [draft, setDraftState] = useState<ComposeDraft | undefined>(() => state().draft)
+    /** Outcome of the last curl import, shown by the composer until the next one. */
+    const [curlImport, setCurlImport] = useState<{ warnings: string[]; error?: string }>()
     const [pickedFile, setPickedFile] = useState<{ ruleId: string; path: string }>()
     const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -105,6 +107,11 @@ export function useTraffic() {
                     if (message.draft) setDraft(message.draft)
                     setPane(message.pane)
                     return
+                case 'curl':
+                    if (message.draft) setDraft(message.draft)
+                    setCurlImport({ warnings: message.warnings, error: message.error })
+                    setPane('composer')
+                    return
                 case 'pickedFile':
                     setPickedFile({ ruleId: message.ruleId, path: message.path })
                     return
@@ -157,6 +164,8 @@ export function useTraffic() {
         pane,
         setPane,
         draft,
-        setDraft
+        setDraft,
+        curlImport,
+        setCurlImport
     }
 }

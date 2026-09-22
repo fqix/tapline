@@ -12,7 +12,8 @@ import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
 import { defaultSettings, type Rule, type Transaction } from '../shared/model'
 
-const PROXY_PORT = 3626
+/** The window's proxy port is OS-assigned; read after capture starts. */
+let proxyPort = 0
 
 function until<T>(probe: () => T | undefined | false, timeout = 20000, what = 'condition') {
     return new Promise<T>((resolve, reject) => {
@@ -34,7 +35,7 @@ function viaProxy(url: string, options: http.RequestOptions = {}, body?: string)
             const request = http.request(
                 {
                     host: '127.0.0.1',
-                    port: PROXY_PORT,
+                    port: proxyPort,
                     path: url,
                     method: options.method ?? 'GET',
                     headers: { host: new URL(url).host, ...options.headers }
@@ -142,10 +143,11 @@ suite('Tapline end to end', function () {
         )
     })
 
-    test('starts capture on the configured port without a trusted certificate', async () => {
+    test('starts capture on a free port without a trusted certificate', async () => {
         await vscode.commands.executeCommand('tapline.start')
         await until(() => api.client.running, 30000, 'capture running')
-        assert.equal(api.client.port, PROXY_PORT)
+        proxyPort = api.client.port
+        assert.ok(proxyPort > 0, 'proxy port assigned')
         assert.ok(api.client.mcpUrl?.endsWith(':3627/mcp'), 'MCP endpoint is served')
     })
 
@@ -308,7 +310,7 @@ suite('Tapline end to end', function () {
             await api.client.call('settings', {
                 settings: {
                     ...defaultSettings,
-                    port: PROXY_PORT,
+                    port: proxyPort,
                     mcpPort: 3627,
                     sslHosts: ['localhost'],
                     rules: [
@@ -337,7 +339,7 @@ suite('Tapline end to end', function () {
                 probe,
                 [
                     '-proxy',
-                    `127.0.0.1:${PROXY_PORT}`,
+                    `127.0.0.1:${proxyPort}`,
                     '-ca',
                     api.client.certificatePath,
                     '-timeout',

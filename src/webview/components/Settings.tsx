@@ -25,13 +25,16 @@ function VariableTable({ target, profiles }: { target: CaptureTarget; profiles: 
     const chosen = Array.isArray(profiles) ? profiles.filter(isProfile) : []
     const env = captureEnvironment(target, chosen)
     const proxy = new Set(Object.keys(proxyVariables(target.port)))
+    // While capture is stopped the port is not known yet; show a placeholder for it.
+    const show = (value: string) =>
+        target.port ? value : value.replace(/(127\.0\.0\.1:|proxyPort=)0\b/g, '$1<port>')
     return (
         <table className="env-table" data-clipboard="">
             <tbody>
                 {Object.entries(env).map(([name, value]) => (
                     <tr key={name} className={proxy.has(name) ? 'muted' : ''}>
                         <th>{name}</th>
-                        <td>{value}</td>
+                        <td>{show(value)}</td>
                     </tr>
                 ))}
             </tbody>
@@ -40,69 +43,37 @@ function VariableTable({ target, profiles }: { target: CaptureTarget; profiles: 
 }
 
 /**
- * What a profile setting actually injects: the variables per selection (terminals) or
- * per debug type, plus a legend of what each profile name stands for.
+ * What the terminal profile setting actually injects: the resolved variables for the
+ * current selection, plus a legend of what each profile name stands for.
  */
 function EnvironmentPreview({
-    settingKey,
     value,
     target,
     zh
 }: {
-    settingKey: string
     value: unknown
     target: CaptureTarget
     zh: boolean
 }) {
-    const legend = (
-        <details className="env-legend">
-            <summary className="muted">{zh ? '名称对应的变量' : 'What each name adds'}</summary>
-            <table className="env-table">
-                <tbody>
-                    {PROFILES.map((profile) => (
-                        <tr key={profile}>
-                            <th>{profile}</th>
-                            <td>{profileDescriptions[profile]}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </details>
-    )
-    if (settingKey === 'terminal.profiles')
-        return (
-            <div className="env-preview">
-                <p className="muted">
-                    {zh ? '当前会注入到每个新终端的变量：' : 'Injected into every new terminal:'}
-                </p>
-                <VariableTable target={target} profiles={value} />
-                {legend}
-            </div>
-        )
-    const runtimes = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
     return (
         <div className="env-preview">
             <p className="muted">
-                {zh ? '按调试类型实际注入的变量：' : 'Injected per debug type:'}
+                {zh ? '当前会注入到每个新终端的变量：' : 'Injected into every new terminal:'}
             </p>
-            {Object.entries(runtimes).map(([type, profiles]) => (
-                <details key={type} className="env-runtime">
-                    <summary>
-                        <span className="mono">{type}</span>
-                        <span className="muted">
-                            {' '}
-                            ·{' '}
-                            {Array.isArray(profiles) && profiles.length
-                                ? profiles.join(', ')
-                                : zh
-                                  ? '仅代理'
-                                  : 'proxy only'}
-                        </span>
-                    </summary>
-                    <VariableTable target={target} profiles={profiles} />
-                </details>
-            ))}
-            {legend}
+            <VariableTable target={target} profiles={value} />
+            <details className="env-legend">
+                <summary className="muted">{zh ? '名称对应的变量' : 'What each name adds'}</summary>
+                <table className="env-table">
+                    <tbody>
+                        {PROFILES.map((profile) => (
+                            <tr key={profile}>
+                                <th>{profile}</th>
+                                <td>{profileDescriptions[profile]}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </details>
         </div>
     )
 }
@@ -314,16 +285,13 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                         : ''}
                                                 </small>
                                             )}
-                                            {target &&
-                                                (key === 'terminal.profiles' ||
-                                                    key === 'debug.runtimes') && (
-                                                    <EnvironmentPreview
-                                                        settingKey={key}
-                                                        value={value}
-                                                        target={target}
-                                                        zh={zh}
-                                                    />
-                                                )}
+                                            {target && key === 'terminal.profiles' && (
+                                                <EnvironmentPreview
+                                                    value={value}
+                                                    target={target}
+                                                    zh={zh}
+                                                />
+                                            )}
                                             <button
                                                 type="button"
                                                 className="button"

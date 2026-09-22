@@ -1,6 +1,9 @@
 import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { isAbsolute, join } from 'node:path'
+import { importCurl } from '../utils/curl'
 import type { AgentClient } from '../client/agentClient'
 import type { BreakpointEdit, ComposeRequest, Rule, Transaction } from '../shared/model'
 import { searchTransactions } from '../utils/search'
@@ -11,6 +14,21 @@ import {
     type Pane,
     type PanelMessage
 } from '../webview/types/messages'
+
+/** `-d @file` in an imported curl command: relative to the workspace folders. */
+async function readWorkspaceFile(name: string): Promise<Buffer | undefined> {
+    const roots = isAbsolute(name)
+        ? [name]
+        : (vscode.workspace.workspaceFolders ?? []).map((f) => join(f.uri.fsPath, name))
+    for (const path of roots) {
+        try {
+            return await readFile(path)
+        } catch {
+            // Try the next folder.
+        }
+    }
+    return undefined
+}
 
 export interface PanelActions {
     compareOriginal(id: string): Promise<void>
@@ -225,6 +243,22 @@ export class TrafficPanel implements vscode.Disposable {
                 case 'compose': {
                     const sent = await this.actions.compose(message.request)
                     this.focus(sent.id)
+                    return
+                }
+                case 'importCurl': {
+                    try {
+                        const { warnings, ...draft } = await importCurl(
+                            message.text,
+                            readWorkspaceFile
+                        )
+                        this.post({ type: 'curl', draft, warnings })
+                    } catch (error) {
+                        this.post({
+                            type: 'curl',
+                            warnings: [],
+                            error: error instanceof Error ? error.message : String(error)
+                        })
+                    }
                     return
                 }
                 case 'exportHar':
@@ -468,6 +502,24 @@ function panelStrings(): Record<string, string> {
         value: vscode.l10n.t('Value'),
         remove: vscode.l10n.t('Remove'),
         bulkEdit: vscode.l10n.t('Bulk edit as text'),
+        formFields: vscode.l10n.t('Form fields'),
+        enableField: vscode.l10n.t('Enable field'),
+        bodyFormat: vscode.l10n.t('Body format'),
+        readingFile: vscode.l10n.t('Reading file…'),
+        chooseBodyFile: vscode.l10n.t('Choose a body file'),
+        bodyFieldType: vscode.l10n.t('Type'),
+        addBodyField: vscode.l10n.t('Add field'),
+        noRequestBody: vscode.l10n.t('This request has no body.'),
+        key: vscode.l10n.t('Key'),
+        description: vscode.l10n.t('Description'),
+        bulkEditShort: vscode.l10n.t('Bulk Edit'),
+        authorization: vscode.l10n.t('Authorization'),
+        authType: vscode.l10n.t('Auth type'),
+        noAuth: vscode.l10n.t('No auth'),
+        customAuth: vscode.l10n.t('Custom authorization'),
+        username: vscode.l10n.t('Username'),
+        password: vscode.l10n.t('Password'),
+        hasContent: vscode.l10n.t('Has content'),
         formatJson: vscode.l10n.t('Format JSON'),
         jsonInvalid: vscode.l10n.t('Invalid JSON'),
         paramsNeedUrl: vscode.l10n.t('Enter a valid URL to edit its query parameters'),
@@ -478,6 +530,7 @@ function panelStrings(): Record<string, string> {
         import: vscode.l10n.t('Import'),
         cancel: vscode.l10n.t('Cancel'),
         importCurlPartial: vscode.l10n.t('Not imported:'),
+        importCurlFailed: vscode.l10n.t('Could not parse the curl command:'),
         editResendNote: vscode.l10n.t(
             'Copied from a captured request; the reply is linked to the original for comparison'
         ),

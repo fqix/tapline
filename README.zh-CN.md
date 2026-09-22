@@ -35,17 +35,16 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   `header:x-id=1`、`rule:any` 以及 `-status:2xx` 这样的取反；普通词匹配 URL、方法或
   状态码。_统计_ 按主机汇总当前过滤出的请求。
 - **规则** — 断点、改写、映射到本地、映射到远程、拦截和限速（[见下文](#规则)）。
-- **发送与对比** — 从零编写请求或对抓到的请求 _编辑并重发_；任选两行、或重发记录与
-  原请求，在 VS Code 原生差异编辑器中对比。备注与星标在本次会话内标注请求。
+- **发送与对比** — 从零编写请求、粘贴 curl 命令，或对抓到的请求 _编辑并重发_；任选两行或
+  重发记录与原请求，在 VS Code 原生差异编辑器中对比。备注与星标在本次会话内标注请求。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……可配置）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）；
   其他程序用 _复制代理环境变量_。
 - **根证书** — 在 macOS、Windows、Linux 的系统证书存储中一键安装、信任和卸载 CA
   （[见下文](#根证书)）。
-- **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和代理端口（`tapline.port`
-  空闲时用它，否则由系统分配）；同一扩展存储下的窗口共用一个 sing-box 进程和 CA，最后
-  关闭的窗口负责关停。
+- **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和系统分配的代理端口；
+  同一扩展存储下的窗口共用一个 sing-box 进程和 CA，最后关闭的窗口负责关停。
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等助手可以列出、搜索、读取、重放
   和发送抓到的请求（[见下文](#mcp-服务器)）。
 - 复制为 cURL、导出 HAR、状态栏控制、中英文界面。
@@ -57,11 +56,9 @@ _Tapline: 设置_（或流量面板的齿轮）打开带搜索的设置标签页
 
 | 设置项                                      | 默认值           | 作用                               |
 | ------------------------------------------- | ---------------- | ---------------------------------- |
-| `tapline.port`                              | `3606`           | 首选代理端口；被占用时改用空闲端口 |
 | `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包         |
-| `tapline.terminal.inject`                   | `true`           | 向新终端注入变量                   |
-| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | 向启动的调试会话注入变量           |
-| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | 解密哪些主机                       |
+| `tapline.terminal.profiles`                 | openssl, git     | 向新终端注入的变量                 |
+| `tapline.ssl.hosts`                         | `["*"]`          | 解密哪些主机（`[]` 表示不解密）    |
 | `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的请求数与正文字节数           |
 | `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点          |
 | `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema          |
@@ -112,9 +109,8 @@ _Tapline: 设置_（或流量面板的齿轮）打开带搜索的设置标签页
 
 ## 根证书
 
-CA 位于扩展的全局存储目录（_Tapline: 复制根证书路径_）。开启 `tapline.ssl.enabled`
-时，只有系统信任了 CA 才会开始抓包；侧边栏和状态栏会提示安装，_Tapline: 卸载根证书_
-可将其移除。
+CA 位于扩展的全局存储目录（_Tapline: 复制根证书路径_）。只有系统信任了 CA 才会开始
+抓包；侧边栏和状态栏会提示安装，_Tapline: 卸载根证书_ 可将其移除。
 
 | 平台    | 证书存储                                              |
 | ------- | ----------------------------------------------------- |
@@ -123,7 +119,7 @@ CA 位于扩展的全局存储目录（_Tapline: 复制根证书路径_）。开
 | Linux   | 发行版锚点目录 + 更新命令，在终端中以 `sudo` 执行     |
 
 Firefox 和 snap/flatpak 浏览器使用自己的证书存储，需要手动导入。将
-`tapline.ssl.enabled` 设为 `false` 可在不解密、不安装证书的情况下抓包。
+`tapline.ssl.hosts` 设为 `[]` 可在不解密、不安装证书的情况下抓包。
 
 ## MCP 服务器
 

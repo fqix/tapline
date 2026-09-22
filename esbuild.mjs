@@ -1,7 +1,29 @@
 import { build, context } from 'esbuild'
-import { readFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 const watch = process.argv.includes('--watch')
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
+// curlconverter parses bash with a native tree-sitter addon; the extension host cannot
+// load that, so its parser module is swapped for our WebAssembly-backed one and the two
+// .wasm files travel next to the bundle.
+const wasmParser = {
+    name: 'curlconverter-wasm-parser',
+    setup(build) {
+        build.onResolve({ filter: /(^\.\/|\/)Parser\.js$/ }, (args) =>
+            args.importer.includes('curlconverter')
+                ? { path: fileURLToPath(new URL('./src/utils/curlParser.ts', import.meta.url)) }
+                : undefined
+        )
+    }
+}
+mkdirSync('dist', { recursive: true })
+for (const [from, to] of [
+    ['node_modules/web-tree-sitter/tree-sitter.wasm', 'dist/tree-sitter.wasm'],
+    ['node_modules/curlconverter/dist/tree-sitter-bash.wasm', 'dist/tree-sitter-bash.wasm']
+])
+    copyFileSync(from, to)
+
 const node = {
     entryPoints: { extension: 'src/extension.ts', agent: 'src/agent/main.ts' },
     bundle: true,
@@ -10,6 +32,7 @@ const node = {
     format: 'cjs',
     outdir: 'dist',
     external: ['vscode'],
+    plugins: [wasmParser],
     define: { 'process.env.TAPLINE_VERSION': JSON.stringify(version) },
     sourcemap: true,
     minify: !watch,

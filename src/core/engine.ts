@@ -249,9 +249,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     intercepts(host: string) {
-        return (
-            this.settings.ssl && this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
-        )
+        return this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
     }
 
     // ---- inspector handlers ------------------------------------------------
@@ -875,7 +873,10 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
                 ].includes(name.toLowerCase())
             )
                 headers[name] = value
-        const body = Buffer.from(input.body ?? '')
+        const body = Buffer.from(
+            input.body ?? '',
+            input.bodyEncoding === 'base64' ? 'base64' : 'utf8'
+        )
         if (body.length) headers['content-length'] = String(body.length)
         // URL.host omits default ports, matching what browsers and curl send.
         headers['host'] = target.host

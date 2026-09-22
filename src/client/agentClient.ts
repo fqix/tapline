@@ -85,8 +85,7 @@ export class AgentClient implements vscode.Disposable {
     private settings(): Settings {
         const config = preferences
         return {
-            port: config.get<number>('port', defaultSettings.port),
-            ssl: config.get<boolean>('ssl.enabled', defaultSettings.ssl),
+            port: 0,
             sslHosts: config.get<string[]>('ssl.hosts', defaultSettings.sslHosts),
             maxEntries: config.get<number>('maxEntries', defaultSettings.maxEntries),
             maxBodyBytes:

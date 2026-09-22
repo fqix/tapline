@@ -104,6 +104,8 @@ export type HostMessage =
     | { type: 'search'; query: string; ids: string[] }
     /** Open a side pane; `draft` prefills the composer. */
     | { type: 'pane'; pane: Pane; draft?: ComposeDraft }
+    /** Result of `importCurl`: the draft to show, plus what could not be imported. */
+    | { type: 'curl'; draft?: ComposeDraft; warnings: string[]; error?: string }
     /** A file chosen for a map-local rule. */
     | { type: 'pickedFile'; ruleId: string; path: string }
     | { type: 'frameResent'; id: string; frameId: string; error?: string }
@@ -130,6 +132,8 @@ export type PanelMessage =
     | { type: 'resume'; id: string; edit: BreakpointEdit }
     | { type: 'abort'; id: string }
     | { type: 'compose'; request: ComposeRequest }
+    /** Parse a curl command on the host (curlconverter) into a composer draft. */
+    | { type: 'importCurl'; text: string }
     /** Evaluate the host-side terms of a filter query. */
     | { type: 'search'; query: string }
 
@@ -143,6 +147,9 @@ export interface ComposeDraft {
     url: string
     headers: string
     body: string
+    bodyEncoding?: 'base64'
+    bodyDraft?: import('../lib/body').BodyDraft
+    bodyError?: string
     /** Transaction the draft was copied from (Edit & Resend). */
     replayOf?: string
 }

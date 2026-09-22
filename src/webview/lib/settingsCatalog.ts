@@ -13,30 +13,13 @@ export const settingsCatalog: Record<
     { category: SettingsCategory; en: string; zh: string }
 > = {
     autoStart: { category: 'general', en: 'Start capture automatically', zh: '自动开始抓包' },
-    port: { category: 'capture', en: 'Preferred proxy port', zh: '首选代理端口' },
-    'ssl.enabled': { category: 'capture', en: 'Decrypt HTTPS', zh: 'HTTPS 解密' },
     'ssl.hosts': { category: 'capture', en: 'HTTPS host patterns', zh: 'HTTPS 主机匹配规则' },
     maxEntries: { category: 'capture', en: 'Request limit', zh: '请求数量上限' },
     maxBodyKiB: { category: 'capture', en: 'Body size limit (KiB)', zh: '正文大小上限（KiB）' },
-    'terminal.inject': {
-        category: 'environment',
-        en: 'Capture new terminals',
-        zh: '抓取新终端流量'
-    },
     'terminal.profiles': {
         category: 'environment',
         en: 'Environment variables for new terminals',
         zh: '新终端注入的环境变量'
-    },
-    'debug.inject': {
-        category: 'environment',
-        en: 'Capture debug sessions',
-        zh: '抓取调试会话流量'
-    },
-    'debug.runtimes': {
-        category: 'environment',
-        en: 'Environment variables for debug sessions',
-        zh: '调试会话注入的环境变量'
     },
     'mcp.enabled': { category: 'mcp', en: 'Enable MCP server', zh: '启用 MCP 服务' },
     'mcp.port': { category: 'mcp', en: 'MCP port', zh: 'MCP 端口' },

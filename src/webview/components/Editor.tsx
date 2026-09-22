@@ -1,7 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { looksLikeCurl, parseCurl } from '../../shared/curl'
-import { bytes, type Headers } from '../../shared/model'
+import { type Headers } from '../../shared/model'
+import { AuthEditor } from './AuthEditor'
+import { AdvancedBody, type BodyUpdate } from './AdvancedBody'
+import { bodyModes, graphqlBody, multipartBody, type BodyDraft, type BodyMode } from '../lib/body'
 import type { Pair } from '../lib/http'
+import { parseFormBody, serializeFormBody, type FormPair } from '../lib/form'
 import { t } from '../lib/i18n'
 import { IconButton } from './IconButton'
 import { PairsEditor } from './PairsEditor'
@@ -15,6 +18,9 @@ export interface EditorValue {
     /** `Name: value` per line. */
     headers: string
     body: string
+    bodyEncoding?: 'base64'
+    bodyDraft?: BodyDraft
+    bodyError?: string
 }
 
 export const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
@@ -61,24 +67,14 @@ const textToPairs = (text: string): Pair[] =>
                 ? { name: line.slice(0, at).trim(), value: line.slice(at + 1).trim() }
                 : { name: line.trim(), value: '' }
         })
-const pairsToText = (pairs: Pair[]) =>
+export const pairsToText = (pairs: FormPair[]) =>
     pairs
+        .filter((p) => p.enabled !== false)
         .map((p) => (p.value || p.name.includes(':') ? `${p.name}: ${p.value}` : p.name))
         .join('\n')
 
-/** Fields of a curl command as editor values; the caller keeps the status field. */
-export function fromCurl(text: string): { value: Omit<EditorValue, 'status'>; warnings: string[] } {
-    const parsed = parseCurl(text)
-    return {
-        value: {
-            method: parsed.method,
-            url: parsed.url,
-            headers: pairsToText(parsed.headers.map(([name, value]) => ({ name, value }))),
-            body: parsed.body
-        },
-        warnings: parsed.warnings
-    }
-}
+/** Does the text look like a curl invocation (optionally after a `$ ` prompt)? */
+const looksLikeCurl = (text: string) => /^\s*(\$\s*)?curl(\.exe)?\s/i.test(text)
 
 const parseUrl = (url: string) => {
     try {
@@ -97,7 +93,7 @@ const contentTypeOf = (headers: string) =>
         ''
     ).toLowerCase()
 
-type Tab = 'params' | 'headers' | 'body'
+type Tab = 'params' | 'authorization' | 'headers' | 'body'
 
 /**
  * Request line (or status), then Params / Headers / Body tabs. `phase` decides which
@@ -110,11 +106,13 @@ export function Editor({
     bodyDisabled,
     autoFocus,
     action,
-    onCurl
+    onCurl,
+    allowFiles = false
 }: {
     phase: 'request' | 'response'
     value: EditorValue
     onChange(next: EditorValue): void
+    allowFiles?: boolean
     bodyDisabled?: boolean
     autoFocus?: boolean
     action?: ReactNode
@@ -131,19 +129,131 @@ export function Editor({
     }
     const [tab, setTab] = useState<Tab>(phase === 'request' ? 'params' : 'headers')
     const [bulk, setBulk] = useState(false)
-    const headerPairs = useMemo(() => textToPairs(value.headers), [value.headers])
+    const [bodyRaw, setBodyRaw] = useState(false)
+    const [formState, setFormState] = useState(() => ({
+        body: value.body,
+        url: value.url,
+        pairs: parseFormBody(value.body)
+    }))
+    // Keep disabled rows locally, but replace them when another draft/body is loaded.
+    if (formState.body !== value.body || formState.url !== value.url) {
+        setFormState({ body: value.body, url: value.url, pairs: parseFormBody(value.body) })
+    }
+    const setForm = (pairs: FormPair[]) => {
+        const body = serializeFormBody(pairs)
+        setFormState({ body, url: value.url, pairs })
+        set({ body })
+    }
+    const [headerState, setHeaderState] = useState(() => ({
+        text: value.headers,
+        pairs: textToPairs(value.headers) as FormPair[]
+    }))
+    if (headerState.text !== value.headers)
+        setHeaderState({ text: value.headers, pairs: textToPairs(value.headers) })
+    const headerPairs = headerState.pairs
+    const enabledHeaders = headerPairs.filter((p) => p.enabled !== false)
+    const setHeaderPairs = (pairs: FormPair[]) => {
+        const text = pairsToText(pairs)
+        setHeaderState({ text, pairs })
+        set({ headers: text })
+    }
     const url = parseUrl(value.url)
-    const params: Pair[] = url
-        ? [...url.searchParams].map(([name, value]) => ({ name, value }))
-        : []
-    const setParams = (pairs: Pair[]) => {
+    const [paramsState, setParamsState] = useState(() => ({
+        url: value.url,
+        pairs: parseFormBody(url?.search ?? '')
+    }))
+    if (paramsState.url !== value.url)
+        setParamsState({ url: value.url, pairs: parseFormBody(url?.search ?? '') })
+    const params = paramsState.pairs
+    const setParams = (pairs: FormPair[]) => {
         if (!url) return
-        const search = new URLSearchParams()
-        for (const p of pairs) if (p.name) search.append(p.name, p.value)
-        url.search = search.toString()
-        set({ url: url.toString() })
+        url.search = serializeFormBody(pairs)
+        const nextUrl = url.toString()
+        setParamsState({ url: nextUrl, pairs })
+        // Query editing is not a new request: retain disabled Body fields too.
+        setFormState((state) => ({ ...state, url: nextUrl }))
+        set({ url: nextUrl })
     }
     const type = contentTypeOf(value.headers)
+    const mode: BodyMode =
+        phase === 'response'
+            ? 'raw'
+            : (value.bodyDraft?.mode ??
+              (type.split(';')[0].trim() === 'application/x-www-form-urlencoded'
+                  ? 'x-www-form-urlencoded'
+                  : value.body || type
+                    ? 'raw'
+                    : 'none'))
+    const form = phase === 'request' && mode === 'x-www-form-urlencoded'
+    const advanced = mode === 'binary' || mode === 'form-data' || mode === 'GraphQL'
+    const setBody = (update: BodyUpdate, contentType?: string) => {
+        let headers = value.headers
+        if (contentType !== undefined) {
+            const pairs = headerPairs.filter((p) => p.name.toLowerCase() !== 'content-type')
+            if (contentType) pairs.push({ name: 'Content-Type', value: contentType })
+            headers = pairsToText(pairs)
+            setHeaderState({ text: headers, pairs })
+        }
+        set({ bodyEncoding: undefined, bodyError: undefined, ...update, headers })
+    }
+    const changeMode = (mode: BodyMode) => {
+        setBodyRaw(false)
+        const bodyDraft: BodyDraft = { mode }
+        const body = value.bodyEncoding ? '' : value.body
+        if (mode === 'none') setBody({ body: '', bodyDraft }, '')
+        else if (mode === 'binary')
+            setBody(
+                { body: '', bodyDraft, bodyError: t('chooseBodyFile') },
+                'application/octet-stream'
+            )
+        else if (mode === 'form-data') {
+            bodyDraft.parts = [{ name: '', value: '', enabled: true, type: 'text' }]
+            const boundary = `----Tapline${crypto.randomUUID().replace(/-/g, '')}`
+            setBody(
+                {
+                    body: multipartBody(bodyDraft.parts, boundary),
+                    bodyEncoding: 'base64',
+                    bodyDraft
+                },
+                `multipart/form-data; boundary=${boundary}`
+            )
+        } else if (mode === 'GraphQL') {
+            bodyDraft.query = ''
+            bodyDraft.variables = '{}'
+            try {
+                const parsed = JSON.parse(body)
+                if (typeof parsed.query === 'string') {
+                    bodyDraft.query = parsed.query
+                    bodyDraft.variables = JSON.stringify(parsed.variables ?? {}, null, 2)
+                    bodyDraft.operationName =
+                        typeof parsed.operationName === 'string' ? parsed.operationName : ''
+                }
+            } catch {
+                /* Start with an empty query for non-GraphQL text. */
+            }
+            try {
+                setBody(
+                    {
+                        body: graphqlBody(
+                            bodyDraft.query ?? '',
+                            bodyDraft.variables ?? '',
+                            bodyDraft.operationName ?? ''
+                        ),
+                        bodyDraft
+                    },
+                    'application/json'
+                )
+            } catch (error) {
+                setBody({ body: '', bodyDraft, bodyError: String(error) }, 'application/json')
+            }
+        } else
+            setBody(
+                { body, bodyDraft },
+                mode === 'x-www-form-urlencoded'
+                    ? 'application/x-www-form-urlencoded'
+                    : 'text/plain'
+            )
+    }
     const json = type.includes('json') || (!type && /^\s*[[{]/.test(value.body))
     const jsonError = useMemo(() => {
         if (!json || !value.body.trim()) return undefined
@@ -161,16 +271,19 @@ export function Editor({
             /* the validity badge already explains */
         }
     }
-    const tabs: Tab[] = phase === 'request' ? ['params', 'headers', 'body'] : ['headers', 'body']
+    const tabs: Tab[] =
+        phase === 'request' ? ['params', 'authorization', 'headers', 'body'] : ['headers', 'body']
     const active = tabs.includes(tab) ? tab : tabs[0]
-    const count = (name: Tab) =>
+    const authorization =
+        enabledHeaders.find((p) => p.name.toLowerCase() === 'authorization')?.value ?? ''
+    const populated = (name: Tab) =>
         name === 'params'
-            ? params.length
-            : name === 'headers'
-              ? headerPairs.length
-              : value.body
-                ? bytes(new TextEncoder().encode(value.body).length)
-                : 0
+            ? params.some((p) => p.enabled !== false && (p.name || p.value))
+            : name === 'body'
+              ? !!value.body
+              : name === 'authorization'
+                ? !!authorization
+                : false
     return (
         <div className="editor" data-clipboard="" onPaste={pasteCurl}>
             {phase === 'request' ? (
@@ -225,7 +338,12 @@ export function Editor({
                         onClick={() => setTab(name)}
                     >
                         {t(name)}
-                        {count(name) ? <span className="tab-count">{count(name)}</span> : null}
+                        {name === 'headers' && enabledHeaders.length > 0 && (
+                            <span className="editor-tab-count">{enabledHeaders.length}</span>
+                        )}
+                        {populated(name) && (
+                            <span className="editor-tab-dot" aria-label={t('hasContent')} />
+                        )}
                     </button>
                 ))}
                 <span className="spacer" />
@@ -237,7 +355,7 @@ export function Editor({
                         onClick={() => setBulk(!bulk)}
                     />
                 )}
-                {active === 'body' && json && !bodyDisabled && (
+                {active === 'body' && mode === 'raw' && json && !bodyDisabled && (
                     <>
                         <span
                             className={`json-state ${jsonError ? 'bad' : 'ok'}`}
@@ -261,10 +379,23 @@ export function Editor({
             <div className="editor-page">
                 {active === 'params' &&
                     (url ? (
-                        <PairsEditor pairs={params} onChange={setParams} />
+                        <PairsEditor pairs={params} onChange={setParams} toggles />
                     ) : (
                         <p className="muted editor-note">{t('paramsNeedUrl')}</p>
                     ))}
+                {active === 'authorization' && (
+                    <AuthEditor
+                        value={authorization}
+                        onChange={(authorization) => {
+                            const headers = headerPairs.filter(
+                                (p) => p.name.toLowerCase() !== 'authorization'
+                            )
+                            if (authorization)
+                                headers.push({ name: 'Authorization', value: authorization })
+                            setHeaderPairs(headers)
+                        }}
+                    />
+                )}
                 {active === 'headers' &&
                     (bulk ? (
                         <textarea
@@ -273,31 +404,107 @@ export function Editor({
                             rows={Math.min(14, Math.max(4, value.headers.split('\n').length + 1))}
                             placeholder="Content-Type: application/json"
                             value={value.headers}
-                            onChange={(e) => set({ headers: e.target.value })}
+                            onChange={(e) => {
+                                const text = e.target.value
+                                setHeaderState({
+                                    text,
+                                    pairs: [
+                                        ...textToPairs(text),
+                                        ...headerPairs.filter((p) => p.enabled === false)
+                                    ]
+                                })
+                                set({ headers: text })
+                            }}
                         />
                     ) : (
                         <PairsEditor
                             pairs={headerPairs}
-                            onChange={(pairs) => set({ headers: pairsToText(pairs) })}
+                            onChange={setHeaderPairs}
                             suggestions={headerSuggestions}
+                            toggles
                         />
                     ))}
-                {active === 'body' && (
+                <div hidden={active !== 'body'}>
                     <>
+                        {phase === 'request' && !bodyDisabled && (
+                            <div className="body-toolbar">
+                                <label>
+                                    <select
+                                        aria-label={t('bodyFormat')}
+                                        value={mode}
+                                        onChange={(e) => changeMode(e.target.value as BodyMode)}
+                                    >
+                                        {bodyModes
+                                            .filter(
+                                                (mode) =>
+                                                    allowFiles ||
+                                                    mode === 'raw' ||
+                                                    mode === 'x-www-form-urlencoded'
+                                            )
+                                            .map((mode) => (
+                                                <option key={mode} value={mode}>
+                                                    {mode}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </label>
+                                {form && bodyRaw && (
+                                    <button
+                                        type="button"
+                                        className="button secondary"
+                                        onClick={() => setBodyRaw(!bodyRaw)}
+                                    >
+                                        {bodyRaw ? t('formFields') : t('bulkEdit')}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                         {bodyDisabled && (
                             <p className="muted editor-note">{t('binaryNotEditable')}</p>
                         )}
-                        <textarea
-                            className="mono body-input"
-                            spellCheck={false}
-                            rows={Math.min(20, Math.max(6, value.body.split('\n').length + 1))}
-                            disabled={bodyDisabled}
-                            placeholder={json ? '{\n  "key": "value"\n}' : undefined}
-                            value={value.body}
-                            onChange={(e) => set({ body: e.target.value })}
-                        />
+                        {value.bodyError && (
+                            <p className="body-error" role="alert">
+                                {value.bodyError}
+                            </p>
+                        )}
+                        {mode === 'none' && !bodyDisabled ? (
+                            <p className="muted editor-note">{t('noRequestBody')}</p>
+                        ) : advanced && !bodyDisabled ? (
+                            <AdvancedBody
+                                key={mode}
+                                draft={value.bodyDraft ?? { mode }}
+                                onChange={setBody}
+                            />
+                        ) : form && !bodyRaw && !bodyDisabled ? (
+                            <PairsEditor
+                                pairs={formState.pairs}
+                                onChange={setForm}
+                                toggles
+                                descriptions
+                                mono={false}
+                                headerAction={
+                                    <button
+                                        type="button"
+                                        className="pairs-bulk-edit"
+                                        onClick={() => setBodyRaw(true)}
+                                    >
+                                        {t('bulkEditShort')}
+                                    </button>
+                                }
+                            />
+                        ) : (
+                            <textarea
+                                className="mono body-input"
+                                spellCheck={false}
+                                rows={Math.min(20, Math.max(6, value.body.split('\n').length + 1))}
+                                disabled={bodyDisabled}
+                                placeholder={json ? '{\n  "key": "value"\n}' : undefined}
+                                value={value.body}
+                                onChange={(e) => set({ body: e.target.value })}
+                            />
+                        )}
                     </>
-                )}
+                </div>
             </div>
         </div>
     )

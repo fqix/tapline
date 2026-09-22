@@ -76,7 +76,7 @@ describeCore('shared agent', () => {
         const b = new TestClient()
         await a.connect(path)
         await b.connect(path)
-        const settings = { ...defaultSettings, port: await freePort(), mcpPort: await freePort() }
+        const settings = { ...defaultSettings, mcpPort: await freePort() }
         const hello = await a.call('hello', { settings })
         expect(hello.clients).toBe(1)
         expect(hello.mcpPort).toBe(settings.mcpPort)
@@ -94,7 +94,7 @@ describeCore('shared agent', () => {
         expect(readFileSync(hello.certificatePath, 'utf8')).toBe(certificate)
         const state = await a.call('start')
         expect(state.running).toBe(true)
-        expect(state.port).toBe(settings.port)
+        expect(state.port).toBeGreaterThan(0)
         expect(readFileSync(hello.certificatePath, 'utf8')).toBe(certificate)
         // The MCP endpoint serves the same engine over Streamable HTTP.
         const mcp = new Client({ name: 'test', version: '0' })
@@ -106,7 +106,7 @@ describeCore('shared agent', () => {
         }
         expect(JSON.parse(status.content[0].text)).toMatchObject({
             running: true,
-            proxy: `http://127.0.0.1:${settings.port}`
+            proxy: `http://127.0.0.1:${state.port}`
         })
         await mcp.close()
         // b learns about a's start through the event stream.
@@ -132,18 +132,16 @@ describeCore('shared agent', () => {
         const client = new TestClient()
         try {
             await client.connect(pipePath(directory))
-            const port = await freePort()
             await client.call('hello', {
                 settings: {
                     ...defaultSettings,
-                    port,
                     mcpPort: 0,
                     rules: [
                         { id: 'bp', enabled: true, kind: 'breakpoint', url: '*', request: true }
                     ]
                 }
             })
-            await client.call('start')
+            const { port } = await client.call('start')
             const reply = viaProxy(port, `http://127.0.0.1:${origin.port}/held`)
             let held: { id: string } | undefined
             for (let i = 0; i < 100 && !held; i++) {
@@ -181,7 +179,7 @@ describeCore('shared agent', () => {
         const client = new TestClient()
         await client.connect(path)
         const hello = await client.call('hello', {
-            settings: { ...defaultSettings, port: await freePort(), mcpPort: 0 }
+            settings: { ...defaultSettings, mcpPort: 0 }
         })
         expect(hello.build).toBeTypeOf('number')
         expect((await client.call('shutdown')).pid).toBe(again.pid)

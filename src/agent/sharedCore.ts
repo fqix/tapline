@@ -10,7 +10,7 @@ export class SharedCore {
     private version?: string
     private targets = new Map<string, Engine>()
     private requests = new Map<string, Engine>()
-    private tags = new Map<Engine, { tag: string; preferred: () => number }>()
+    private tags = new Map<Engine, string>()
     private queue: Promise<unknown> = Promise.resolve()
 
     constructor(
@@ -18,9 +18,8 @@ export class SharedCore {
         private corePath: string
     ) {}
 
-    /** `preferred` is the port to try first; 0 (or a busy port) means any free one. */
-    register(engine: Engine, tag: string, preferred: () => number) {
-        this.tags.set(engine, { tag, preferred })
+    register(engine: Engine, tag: string) {
+        this.tags.set(engine, tag)
     }
 
     private serial<T>(operation: () => Promise<T>): Promise<T> {
@@ -31,7 +30,7 @@ export class SharedCore {
 
     start(engine: Engine): Promise<Inspector> {
         return this.serial(async () => {
-            const { tag, preferred } = this.tags.get(engine)!
+            const tag = this.tags.get(engine)!
             if (!this.inspector) {
                 const manifest = await verifyCore(this.corePath)
                 this.version = manifest.version
@@ -95,18 +94,8 @@ export class SharedCore {
             engine.coreVersion = this.version
             this.targets.set(tag, engine)
             try {
-                const wanted = preferred()
-                try {
-                    engine.settings.port = await this.inspector.inlet('add', tag, wanted)
-                } catch (error) {
-                    // The preferred port belongs to another window or program: take any.
-                    if (!wanted) throw error
-                    engine.log(
-                        `Port ${wanted} is unavailable (${error}); using a free port`,
-                        'warn'
-                    )
-                    engine.settings.port = await this.inspector.inlet('add', tag, 0)
-                }
+                // Every window gets a free OS-assigned port.
+                engine.settings.port = await this.inspector.inlet('add', tag, 0)
                 return this.inspector
             } catch (error) {
                 this.targets.delete(tag)
@@ -121,7 +110,7 @@ export class SharedCore {
 
     stop(engine: Engine): Promise<void> {
         return this.serial(async () => {
-            const { tag } = this.tags.get(engine)!
+            const tag = this.tags.get(engine)!
             if (!this.targets.has(tag)) return
             // Close ingress and existing core connections before dropping policy bindings.
             await this.inspector?.inlet('remove', tag)

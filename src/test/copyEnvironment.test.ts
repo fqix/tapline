@@ -128,9 +128,9 @@ describe('debug environment injection', () => {
 
     it('lists the injected variables in the debug console when a session starts', () => {
         const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
-        const started = ui.onStart.mock.calls.at(-1)![0] as unknown as (
-            session: vscode.DebugSession
-        ) => void
+        const started = (
+            ui.onStart.mock.calls.at(-1) as unknown as [(session: vscode.DebugSession) => void]
+        )[0]
         ui.console.length = 0
         started({ configuration: config } as vscode.DebugSession)
         expect(ui.console[0]).toContain('Tapline: capturing through')

@@ -456,23 +456,22 @@ pre.body.hex {
 .editor-tabs {
     display: flex;
     align-items: center;
-    gap: 2px;
-    margin-top: 6px;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
 .editor-tabs button[role='tab'] {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 28px;
-    padding: 0 8px;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
     border: none;
-    border-bottom: 1px solid transparent;
-    margin-bottom: -1px;
+    border-radius: 7px;
     background: none;
-    font-size: var(--font-size-small);
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
+    font-size: inherit;
     color: var(--vscode-panelTitle-inactiveForeground, var(--vscode-descriptionForeground));
 }
 .editor-tabs button[role='tab']:hover,
@@ -480,7 +479,32 @@ pre.body.hex {
     color: var(--vscode-panelTitle-activeForeground, var(--vscode-foreground));
 }
 .editor-tabs button[role='tab'].active {
-    border-bottom-color: var(--vscode-panelTitle-activeBorder, var(--vscode-focusBorder));
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.12));
+}
+.editor-tab-count {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+}
+.editor-tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #35b76e;
+    flex-shrink: 0;
+}
+.auth-editor {
+    display: grid;
+    gap: 12px;
+    max-width: 560px;
+}
+.auth-editor label {
+    display: grid;
+    gap: 5px;
+}
+.auth-editor input,
+.auth-editor select {
+    width: 100%;
+    min-width: 0;
 }
 .editor-page {
     padding: 8px 0 0;
@@ -557,6 +581,91 @@ pre.body.hex {
 .pairs-remove .icon-button {
     height: 20px;
     min-width: 20px;
+}
+.body-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.body-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.body-toolbar select {
+    min-width: 220px;
+    max-width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.12));
+    font-weight: 500;
+}
+.body-pairs {
+    gap: 0;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+}
+.body-pairs.form-pairs .pairs-row {
+    grid-template-columns: 30px minmax(100px, 2fr) minmax(100px, 2fr) minmax(100px, 1.3fr) 84px;
+    gap: 0;
+    min-width: 430px;
+    min-height: 34px;
+}
+.body-pairs.form-pairs .pairs-row + .pairs-row {
+    border-top: 1px solid var(--border);
+}
+.body-pairs.form-pairs .pairs-row > input[type='text'],
+.body-pairs.form-pairs .pairs-heading > span:not(:first-child) {
+    border: 0;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    padding: 8px 10px;
+    height: 100%;
+}
+.body-pairs.form-pairs .pairs-heading {
+    font-size: inherit;
+    padding-bottom: 0;
+}
+.body-pairs .pairs-header-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pairs-bulk-edit {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+}
+.pairs-bulk-edit:hover {
+    color: var(--vscode-foreground);
+}
+.form-pairs .pairs-row {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 2fr) 24px;
+}
+.form-pairs input[type='text'] {
+    min-width: 0;
+    width: 100%;
+}
+.form-pairs input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    margin: auto;
+}
+.form-pairs .pairs-heading {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    padding-bottom: 4px;
+}
+.form-pairs .pair-inactive input[type='text'] {
+    opacity: 0.55;
 }
 .breakpoint {
     margin: 8px 12px;
@@ -1002,4 +1111,40 @@ table.stats td.seq {
 }
 .raw-colon {
     color: var(--vscode-descriptionForeground);
+}
+
+.graphql-body,
+.binary-body,
+.multipart-body {
+    display: grid;
+    gap: 12px;
+}
+.graphql-body label,
+.binary-body label,
+.multipart-file {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+.multipart-row {
+    display: grid;
+    grid-template-columns: 22px minmax(80px, 1fr) 80px minmax(120px, 2fr) 24px;
+    gap: 8px;
+    align-items: center;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: 6px 0;
+}
+.multipart-row > input,
+.multipart-file input {
+    min-width: 0;
+    width: 100%;
+}
+.multipart-row > input[type='checkbox'] {
+    width: auto;
+}
+.multipart-body > button {
+    justify-self: start;
+}
+.body-error {
+    color: var(--vscode-errorForeground);
 }
