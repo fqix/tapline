@@ -1,0 +1,12 @@
+{
+  "name": "examples-ts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "NODE_USE_ENV_PROXY=1 node --experimental-strip-types main.ts"
+  },
+  "dependencies": {
+    "undici": "^6.21.1"
+  }
+}

@@ -6,7 +6,7 @@
 #
 # Run it from a VS Code terminal opened while capture is on — Tapline injects
 # HTTP(S)_PROXY and the CA variables there. Elsewhere, set them by hand:
-#   HTTPS_PROXY=http://127.0.0.1:3606 SSL_CERT_FILE=/path/to/tapline-ca.pem scripts/smoke-traffic.sh
+#   HTTPS_PROXY=http://127.0.0.1:3606 SSL_CERT_FILE=/path/to/tapline-ca.pem examples/smoke-traffic.sh
 #
 # Needs curl; the gRPC part needs grpcurl (brew install grpcurl) and is skipped otherwise.
 set -u
@@ -20,7 +20,7 @@ PAUSE=${PAUSE:-0.2}
 # from elsewhere, or piped from stdin — then fall back to the git checkout).
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd -P)
 if [[ ! -d $script_dir/h3-probe ]]; then
-    script_dir=$(git rev-parse --show-toplevel 2>/dev/null)/scripts
+    script_dir=$(git rev-parse --show-toplevel 2>/dev/null)/examples
 fi
 H3_PROBE=${H3_PROBE:-$script_dir/h3-probe}
 
@@ -81,6 +81,8 @@ echo "== Response encodings and content types"
 step "GET  /json"                     "$HTTPBIN/json"
 step "GET  /xml"                      "$HTTPBIN/xml"
 step "GET  /html"                     "$HTTPBIN/html"
+step "GET  /js (httpbin)"             "$HTTPBIN_PLAIN/response-headers?Content-Type=application/javascript"
+step "GET  /js (cdn)"                 "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
 step "GET  /gzip"                     --compressed "$HTTPBIN/gzip"
 step "GET  /brotli (undecoded)"       "$HTTPBIN/brotli"
 step "GET  /image/png (binary)"       "$HTTPBIN/image/png"
@@ -165,13 +167,13 @@ fi
 
 echo "== HTTP/3 (QUIC over the proxy's SOCKS5 UDP relay)"
 # curl, Chrome & co. refuse HTTP/3 through any proxy, so a small quic-go client in
-# scripts/h3-probe speaks SOCKS5 UDP ASSOCIATE to Tapline's mixed listener instead.
+# examples/h3-probe speaks SOCKS5 UDP ASSOCIATE to Tapline's mixed listener instead.
 if command -v go >/dev/null 2>&1; then
     proxy=${HTTPS_PROXY:-${https_proxy:-http://127.0.0.1:3606}}
     proxy=${proxy#*://}
     proxy=${proxy%/}
     if [[ ! -f $H3_PROBE/main.go ]]; then
-        echo "  h3-probe not found at $H3_PROBE — set H3_PROBE=/path/to/tapline/scripts/h3-probe"
+        echo "  h3-probe not found at $H3_PROBE — set H3_PROBE=/path/to/tapline/examples/h3-probe"
         ((fail++))
     elif (cd "$H3_PROBE" && go run . -proxy "$proxy" \
         https://cloudflare-quic.com/ \
@@ -183,7 +185,7 @@ if command -v go >/dev/null 2>&1; then
         ((fail++))
     fi
 else
-    echo "  go not found — skipped (needs Go 1.25+ for scripts/h3-probe)"
+    echo "  go not found — skipped (needs Go 1.25+ for examples/h3-probe)"
 fi
 
 echo

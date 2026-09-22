@@ -1,4 +1,4 @@
-module tapline/scripts/h3-probe
+module tapline/examples/h3-probe
 
 go 1.25
 

@@ -26,7 +26,7 @@ execFileSync(
         '.'
     ],
     {
-        cwd: join(ROOT, 'scripts', 'h3-probe'),
+        cwd: join(ROOT, 'examples', 'h3-probe'),
         stdio: 'inherit',
         env: { ...process.env, GOWORK: 'off' }
     }
