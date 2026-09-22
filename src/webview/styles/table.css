@@ -78,14 +78,14 @@ body.resizing .split-divider::before {
     container-type: inline-size;
     /* Column widths come from inline --w-* variables (user-resizable); the URL takes the rest. */
     --cols: var(--w-seq) var(--w-status) var(--w-method) var(--w-proto) minmax(160px, 1fr)
-        var(--w-server) var(--w-start) var(--w-duration) var(--w-size) 52px;
+        var(--w-server) var(--w-start) var(--w-duration) var(--w-size);
 }
 /* Narrow panes (inspector on the right) drop the least useful columns instead of scrolling. */
 @container (max-width: 760px) {
     .grid-head,
     .grid-row {
         --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(120px, 1fr) var(--w-server)
-            var(--w-start) var(--w-duration) var(--w-size) 52px;
+            var(--w-start) var(--w-duration) var(--w-size);
     }
     .c-proto {
         display: none;
@@ -95,7 +95,7 @@ body.resizing .split-divider::before {
     .grid-head,
     .grid-row {
         --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(120px, 1fr) var(--w-start)
-            var(--w-duration) 52px;
+            var(--w-duration);
     }
     .c-proto,
     .c-server,
@@ -106,7 +106,7 @@ body.resizing .split-divider::before {
 @container (max-width: 440px) {
     .grid-head,
     .grid-row {
-        --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(100px, 1fr) var(--w-duration) 52px;
+        --cols: var(--w-seq) var(--w-status) var(--w-method) minmax(100px, 1fr) var(--w-duration);
     }
     .c-proto,
     .c-server,
@@ -243,21 +243,4 @@ body.resizing-column {
 }
 .grid-row .slot-empty {
     visibility: hidden;
-}
-.grid-row .row-actions {
-    display: flex;
-    justify-content: flex-end;
-    padding-right: 4px;
-    opacity: 0;
-}
-.grid-row:hover .row-actions,
-.grid-row.selected .row-actions {
-    opacity: 1;
-}
-.grid-row .row-actions .icon-button {
-    height: 18px;
-    min-width: 20px;
-}
-.grid-row .row-actions .codicon {
-    font-size: 13px;
 }

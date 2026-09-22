@@ -235,13 +235,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
                 void failure(error)
             }
         }
-    const one = (node?: TrafficNode): Transaction | undefined => {
-        const selected = view.selected(node)
-        return selected.length === 1
-            ? selected[0]
-            : node?.kind === 'transaction'
-              ? client!.transactions.get(node.id)
-              : selected[0]
+    const one = (node?: TrafficNode | { id?: string }): Transaction | undefined => {
+        if (
+            node &&
+            'id' in node &&
+            typeof node.id === 'string' &&
+            client!.transactions.has(node.id)
+        ) {
+            return client!.transactions.get(node.id)
+        }
+        const selected = view.selected(node as TrafficNode)
+        return selected[0]
     }
     const command = (name: string, fn: (...args: any[]) => unknown) =>
         context.subscriptions.push(vscode.commands.registerCommand(name, guarded(fn)))
@@ -422,8 +426,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         if (t) panel.focus((await replay(t)).id)
     })
     command('tapline.openSequence', () => panel.show())
-    command('tapline.delete', async (node?: TrafficNode) => {
-        const ids = view.selected(node).map((t) => t.id)
+    command('tapline.delete', async (node?: TrafficNode | { id?: string; ids?: string[] }) => {
+        const ids =
+            node && 'kind' in node
+                ? view.selected(node).map((t) => t.id)
+                : node && 'ids' in node && Array.isArray(node.ids) && node.ids.length
+                  ? node.ids
+                  : node && 'id' in node && typeof node.id === 'string'
+                    ? [node.id]
+                    : view.selected().map((t) => t.id)
         await actions.delete(ids)
     })
     command('tapline.exportHar', (node?: TrafficNode) =>

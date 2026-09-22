@@ -154,7 +154,8 @@
             {
                 "command": "tapline.copyUrl",
                 "title": "%command.copyUrl%",
-                "category": "Tapline"
+                "category": "Tapline",
+                "icon": "$(link)"
             },
             {
                 "command": "tapline.replay",
@@ -275,22 +276,26 @@
             {
                 "command": "tapline.compareOriginal",
                 "title": "%command.compareOriginal%",
-                "category": "Tapline"
+                "category": "Tapline",
+                "icon": "$(diff)"
             },
             {
                 "command": "tapline.editNote",
                 "title": "%command.editNote%",
-                "category": "Tapline"
+                "category": "Tapline",
+                "icon": "$(comment)"
             },
             {
                 "command": "tapline.toggleMark",
                 "title": "%command.toggleMark%",
-                "category": "Tapline"
+                "category": "Tapline",
+                "icon": "$(star-full)"
             },
             {
                 "command": "tapline.copyResponse",
                 "title": "%command.copyResponse%",
-                "category": "Tapline"
+                "category": "Tapline",
+                "icon": "$(clippy)"
             },
             {
                 "command": "tapline.copyEnvironment",
@@ -543,27 +548,62 @@
                 {
                     "command": "tapline.compare",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineCompareCount == 2",
-                    "group": "1_compare"
+                    "group": "1_compare@1"
                 },
                 {
                     "command": "tapline.compareOriginal",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineReplay",
-                    "group": "2_request"
+                    "group": "1_compare@2"
                 },
                 {
-                    "command": "tapline.editNote",
-                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
-                    "group": "2_request"
+                    "command": "tapline.replay",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineCanReplay",
+                    "group": "2_act@1"
                 },
                 {
-                    "command": "tapline.toggleMark",
+                    "command": "tapline.compose",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests' && taplineCanReplay",
+                    "group": "2_act@2"
+                },
+                {
+                    "command": "tapline.openText",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
-                    "group": "2_request"
+                    "group": "2_act@3"
+                },
+                {
+                    "command": "tapline.copyCurl",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "3_copy@1"
+                },
+                {
+                    "command": "tapline.copyUrl",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "3_copy@2"
                 },
                 {
                     "command": "tapline.copyResponse",
                     "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
-                    "group": "2_request"
+                    "group": "3_copy@3"
+                },
+                {
+                    "command": "tapline.toggleMark",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "4_mark@1"
+                },
+                {
+                    "command": "tapline.editNote",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "4_mark@2"
+                },
+                {
+                    "command": "tapline.addBreakpoint",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "4_mark@3"
+                },
+                {
+                    "command": "tapline.delete",
+                    "when": "webviewId == 'tapline.traffic.panel' && webviewSection == 'requests'",
+                    "group": "5_delete@1"
                 }
             ]
         }

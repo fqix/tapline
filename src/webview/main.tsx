@@ -14,9 +14,19 @@ const settingsView = document.body.dataset.view === 'settings'
 // are blocked so nothing leaves or enters the webview through the system clipboard.
 // Elements marked `data-clipboard` (header tables, the request editor) keep the native
 // clipboard: tables for selection and copy, the editor so a URL, a body or a whole curl
-// command can be pasted in.
-const exempt = (event: Event) =>
-    settingsView || (event.target instanceof Element && !!event.target.closest('[data-clipboard]'))
+// command can be pasted in. Elements with `data-vscode-context` keep `contextmenu` so VS Code
+// can display its contributed context menus.
+const element = (target: EventTarget | null): Element | null =>
+    target instanceof Element ? target : target instanceof Node ? target.parentElement : null
+
+const exempt = (event: Event) => {
+    if (settingsView) return true
+    const el = element(event.target)
+    if (!el) return false
+    if (el.closest('[data-clipboard]')) return true
+    if (event.type === 'contextmenu' && el.closest('[data-vscode-context]')) return true
+    return false
+}
 const block = (event: Event) => {
     if (!exempt(event)) event.preventDefault()
 }

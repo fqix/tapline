@@ -4,7 +4,6 @@ import { columns, toggleSort, type Column, type Sort } from '../lib/filter'
 import { t } from '../lib/i18n'
 import { saveState, state, vscode } from '../lib/vscode'
 import type { Row } from '../types/messages'
-import { IconButton } from './IconButton'
 import { methodClass, methodLabel, StatusBadge } from './StatusBadge'
 import { VirtualList } from './VirtualList'
 
@@ -78,6 +77,7 @@ const RowView = memo(function RowView({
     selected,
     primary,
     comparisonIds,
+    selectedIds,
     onSelect
 }: {
     row: Row
@@ -85,22 +85,36 @@ const RowView = memo(function RowView({
     /** The row the inspector shows (one of the selected). */
     primary: boolean
     comparisonIds?: string[]
+    selectedIds?: string[]
     onSelect(id: string, options?: SelectOptions): void
 }) {
+    const canReplay = row.scheme !== 'connect' && !row.websocket
     return (
         <div
             className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''}`}
             role="row"
             aria-selected={selected}
             data-vscode-context={JSON.stringify({
+                preventDefaultContextMenuItems: true,
                 webviewSection: 'requests',
                 id: row.id,
                 taplineReplay: !!row.replayOf,
                 taplineMarked: !!row.marked,
+                taplineCanReplay: canReplay,
                 taplineCompareCount: comparisonIds?.length ?? 0,
-                ids: comparisonIds
+                ids:
+                    comparisonIds?.length === 2
+                        ? comparisonIds
+                        : selectedIds && selectedIds.includes(row.id) && selectedIds.length > 1
+                          ? selectedIds
+                          : [row.id]
             })}
             onClick={(e) => onSelect(row.id, { toggle: e.metaKey || e.ctrlKey, range: e.shiftKey })}
+            onContextMenu={() => {
+                if (!selected) {
+                    setTimeout(() => onSelect(row.id), 0)
+                }
+            }}
             onDoubleClick={() => vscode.postMessage({ type: 'openText', id: row.id })}
         >
             <span role="gridcell" className="mono num seq c-seq">
@@ -143,26 +157,6 @@ const RowView = memo(function RowView({
             </span>
             <span role="gridcell" className="num c-size">
                 {bytes(row.responseBytes)}
-            </span>
-            <span role="gridcell" className="row-actions">
-                {row.scheme !== 'connect' && !row.websocket && (
-                    <IconButton
-                        icon="debug-restart"
-                        title={t('replay')}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            vscode.postMessage({ type: 'replay', id: row.id })
-                        }}
-                    />
-                )}
-                <IconButton
-                    icon="terminal"
-                    title={t('copyCurl')}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        vscode.postMessage({ type: 'copyCurl', ids: [row.id] })
-                    }}
-                />
             </span>
         </div>
     )
@@ -317,7 +311,6 @@ export function SequenceTable({
                     )}
                 </span>
             ))}
-            <span role="columnheader" />
         </div>
     )
     return (
@@ -339,6 +332,7 @@ export function SequenceTable({
                                 ? selection
                                 : undefined
                         }
+                        selectedIds={selection}
                         onSelect={onSelect}
                     />
                 )}
