@@ -14,5 +14,10 @@ const wasmParser = {
 
 export default defineConfig({
     plugins: [wasmParser],
-    test: { include: ['src/test/**/*.test.ts', 'src/webview/**/*.test.ts'], testTimeout: 30000 }
+    test: {
+        // Externalized dependencies bypass resolveId and load the native parser.
+        server: { deps: { inline: ['curlconverter'] } },
+        include: ['src/test/**/*.test.ts', 'src/webview/**/*.test.ts'],
+        testTimeout: 30000
+    }
 })
