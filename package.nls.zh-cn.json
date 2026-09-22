@@ -1,5 +1,4 @@
 {
-    "config.isolateWindows": "按窗口隔离抓包数据和控制（默认开启）。代理端口自动分配，tapline.port 仅用于共享模式；MCP 保持共享固定入口。修改后需重载窗口。",
     "extension.description": "在 VS Code 中捕获并检查来自集成终端和调试会话的 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC 与 WebSocket 流量。",
     "view.traffic": "流量",
     "view.traffic.title": "Tapline 流量",
@@ -26,7 +25,7 @@
     "view.welcome.certificateTrust": "Tapline 根证书已在钥匙串中但尚未被信任，信任前无法开始抓包。\n[信任根证书](command:tapline.trustCertificate)\n信任时会请求你的系统密码。随时可通过[卸载根证书](command:tapline.uninstallCertificate)移除。",
     "view.welcome.certificateTrusted": "操作系统已信任 Tapline 根证书。\n[卸载根证书](command:tapline.uninstallCertificate)",
     "command.showLogs": "显示日志",
-    "config.port": "抓包代理监听的回环端口。与 Tapline 桌面版（6060）同时运行时请保持不同。",
+    "config.port": "本窗口抓包代理的首选回环端口，下次开始抓包时尝试绑定；被其他窗口或程序占用时改用空闲端口（实际端口见状态栏）。请与 Tapline 桌面版（6060）错开。",
     "config.autoStart": "VS Code 启动时自动开始抓包。",
     "config.terminal.inject": "抓包运行期间，让新开的集成终端经由 Tapline（代理变量 + 下方的 profile）。",
     "config.debug.inject": "抓包运行期间，按 tapline.debug.runtimes 为启动的调试会话注入代理与信任变量。",

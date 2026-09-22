@@ -169,8 +169,8 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                 </div>
                 <p className="muted">
                     {zh
-                        ? '全局保存，所有项目共用。窗口隔离变更需重新加载窗口。'
-                        : 'Saved globally for all projects. Reload the window after changing isolation.'}
+                        ? '全局保存，所有项目共用；每个窗口独立抓包。'
+                        : 'Saved globally for all projects; every window captures on its own.'}
                 </p>
                 <div className="settings-search">
                     <span className="codicon codicon-search" aria-hidden="true" />

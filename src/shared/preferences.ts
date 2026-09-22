@@ -1,9 +1,4 @@
 export const preferenceSchema: Record<string, PreferenceSchema> = {
-    isolateWindows: {
-        type: 'boolean',
-        default: true,
-        description: '%config.isolateWindows%'
-    },
     port: {
         type: 'integer',
         minimum: 1024,
@@ -297,13 +292,9 @@ export interface PreferenceSchema {
     description?: string
 }
 export const preferenceDescriptions: Record<string, { en: string; zh: string }> = {
-    isolateWindows: {
-        en: 'Isolate capture data and controls per window (default). Proxy ports are assigned automatically; tapline.port applies only in shared mode. MCP keeps a shared fixed endpoint. Reload the window after changing this setting.',
-        zh: '按窗口隔离抓包数据和控制（默认开启）。代理端口自动分配，tapline.port 仅用于共享模式；MCP 保持共享固定入口。修改后需重载窗口。'
-    },
     port: {
-        en: 'Loopback port for the capture proxy. Keep it different from the Tapline desktop app (6060) when both run.',
-        zh: '抓包代理监听的回环端口。与 Tapline 桌面版（6060）同时运行时请保持不同。'
+        en: "Preferred loopback port for this window's capture proxy, tried at the next start; when another window or program holds it, a free port is used instead (see the status bar for the actual one). Keep it different from the Tapline desktop app (6060).",
+        zh: '本窗口抓包代理的首选回环端口，下次开始抓包时尝试绑定；被其他窗口或程序占用时改用空闲端口（实际端口见状态栏）。请与 Tapline 桌面版（6060）错开。'
     },
     autoStart: {
         en: 'Start capture when VS Code opens.',

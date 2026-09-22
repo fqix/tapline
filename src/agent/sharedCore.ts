@@ -10,7 +10,7 @@ export class SharedCore {
     private version?: string
     private targets = new Map<string, Engine>()
     private requests = new Map<string, Engine>()
-    private tags = new Map<Engine, { tag: string; automatic: boolean }>()
+    private tags = new Map<Engine, { tag: string; preferred: () => number }>()
     private queue: Promise<unknown> = Promise.resolve()
 
     constructor(
@@ -18,8 +18,9 @@ export class SharedCore {
         private corePath: string
     ) {}
 
-    register(engine: Engine, tag: string, automatic: boolean) {
-        this.tags.set(engine, { tag, automatic })
+    /** `preferred` is the port to try first; 0 (or a busy port) means any free one. */
+    register(engine: Engine, tag: string, preferred: () => number) {
+        this.tags.set(engine, { tag, preferred })
     }
 
     private serial<T>(operation: () => Promise<T>): Promise<T> {
@@ -30,7 +31,7 @@ export class SharedCore {
 
     start(engine: Engine): Promise<Inspector> {
         return this.serial(async () => {
-            const { tag, automatic } = this.tags.get(engine)!
+            const { tag, preferred } = this.tags.get(engine)!
             if (!this.inspector) {
                 const manifest = await verifyCore(this.corePath)
                 this.version = manifest.version
@@ -94,11 +95,18 @@ export class SharedCore {
             engine.coreVersion = this.version
             this.targets.set(tag, engine)
             try {
-                engine.settings.port = await this.inspector.inlet(
-                    'add',
-                    tag,
-                    automatic ? 0 : engine.settings.port
-                )
+                const wanted = preferred()
+                try {
+                    engine.settings.port = await this.inspector.inlet('add', tag, wanted)
+                } catch (error) {
+                    // The preferred port belongs to another window or program: take any.
+                    if (!wanted) throw error
+                    engine.log(
+                        `Port ${wanted} is unavailable (${error}); using a free port`,
+                        'warn'
+                    )
+                    engine.settings.port = await this.inspector.inlet('add', tag, 0)
+                }
                 return this.inspector
             } catch (error) {
                 this.targets.delete(tag)

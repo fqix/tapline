@@ -43,9 +43,9 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   其他程序用 _复制代理环境变量_。
 - **根证书** — 在 macOS、Windows、Linux 的系统证书存储中一键安装、信任和卸载 CA
   （[见下文](#根证书)）。
-- **窗口隔离** — 每个 VS Code 窗口拥有独立的抓包数据、控制和系统分配的代理端口；同一
-  扩展存储下的窗口共用一个 sing-box 进程和 CA，最后关闭的窗口负责关停。关闭
-  `tapline.isolateWindows` 并重载窗口可改为一个共享会话。
+- **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和代理端口（`tapline.port`
+  空闲时用它，否则由系统分配）；同一扩展存储下的窗口共用一个 sing-box 进程和 CA，最后
+  关闭的窗口负责关停。
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等助手可以列出、搜索、读取、重放
   和发送抓到的请求（[见下文](#mcp-服务器)）。
 - 复制为 cURL、导出 HAR、状态栏控制、中英文界面。
@@ -55,18 +55,17 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 _Tapline: 设置_（或流量面板的齿轮）打开带搜索的设置标签页。设置和规则保存在扩展的
 全局存储中，同一 VS Code 配置文件下的所有项目共用，不写入 `settings.json`。
 
-| 设置项                                      | 默认值           | 作用                                 |
-| ------------------------------------------- | ---------------- | ------------------------------------ |
-| `tapline.isolateWindows`                    | `true`           | 每个窗口独立抓包（修改后重载窗口）   |
-| `tapline.port`                              | `3606`           | 共享模式的代理端口；隔离模式自动分配 |
-| `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包           |
-| `tapline.terminal.inject`                   | `true`           | 向新终端注入变量                     |
-| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | 向启动的调试会话注入变量             |
-| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | 解密哪些主机                         |
-| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的请求数与正文字节数             |
-| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点            |
-| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema            |
-| `tapline.rules`                             | `[]`             | 拦截规则，用 _Tapline: 规则…_ 编辑   |
+| 设置项                                      | 默认值           | 作用                               |
+| ------------------------------------------- | ---------------- | ---------------------------------- |
+| `tapline.port`                              | `3606`           | 首选代理端口；被占用时改用空闲端口 |
+| `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包         |
+| `tapline.terminal.inject`                   | `true`           | 向新终端注入变量                   |
+| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | 向启动的调试会话注入变量           |
+| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | 解密哪些主机                       |
+| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的请求数与正文字节数           |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点          |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema          |
+| `tapline.rules`                             | `[]`             | 拦截规则，用 _Tapline: 规则…_ 编辑 |
 
 ## 规则
 

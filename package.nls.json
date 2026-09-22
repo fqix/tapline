@@ -1,5 +1,4 @@
 {
-    "config.isolateWindows": "Isolate capture data and controls per window (default). Proxy ports are assigned automatically; tapline.port applies only in shared mode. MCP keeps a shared fixed endpoint. Reload the window after changing this setting.",
     "extension.description": "Capture and inspect HTTP, HTTPS, HTTP/2, HTTP/3, gRPC and WebSocket traffic from VS Code terminals and debug sessions.",
     "view.traffic": "Traffic",
     "view.traffic.title": "Tapline Traffic",
@@ -26,7 +25,7 @@
     "view.welcome.certificateTrust": "The Tapline root certificate is in the keychain but not yet trusted; capture cannot start until it is.\n[Trust Root Certificate](command:tapline.trustCertificate)\nTrusting prompts for your password. Remove it any time with [Uninstall Root Certificate](command:tapline.uninstallCertificate).",
     "view.welcome.certificateTrusted": "The Tapline root certificate is trusted by the operating system.\n[Uninstall Root Certificate](command:tapline.uninstallCertificate)",
     "command.showLogs": "Show Logs",
-    "config.port": "Loopback port for the capture proxy. Keep it different from the Tapline desktop app (6060) when both run.",
+    "config.port": "Preferred loopback port for this window's capture proxy, tried at the next start; when another window or program holds it, a free port is used instead (see the status bar for the actual one). Keep it different from the Tapline desktop app (6060).",
     "config.autoStart": "Start capture when VS Code opens.",
     "config.terminal.inject": "While capture runs, route new integrated terminals through Tapline (proxy variables plus the profiles below).",
     "config.debug.inject": "While capture runs, add proxy and trust variables to launched debug sessions according to tapline.debug.runtimes.",

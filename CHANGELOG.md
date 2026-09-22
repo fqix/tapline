@@ -5,6 +5,18 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- The shared capture mode and its `tapline.isolateWindows` setting: every window is
+  its own capture session (the previous default). `tapline.port` is now the preferred
+  port of each window, tried when capture starts; when another window or program holds
+  it a free port is used instead. Changing it takes effect at the next start.
+
+### Added
+
+- Debug and run sessions print the environment Tapline injected (proxy port and every
+  `NAME=value`) to their debug console.
+
 ### Changed
 
 - The terminal and debug environment settings show the environment variables they
@@ -19,9 +31,11 @@ All notable changes to Tapline are documented here. The format follows
 ### Added
 
 - The composer imports curl commands: paste one anywhere in the composer (a browser's
-  _Copy as cURL_, a shell history line) or use _Import cURL…_ in its header. Method, URL,
-  headers, `-d`/`--data-*`/`--json` bodies, `-F` fields, `-u` basic auth, `-G` query data
-  and `--compressed` are understood; file references are reported instead of imported.
+  _Copy as cURL_, a shell history line) or use _Import cURL…_ in its header. Parsing uses
+  [curlconverter](https://github.com/curlconverter/curlconverter) (its WebAssembly bash
+  parser, in the extension host), so the full curl option set is understood — `-d` /
+  `--data-*` / `--json` bodies, `-F` multipart, `-u` basic auth, `-G` query data, cookies
+  and more; file references are reported instead of imported.
 
 ## [0.9.0]
 

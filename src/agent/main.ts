@@ -1,4 +1,4 @@
-// One shared agent and sing-box process, with isolated window sessions by default.
+// One shared agent and sing-box process; every VS Code window is its own capture session.
 import { createInterface } from 'node:readline'
 import net from 'node:net'
 import { existsSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
@@ -19,7 +19,10 @@ mkdirSync(directory, { recursive: true, mode: 0o700 })
 /** Identifies the running build for client diagnostics. */
 const build = statSync(process.argv[1]).mtimeMs
 const clients = new Map<net.Socket, string>()
-const sessions = new Map<string, { engine: Engine; name: string; timer?: NodeJS.Timeout }>()
+const sessions = new Map<
+    string,
+    { engine: Engine; name: string; preferred: number; timer?: NodeJS.Timeout }
+>()
 const core = new SharedCore(directory, corePath)
 const mcp = new McpEndpoint(
     {
@@ -87,13 +90,13 @@ function ensureSession(id: string, name = '') {
         return existing
     }
     const engine = new Engine(directory, corePath, core)
-    engine.settings.port = id === 'shared' ? engine.settings.port : 0
+    engine.settings.port = 0
     core.register(
         engine,
         'tapline-' + createHash('sha256').update(id).digest('hex').slice(0, 32),
-        id !== 'shared'
+        () => sessions.get(id)?.preferred ?? 0
     )
-    const session = { engine, name }
+    const session = { engine, name, preferred: 0 }
     sessions.set(id, session)
     engine.on('event', (event) => {
         if (sessions.get(id)?.engine !== engine) return
@@ -118,17 +121,13 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
         case 'hello':
         case 'settings': {
             if (request.method === 'hello') await engine.prepareCertificates()
-            // A zero port requests allocation once; later settings retain the active port.
-            if (sessionId !== 'shared' && request.settings.port === 0)
-                request.settings.port = engine.settings.port
-            const restart = engine.running && request.settings.port !== engine.settings.port
+            // The configured port is only a preference, tried at the next start; the
+            // engine keeps the port it is actually bound to (0 while stopped).
+            session.preferred = request.settings.port
+            request.settings.port = engine.settings.port
             engine.settings = { ...engine.settings, ...request.settings }
             engine.enforceEntryLimit()
             void engine.reloadProtos()
-            if (restart) {
-                await engine.stop()
-                await engine.start()
-            }
             // MCP belongs to the shared agent. Conflicting window settings cannot steal its port.
             const desiredMcp = request.settings.mcpPort
             const others = [...sessions].filter(
@@ -155,7 +154,7 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
             return state(sessionId)
         case 'stop':
             await engine.stop()
-            if (sessionId !== 'shared') engine.settings.port = 0
+            engine.settings.port = 0
             broadcast({ type: 'state', state: state(sessionId) }, sessionId)
             return state(sessionId)
         case 'record':
@@ -240,7 +239,7 @@ const server = net.createServer((socket) => {
                         ? await serial(async () => {
                               if (socket.destroyed) throw new Error('Client disconnected')
                               if (parsed.method === 'hello') {
-                                  const sessionId = parsed.sessionId || 'shared'
+                                  const sessionId = parsed.sessionId || 'default'
                                   if (sessionId.length > 256) throw new Error('Invalid sessionId')
                                   ensureSession(sessionId, parsed.workspaceName)
                                   clients.set(socket, sessionId)

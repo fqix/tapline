@@ -8,13 +8,12 @@ import type * as vscode from 'vscode'
 import { pipePath } from '../agent/paths'
 import { AgentClient } from '../client/agentClient'
 
-const config = vi.hoisted(() => ({ isolate: false as boolean | undefined, sessionId: 'window-a' }))
+const config = vi.hoisted(() => ({ sessionId: 'window-a' }))
 
 vi.mock('../preferences', () => ({
     preferences: {
         onDidChange: () => ({ dispose() {} }),
-        get: (name: string, fallback: unknown) =>
-            name === 'isolateWindows' ? (config.isolate ?? fallback) : fallback
+        get: (_name: string, fallback: unknown) => fallback
     }
 }))
 
@@ -35,8 +34,7 @@ vi.mock('vscode', () => ({
     workspace: {
         onDidChangeConfiguration: () => ({ dispose() {} }),
         getConfiguration: () => ({
-            get: (name: string, fallback: unknown) =>
-                name === 'isolateWindows' ? (config.isolate ?? fallback) : fallback
+            get: (_name: string, fallback: unknown) => fallback
         })
     },
     l10n: {
@@ -65,7 +63,6 @@ describe('capture agent client lifecycle', () => {
         socket.write(JSON.stringify({ id, result }) + '\n')
 
     beforeEach(async () => {
-        config.isolate = false
         config.sessionId = 'window-a'
         directory = mkdtempSync(join(tmpdir(), 'tapline-client-'))
         requests = []
@@ -100,9 +97,8 @@ describe('capture agent client lifecycle', () => {
         rmSync(directory, { recursive: true, force: true })
     })
 
-    it('defaults to isolated window identities while keeping the shared agent pipe', async () => {
+    it('identifies each window by its session on the shared agent pipe', async () => {
         client.dispose()
-        config.isolate = undefined
         const seen: any[] = []
         const previous = respond
         respond = (socket, request) => {
@@ -121,7 +117,7 @@ describe('capture agent client lifecycle', () => {
         try {
             await other.connect()
             expect(seen.map((hello) => hello.sessionId)).toEqual(['window-a', 'window-b'])
-            expect(seen.every((hello) => hello.settings.port === 0)).toBe(true)
+            expect(seen.every((hello) => hello.settings.port === 3606)).toBe(true)
             client.dispose()
             config.sessionId = 'window-a'
             client = new AgentClient(context)

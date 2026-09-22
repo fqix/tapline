@@ -49,10 +49,10 @@ the original, decode grpcbin fields with the workspace `.proto`._
   `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …); _Copy Proxy Environment_ for anything else.
 - **Root certificate** — install, trust and uninstall the CA in the OS store on macOS,
   Windows and Linux with one click ([below](#root-certificate)).
-- **Window isolation** — every VS Code window has its own capture, controls and
-  OS-assigned proxy port; windows in the same extension storage share one sing-box
-  process and CA, and the last window to close shuts them down. Turn off
-  `tapline.isolateWindows` and reload for one shared session.
+- **One capture per window** — every VS Code window has its own traffic, controls and
+  proxy port (`tapline.port` when free, otherwise an OS-assigned one); windows in the
+  same extension storage share one sing-box process and CA, and the last window to
+  close shuts them down.
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other assistants can list,
   search, read, replay and send captured requests ([below](#mcp-server)).
 - Copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
@@ -63,18 +63,17 @@ _Tapline: Settings_ (or the gear in the traffic panel) opens a settings tab with
 Settings and rules live in the extension's global storage and are shared by every project
 in the same VS Code profile; `settings.json` is not used.
 
-| Setting                                     | Default          | Purpose                                            |
-| ------------------------------------------- | ---------------- | -------------------------------------------------- |
-| `tapline.isolateWindows`                    | `true`           | One capture per window (reload after changing)     |
-| `tapline.port`                              | `3606`           | Proxy port in shared mode; automatic when isolated |
-| `tapline.autoStart`                         | `false`          | Start capture when VS Code opens                   |
-| `tapline.terminal.inject`                   | `true`           | Inject variables into new terminals                |
-| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | Inject into launched debug sessions                |
-| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | Which hosts are decrypted                          |
-| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Requests kept and body bytes retained              |
-| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants                     |
-| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages                 |
-| `tapline.rules`                             | `[]`             | Interception rules, edited with _Tapline: Rules…_  |
+| Setting                                     | Default          | Purpose                                           |
+| ------------------------------------------- | ---------------- | ------------------------------------------------- |
+| `tapline.port`                              | `3606`           | Preferred proxy port; a free one when it is taken |
+| `tapline.autoStart`                         | `false`          | Start capture when VS Code opens                  |
+| `tapline.terminal.inject`                   | `true`           | Inject variables into new terminals               |
+| `tapline.debug.inject` / `debug.runtimes`   | `true` / node, … | Inject into launched debug sessions               |
+| `tapline.ssl.enabled` / `tapline.ssl.hosts` | `true` / `["*"]` | Which hosts are decrypted                         |
+| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Requests kept and body bytes retained             |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants                    |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages                |
+| `tapline.rules`                             | `[]`             | Interception rules, edited with _Tapline: Rules…_ |
 
 ## Rules
 

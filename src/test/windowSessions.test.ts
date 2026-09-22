@@ -160,9 +160,13 @@ describeCore('window sessions', () => {
                 (await viaProxy(started[1].port, `http://127.0.0.1:${origin.port}/still-running`))
                     .body
             ).toBe('/still-running')
+            // A preferred port that another window holds falls back to a free one.
             const conflict = await new Peer().connect()
             await conflict.call('hello', { settings: { ...settings, port: started[1].port } })
-            await expect(conflict.call('start')).rejects.toThrow()
+            const fallback = await conflict.call('start')
+            expect(fallback.running).toBe(true)
+            expect(fallback.port).toBeGreaterThan(0)
+            expect(fallback.port).not.toBe(started[1].port)
             conflict.socket.destroy()
             expect((await windows[1].call('state')).corePid).toBe(started[0].corePid)
             windows[1].socket.destroy()

@@ -12,9 +12,8 @@ export const settingsCatalog: Record<
     string,
     { category: SettingsCategory; en: string; zh: string }
 > = {
-    isolateWindows: { category: 'general', en: 'Window isolation', zh: '窗口隔离' },
     autoStart: { category: 'general', en: 'Start capture automatically', zh: '自动开始抓包' },
-    port: { category: 'capture', en: 'Proxy port', zh: '代理端口' },
+    port: { category: 'capture', en: 'Preferred proxy port', zh: '首选代理端口' },
     'ssl.enabled': { category: 'capture', en: 'Decrypt HTTPS', zh: 'HTTPS 解密' },
     'ssl.hosts': { category: 'capture', en: 'HTTPS host patterns', zh: 'HTTPS 主机匹配规则' },
     maxEntries: { category: 'capture', en: 'Request limit', zh: '请求数量上限' },

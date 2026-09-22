@@ -46,8 +46,8 @@ export class AgentClient implements vscode.Disposable {
         clients: 0,
         pid: 0
     }
-    private readonly isolated = preferences.get('isolateWindows', true)
-    private readonly session = this.isolated ? vscode.env.sessionId || randomUUID() : ''
+    /** Every window is its own capture session on the shared agent. */
+    private readonly session = vscode.env.sessionId || randomUUID()
     private socket?: net.Socket
     private ready?: Promise<void>
     private sequence = 0
@@ -65,17 +65,6 @@ export class AgentClient implements vscode.Disposable {
         this.output = vscode.window.createOutputChannel('Tapline', { log: true })
         context.subscriptions.push(
             preferences.onDidChange((change) => {
-                if (change.affectsConfiguration('tapline.isolateWindows')) {
-                    void vscode.window
-                        .showInformationMessage(
-                            vscode.l10n.t('Reload this window to change capture isolation.'),
-                            vscode.l10n.t('Reload Window')
-                        )
-                        .then((choice) => {
-                            if (choice)
-                                void vscode.commands.executeCommand('workbench.action.reloadWindow')
-                        })
-                }
                 if (change.affectsConfiguration('tapline') && this.socket)
                     void this.call('settings', { settings: this.settings() }).catch((error) =>
                         this.output.error(String(error))
@@ -96,7 +85,7 @@ export class AgentClient implements vscode.Disposable {
     private settings(): Settings {
         const config = preferences
         return {
-            port: this.isolated ? 0 : config.get<number>('port', defaultSettings.port),
+            port: config.get<number>('port', defaultSettings.port),
             ssl: config.get<boolean>('ssl.enabled', defaultSettings.ssl),
             sslHosts: config.get<string[]>('ssl.hosts', defaultSettings.sslHosts),
             maxEntries: config.get<number>('maxEntries', defaultSettings.maxEntries),

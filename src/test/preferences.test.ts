@@ -31,7 +31,6 @@ describe('global preferences', () => {
         const store = new Preferences()
         await store.initialize(fixture.context)
         expect(store.get('port')).toBe(4123)
-        expect(store.get('isolateWindows')).toBe(true)
         const events: string[] = []
         store.onDidChange((event) => {
             if (event.affectsConfiguration('tapline.port')) events.push('port')

@@ -9,7 +9,9 @@ const ui = vi.hoisted(() => ({
     info: vi.fn(),
     update: vi.fn(),
     get: vi.fn(),
-    registerDebug: vi.fn(() => ({ dispose() {} }))
+    registerDebug: vi.fn(() => ({ dispose() {} })),
+    onStart: vi.fn(() => ({ dispose() {} })),
+    console: [] as string[]
 }))
 vi.mock('vscode', () => ({
     window: { showQuickPick: ui.pick, showInformationMessage: ui.info, showErrorMessage: vi.fn() },
@@ -18,7 +20,11 @@ vi.mock('vscode', () => ({
         getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }),
         onDidChangeConfiguration: () => ({ dispose() {} })
     },
-    debug: { registerDebugConfigurationProvider: ui.registerDebug },
+    debug: {
+        registerDebugConfigurationProvider: ui.registerDebug,
+        onDidStartDebugSession: ui.onStart,
+        activeDebugConsole: { appendLine: (line: string) => ui.console.push(line) }
+    },
     l10n: { t: (text: string) => text }
 }))
 
@@ -118,6 +124,24 @@ describe('debug environment injection', () => {
     it('keeps extra CA trust for normal Node debugging', () => {
         const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
         expect(config.env.NODE_EXTRA_CA_CERTS).toBe('/tmp/test ca.pem')
+    })
+
+    it('lists the injected variables in the debug console when a session starts', () => {
+        const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
+        const started = ui.onStart.mock.calls.at(-1)![0] as unknown as (
+            session: vscode.DebugSession
+        ) => void
+        ui.console.length = 0
+        started({ configuration: config } as vscode.DebugSession)
+        expect(ui.console[0]).toContain('Tapline: capturing through')
+        expect(ui.console).toContain('  NODE_EXTRA_CA_CERTS=/tmp/test ca.pem')
+        expect(ui.console).toContain('  HTTPS_PROXY=http://127.0.0.1:3638')
+        // A session Tapline did not touch stays quiet.
+        ui.console.length = 0
+        started({
+            configuration: { type: 'node', name: 'x', request: 'launch' }
+        } as vscode.DebugSession)
+        expect(ui.console).toEqual([])
     })
 
     it('preserves explicit debug environment overrides', () => {
