@@ -19,6 +19,7 @@ describeCore('window sessions', () => {
     const script = join(directory, 'agent.js')
     let agent: ChildProcess
     let exited: Promise<number | null>
+    let stderr = ''
     const peers: Peer[] = []
     class Peer {
         socket!: net.Socket
@@ -39,6 +40,11 @@ describeCore('window sessions', () => {
                     this.pending.delete(m.id)
                 }
             })
+            this.socket.on('close', () => {
+                for (const pending of this.pending.values())
+                    pending({ error: 'Agent connection closed' })
+                this.pending.clear()
+            })
             peers.push(this)
             return this
         }
@@ -46,7 +52,9 @@ describeCore('window sessions', () => {
             const id = ++this.sequence
             return new Promise((resolve, reject) => {
                 this.pending.set(id, (m) =>
-                    m.error ? reject(new Error(m.error)) : resolve(m.result)
+                    m.error
+                        ? reject(new Error(`${method}: ${m.error}\n${stderr}`))
+                        : resolve(m.result)
                 )
                 this.socket.write(JSON.stringify({ id, method, ...args }) + '\n')
             })
@@ -65,6 +73,8 @@ describeCore('window sessions', () => {
         agent = spawn(process.execPath, [script, directory, CORE], {
             stdio: ['ignore', 'pipe', 'pipe']
         })
+        stderr = ''
+        agent.stderr!.on('data', (chunk) => (stderr += chunk.toString()))
         exited = new Promise((resolve) => agent.once('exit', resolve))
         await new Promise<void>((resolve) =>
             createInterface({ input: agent.stdout! }).once('line', () => resolve())
@@ -189,6 +199,32 @@ describeCore('window sessions', () => {
             await new Promise<void>((resolve) => origin.server.close(() => resolve()))
         }
     }, 30000)
+
+    it('keeps other windows alive when a client disconnects with unread replies', async () => {
+        const peer = await new Peer().connect()
+        const settings = { ...defaultSettings, port: 0, mcpPort: 0 }
+        await peer.call('hello', { sessionId: 'survivor', settings })
+        const started = await peer.call('start')
+        const abandoned = net.connect(pipePath(directory))
+        abandoned.on('error', () => {})
+        try {
+            // Leave the hello replies unread. Closing a Unix socket in this state
+            // reports ECONNRESET to the agent's socket and readline interface.
+            abandoned.pause()
+            abandoned.write(
+                JSON.stringify({ id: 1, method: 'hello', sessionId: 'survivor', settings }) + '\n'
+            )
+            await expect.poll(async () => (await peer.call('state')).clients).toBe(2)
+            abandoned.destroy()
+            await expect.poll(async () => (await peer.call('state')).clients).toBe(1)
+            const state = await peer.call('state')
+            expect(state.running).toBe(true)
+            expect(state.corePid).toBe(started.corePid)
+            expect(stderr).toBe('')
+        } finally {
+            abandoned.destroy()
+        }
+    })
 
     it('shuts down sing-box after abrupt loss of its managing process', async () => {
         const peer = await new Peer().connect()

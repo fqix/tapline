@@ -247,7 +247,10 @@ const acceptClient = (socket: net.Socket) => {
     clients.set(socket, '')
     let greeted = false
     let queue = Promise.resolve()
-    createInterface({ input: socket }).on('line', (line) => {
+    // readline forwards input errors separately from the socket's error event.
+    const lines = createInterface({ input: socket })
+    lines.on('error', () => socket.destroy())
+    lines.on('line', (line) => {
         if (line.length > 8 * 1024 * 1024) return socket.destroy()
         queue = queue.then(async () => {
             let id = 0
