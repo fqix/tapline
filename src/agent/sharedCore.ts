@@ -1,6 +1,15 @@
 import { Engine } from '../core/engine'
 import { Inspector, verifyCore, type Handlers } from '../core/inspector'
 
+/**
+ * A configured port that the OS refuses to hand out. Only these fall back to a free
+ * port; a core that timed out or predates window inlets has to surface its own error.
+ */
+const isPortUnavailable = (error: unknown) =>
+    /address (already )?in use|EADDRINUSE|normally permitted|permission denied|EACCES/i.test(
+        error instanceof Error ? error.message : String(error)
+    )
+
 /** One transport process, with an OS-bound inlet and policy engine per capture session. */
 export class SharedCore {
     get pid() {
@@ -94,8 +103,16 @@ export class SharedCore {
             engine.coreVersion = this.version
             this.targets.set(tag, engine)
             try {
-                // Every window gets a free OS-assigned port.
-                engine.settings.port = await this.inspector.inlet('add', tag, 0)
+                // The configured port (0 asks the OS for a free one); a busy port falls
+                // back to a free one so a second window never blocks on the first.
+                const desired = engine.settings.port
+                try {
+                    engine.settings.port = await this.inspector.inlet('add', tag, desired)
+                } catch (error) {
+                    if (!desired || !isPortUnavailable(error)) throw error
+                    engine.log(`Port ${desired} is unavailable, using a free port instead`, 'warn')
+                    engine.settings.port = await this.inspector.inlet('add', tag, 0)
+                }
                 return this.inspector
             } catch (error) {
                 this.targets.delete(tag)

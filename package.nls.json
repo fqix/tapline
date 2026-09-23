@@ -26,6 +26,7 @@
     "view.welcome.certificateTrusted": "The Tapline root certificate is trusted by the operating system.\n[Uninstall Root Certificate](command:tapline.uninstallCertificate)",
     "command.showLogs": "Show Logs",
     "config.autoStart": "Start capture when VS Code opens.",
+    "config.port": "Port for the capture proxy. Defaults to 3606. Set to 0 to ask the OS for a free port.",
     "config.ssl.hosts": "Host patterns whose HTTPS traffic is decrypted (wildcards allowed). An empty list captures without decryption, and then no root certificate has to be trusted.",
     "config.maxEntries": "Maximum live transactions kept in memory.",
     "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",

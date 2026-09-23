@@ -230,4 +230,52 @@ describeCore('window sessions', () => {
         expect(one.corePid).not.toBe(original.corePid)
         expect(one.port).not.toBe(two.port)
     })
+
+    it('keeps the preferred port across starts and applies live changes on restart', async () => {
+        const peer = await new Peer().connect()
+        const port = await freePort()
+        const settings = { ...defaultSettings, port, mcpPort: 0 }
+        const hello = await peer.call('hello', { sessionId: 'preferred-window', settings })
+        expect(hello.port).toBe(0)
+        expect((await peer.call('start')).port).toBe(port)
+        expect((await peer.call('stop')).port).toBe(0)
+        expect((await peer.call('start')).port).toBe(port)
+
+        const nextPort = await freePort()
+        expect(
+            (await peer.call('settings', { settings: { ...settings, port: nextPort } })).port
+        ).toBe(port)
+        expect((await peer.call('start')).port).toBe(port)
+        await peer.call('stop')
+        expect((await peer.call('start')).port).toBe(nextPort)
+    })
+
+    it('attempts preferred port and falls back to dynamic port when occupied', async () => {
+        const blocker = net.createServer().listen(0, '127.0.0.1')
+        await new Promise<void>((resolve) => blocker.once('listening', resolve))
+        const busyPort = (blocker.address() as net.AddressInfo).port
+        try {
+            const peer = await new Peer().connect()
+            await peer.call('hello', {
+                sessionId: 'fallback-window',
+                settings: { ...defaultSettings, port: busyPort, mcpPort: 0 }
+            })
+            const state = await peer.call('start')
+            expect(state.port).toBeGreaterThan(0)
+            expect(state.port).not.toBe(busyPort)
+            const logs = await peer.call('logs')
+            expect(
+                logs.some((entry: { message: string }) =>
+                    entry.message.includes(`Port ${busyPort} is unavailable`)
+                )
+            ).toBe(true)
+            await new Promise<void>((resolve, reject) =>
+                blocker.close((error) => (error ? reject(error) : resolve()))
+            )
+            await peer.call('stop')
+            expect((await peer.call('start')).port).toBe(busyPort)
+        } finally {
+            if (blocker.listening) blocker.close()
+        }
+    })
 })

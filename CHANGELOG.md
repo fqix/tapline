@@ -3,6 +3,13 @@
 All notable changes to Tapline are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `tapline.port` setting for the capture proxy port (default 3606). A busy port falls
+  back to a free OS-assigned one; set it to 0 to always ask the OS for a free port.
+
 ## [0.11.0]
 
 ### Added

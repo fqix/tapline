@@ -230,7 +230,7 @@ export function ruleMatches(rule: Pick<Rule, 'url' | 'method'>, method: string, 
 export const ruleLabel = (rule: Rule) => rule.name?.trim() || rule.kind
 
 export interface Settings {
-    /** Proxy port; 0 asks the core for a free one. */
+    /** Proxy port; 0 asks the core for a free one. Defaults to 3606. */
     port: number
     sslHosts: string[]
     maxEntries: number
@@ -244,7 +244,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
-    port: 0,
+    port: 3606,
     sslHosts: ['*'],
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,

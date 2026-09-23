@@ -18,6 +18,8 @@ describe('settings navigation and search', () => {
     })
     it('matches Chinese and English names, descriptions, keys and categories', () => {
         expect(matchesSetting('mcp.port', 'MCP port')).toBe(true)
+        expect(matchesSetting('port', '3606')).toBe(true)
+        expect(matchesSetting('port', '代理端口')).toBe(true)
         expect(matchesSetting('ssl.hosts', '解密')).toBe(true)
         expect(matchesSetting('grpc.protoFiles', 'protoFiles')).toBe(true)
         expect(matchesSetting('terminal.profiles', '终端与调试')).toBe(true)

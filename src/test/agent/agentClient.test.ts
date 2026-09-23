@@ -124,7 +124,7 @@ describe('capture agent client lifecycle', () => {
         try {
             await other.connect()
             expect(seen.map((hello) => hello.sessionId)).toEqual(['window-a', 'window-b'])
-            expect(seen.every((hello) => hello.settings.port === 0)).toBe(true)
+            expect(seen.every((hello) => hello.settings.port === 3606)).toBe(true)
             client.dispose()
             config.sessionId = 'window-a'
             client = new AgentClient(context)

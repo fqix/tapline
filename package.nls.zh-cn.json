@@ -26,6 +26,7 @@
     "view.welcome.certificateTrusted": "操作系统已信任 Tapline 根证书。\n[卸载根证书](command:tapline.uninstallCertificate)",
     "command.showLogs": "显示日志",
     "config.autoStart": "VS Code 启动时自动开始抓包。",
+    "config.port": "抓包代理的监听端口。默认 3606。设为 0 表示由系统自动分配空闲端口。",
     "config.ssl.hosts": "需要解密 HTTPS 流量的主机模式（支持通配符）。留空则只抓包不解密，此时也不需要信任根证书。",
     "config.maxEntries": "内存中保留的最大请求条数。",
     "config.maxBodyKiB": "每个方向保留的请求/响应体上限（KiB）。流量本身完整转发，超出部分标记为已截断。",

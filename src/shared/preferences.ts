@@ -4,6 +4,13 @@ export const preferenceSchema: Record<string, PreferenceSchema> = {
         default: false,
         description: '%config.autoStart%'
     },
+    port: {
+        type: 'integer',
+        minimum: 0,
+        maximum: 65535,
+        default: 3606,
+        description: '%config.port%'
+    },
     'ssl.hosts': {
         type: 'array',
         items: {
@@ -240,6 +247,10 @@ export const preferenceDescriptions: Record<string, { en: string; zh: string }> 
     autoStart: {
         en: 'Start capture when VS Code opens.',
         zh: 'VS Code 启动时自动开始抓包。'
+    },
+    port: {
+        en: 'Port for the capture proxy. Defaults to 3606. Set to 0 to ask the OS for a free port.',
+        zh: '抓包代理的监听端口。默认 3606。设为 0 表示由系统自动分配空闲端口。'
     },
     'ssl.hosts': {
         en: 'Host patterns whose HTTPS traffic is decrypted (wildcards allowed). An empty list captures without decryption, and then no root certificate has to be trusted.',

@@ -19,7 +19,10 @@ mkdirSync(directory, { recursive: true, mode: 0o700 })
 /** Identifies the running build for client diagnostics. */
 const build = statSync(process.argv[1]).mtimeMs
 const clients = new Map<net.Socket, string>()
-const sessions = new Map<string, { engine: Engine; name: string; timer?: NodeJS.Timeout }>()
+const sessions = new Map<
+    string,
+    { engine: Engine; name: string; preferredPort: number; timer?: NodeJS.Timeout }
+>()
 const core = new SharedCore(directory, corePath)
 const mcp = new McpEndpoint(
     {
@@ -88,9 +91,9 @@ function ensureSession(id: string, name = '') {
         return existing
     }
     const engine = new Engine(directory, corePath, core)
+    const session = { engine, name, preferredPort: engine.settings.port }
     engine.settings.port = 0
     core.register(engine, 'tapline-' + createHash('sha256').update(id).digest('hex').slice(0, 32))
-    const session = { engine, name }
     sessions.set(id, session)
     engine.on('event', (event) => {
         if (sessions.get(id)?.engine !== engine) return
@@ -115,9 +118,13 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
         case 'hello':
         case 'settings': {
             if (request.method === 'hello') await engine.prepareCertificates()
-            // The engine keeps the port it is actually bound to (0 while stopped).
-            request.settings.port = engine.settings.port
-            engine.settings = { ...engine.settings, ...request.settings }
+            // Apply port changes on the next start without changing the live endpoint.
+            session.preferredPort = request.settings.port
+            engine.settings = {
+                ...engine.settings,
+                ...request.settings,
+                port: engine.settings.port
+            }
             engine.enforceEntryLimit()
             void engine.reloadProtos()
             // MCP belongs to the shared agent. Conflicting window settings cannot steal its port.
@@ -141,7 +148,13 @@ async function handle(request: Request, sessionId: string): Promise<unknown> {
         case 'snapshot':
             return { state: state(sessionId), transactions: [...engine.transactions.values()] }
         case 'start':
-            await engine.start()
+            if (!engine.running) engine.settings.port = session.preferredPort
+            try {
+                await engine.start()
+            } catch (error) {
+                engine.settings.port = 0
+                throw error
+            }
             broadcast({ type: 'state', state: state(sessionId) }, sessionId)
             return state(sessionId)
         case 'stop':
