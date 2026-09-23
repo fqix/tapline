@@ -5,15 +5,19 @@ import {
     cookies,
     findJwts,
     formFields,
+    jwtClaims,
     queryParams,
+    relativeTime,
     requestLine,
     statusLine,
+    type Jwt,
     type Pair
 } from '../lib/http'
 import { t } from '../lib/i18n'
 import { vscode } from '../lib/vscode'
 import { BodyView } from './BodyView'
 import { IconButton } from './IconButton'
+import { JsonBody } from './JsonBody'
 import { PairsTable } from './PairsTable'
 import { Section } from './Section'
 
@@ -107,42 +111,101 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
     )
 }
 
+/** Valid / not yet valid / expired, from the token's own time claims. */
+function validity(jwt: Jwt, now: number) {
+    if (jwt.expires !== undefined && jwt.expires * 1000 <= now)
+        return { tone: 'bad', label: t('jwtExpired'), at: jwt.expires }
+    if (jwt.notBefore !== undefined && jwt.notBefore * 1000 > now)
+        return { tone: 'warn', label: t('jwtNotYetValid'), at: jwt.notBefore }
+    if (jwt.expires !== undefined) return { tone: 'ok', label: t('jwtValid'), at: jwt.expires }
+    return undefined
+}
+
+/** One JWT: status, its registered claims in words, then the decoded parts. */
+function JwtSection({ jwt, id }: { jwt: Jwt; id: string }) {
+    const now = Date.now()
+    const state = validity(jwt, now)
+    const claims = jwtClaims(jwt.payload, {
+        iss: t('jwtIssuer'),
+        sub: t('jwtSubject'),
+        aud: t('jwtAudience'),
+        iat: t('jwtIssued'),
+        nbf: t('jwtNotBefore'),
+        exp: t('jwtExpires')
+    })
+    return (
+        <Section
+            id={id}
+            title="JWT"
+            count={jwt.source}
+            actions={
+                <>
+                    <IconButton
+                        icon="copy"
+                        title={t('jwtCopyToken')}
+                        onClick={() => vscode.postMessage({ type: 'copy', text: jwt.token })}
+                    />
+                    <IconButton
+                        icon="json"
+                        title={t('jwtCopyDecoded')}
+                        onClick={() =>
+                            vscode.postMessage({
+                                type: 'copy',
+                                text: JSON.stringify(
+                                    { header: jwt.header, payload: jwt.payload },
+                                    null,
+                                    2
+                                )
+                            })
+                        }
+                    />
+                </>
+            }
+        >
+            {state && (
+                <p className={`jwt-state ${state.tone}`}>
+                    <span
+                        className={`codicon codicon-${state.tone === 'ok' ? 'pass' : 'warning'}`}
+                        aria-hidden="true"
+                    />
+                    {state.label}
+                    <span className="muted">{relativeTime(state.at, now)}</span>
+                </p>
+            )}
+            {claims.length > 0 && (
+                <table className="kv jwt-claims">
+                    <tbody>
+                        {claims.map((claim) => (
+                            <tr key={claim.name}>
+                                <th>
+                                    {claim.label} <span className="muted mono">{claim.name}</span>
+                                </th>
+                                <td>{claim.value}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+            <h4 className="jwt-part">{t('jwtHeader')}</h4>
+            <JsonBody text={JSON.stringify(jwt.header)} />
+            <h4 className="jwt-part">{t('jwtPayload')}</h4>
+            <JsonBody text={JSON.stringify(jwt.payload)} />
+            <p className="muted jwt-note">{t('jwtUnverified')}</p>
+        </Section>
+    )
+}
+
 /** One section per JSON Web Token found in the headers, with the decoded parts. */
 export function JwtSections({ headers, side }: { headers: Headers; side: 'request' | 'response' }) {
     return (
         <>
             {findJwts(headers).map((jwt, i) => (
-                <Section
+                // Each token collapses on its own, so the id has to be unique per token.
+                <JwtSection
                     key={`${jwt.source}-${i}`}
-                    id={`${side}-jwt`}
-                    title="JWT"
-                    count={jwt.source}
-                    actions={
-                        <IconButton
-                            icon="copy"
-                            title={t('copy')}
-                            onClick={() =>
-                                vscode.postMessage({
-                                    type: 'copy',
-                                    text: JSON.stringify(
-                                        { header: jwt.header, payload: jwt.payload },
-                                        null,
-                                        2
-                                    )
-                                })
-                            }
-                        />
-                    }
-                >
-                    {jwt.expires !== undefined && (
-                        <p className={jwt.expires * 1000 < Date.now() ? 'note error' : 'muted'}>
-                            {jwt.expires * 1000 < Date.now() ? t('jwtExpired') : t('jwtExpires')}{' '}
-                            {new Date(jwt.expires * 1000).toLocaleString()}
-                        </p>
-                    )}
-                    <pre className="body">{JSON.stringify(jwt.header, null, 2)}</pre>
-                    <pre className="body">{JSON.stringify(jwt.payload, null, 2)}</pre>
-                </Section>
+                    jwt={jwt}
+                    id={`${side}-jwt-${jwt.source}-${i}`}
+                />
             ))}
         </>
     )

@@ -323,5 +323,21 @@
     "Type": "类型",
     "Add field": "添加字段",
     "This request has no body.": "此请求没有正文。",
-    "Start capture before setting the VS Code proxy.": "请先开始抓包，再设置 VS Code 代理。"
+    "Start capture before setting the VS Code proxy.": "请先开始抓包，再设置 VS Code 代理。",
+    "Header value": "请求头内容",
+    "Show value": "显示内容",
+    "Hide value": "隐藏内容",
+    "Sends": "发送",
+    "No Authorization header is sent.": "不发送 Authorization 请求头。",
+    "Valid": "有效",
+    "Not valid yet": "尚未生效",
+    "Issuer": "签发方",
+    "Subject": "主体",
+    "Audience": "受众",
+    "Issued": "签发时间",
+    "Not before": "生效时间",
+    "Payload": "载荷",
+    "Copy token": "复制 token",
+    "Copy decoded JSON": "复制解码后的 JSON",
+    "The signature is not verified.": "未验证签名。"
 }

@@ -156,6 +156,70 @@ export interface Jwt {
     payload: unknown
     /** `exp` claim, when present. */
     expires?: number
+    /** `iat` and `nbf` claims, when present. */
+    issuedAt?: number
+    notBefore?: number
+    /** The token as it appeared, for copying. */
+    token: string
+}
+
+/** A registered claim rendered for people: `value` is already humanised. */
+export interface JwtClaim {
+    name: string
+    label: string
+    value: string
+}
+
+const seconds = (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(new Date(value * 1000).getTime())
+        ? value
+        : undefined
+
+/**
+ * The registered claims worth a summary line, in the order RFC 7519 lists them.
+ * Times become local timestamps; everything else is shown as written.
+ */
+export function jwtClaims(payload: unknown, labels: Record<string, string>): JwtClaim[] {
+    if (typeof payload !== 'object' || payload === null) return []
+    const claims = payload as Record<string, unknown>
+    const time = (value: unknown) => {
+        const at = seconds(value)
+        return at === undefined ? undefined : new Date(at * 1000).toLocaleString()
+    }
+    const text = (value: unknown) =>
+        Array.isArray(value)
+            ? value.filter((v) => typeof v === 'string' || typeof v === 'number').join(', ')
+            : typeof value === 'string' || typeof value === 'number'
+              ? String(value)
+              : undefined
+    const rows: [string, string | undefined][] = [
+        ['iss', text(claims.iss)],
+        ['sub', text(claims.sub)],
+        ['aud', text(claims.aud)],
+        ['iat', time(claims.iat)],
+        ['nbf', time(claims.nbf)],
+        ['exp', time(claims.exp)]
+    ]
+    return rows
+        .filter(([, value]) => value)
+        .map(([name, value]) => ({ name, label: labels[name] ?? name, value: value! }))
+}
+
+/** "in 59 minutes" / "2 hours ago" for a claim's epoch seconds. */
+export function relativeTime(at: number, now = Date.now()): string {
+    const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+    const delta = at * 1000 - now
+    if (!Number.isFinite(delta)) return ''
+    const units: [Intl.RelativeTimeFormatUnit, number][] = [
+        ['year', 31536000000],
+        ['month', 2592000000],
+        ['day', 86400000],
+        ['hour', 3600000],
+        ['minute', 60000]
+    ]
+    for (const [unit, size] of units)
+        if (Math.abs(delta) >= size) return format.format(Math.round(delta / size), unit)
+    return format.format(Math.round(delta / 1000), 'second')
 }
 
 const base64url = (s: string) => {
@@ -178,7 +242,10 @@ export function findJwts(headers: Headers): Jwt[] {
                     source: name,
                     header,
                     payload,
-                    expires: typeof payload?.exp === 'number' ? payload.exp : undefined
+                    expires: seconds(payload?.exp),
+                    issuedAt: seconds(payload?.iat),
+                    notBefore: seconds(payload?.nbf),
+                    token: m[0]
                 })
             } catch {
                 // Not a JWT after all.

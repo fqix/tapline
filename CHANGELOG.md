@@ -5,6 +5,24 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Password fields (the composer's Basic auth) were drawn with the browser's default
+  white box instead of the editor's input styling.
+- Collapsing one JWT section collapsed every other JWT on the same side; each token now
+  keeps its own state.
+
+### Changed
+
+- The composer's Authorization tab puts its labels beside the fields instead of above
+  them, sizes the type dropdown to its content, adds a show/hide toggle for the Basic
+  auth password, and shows the `Authorization` header the request will send.
+- A decoded JWT shows whether it is valid, not yet valid or expired (with how long ago
+  or from now), lists its registered claims — issuer, subject, audience and the `iat` /
+  `nbf` / `exp` times as local timestamps — and renders the header and the payload as
+  labelled JSON trees instead of two unlabelled blocks. The token and the decoded JSON
+  each have a copy button, and the signature is marked as unverified.
+
 ## [0.12.1]
 
 ### Changed

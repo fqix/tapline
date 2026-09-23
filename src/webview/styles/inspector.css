@@ -227,6 +227,48 @@ pre.body.hex {
     text-align: right;
 }
 
+/* ---- JWT ---- */
+.jwt-state {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+.jwt-state .codicon {
+    font-size: 13px;
+}
+.jwt-state.ok .codicon {
+    color: var(--ok);
+}
+.jwt-state.warn {
+    color: var(--warn);
+}
+.jwt-state.bad {
+    color: var(--bad);
+}
+.jwt-claims {
+    margin-bottom: 10px;
+}
+.jwt-claims th .mono {
+    font-size: var(--font-size-small);
+}
+/* Header and payload need a label each; two bare trees are indistinguishable. */
+.jwt-part {
+    margin: 10px 0 4px;
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--vscode-descriptionForeground);
+}
+.jwt-part:first-child {
+    margin-top: 0;
+}
+.jwt-note {
+    margin: 10px 0 0;
+    font-size: var(--font-size-small);
+}
+
 /* ---- overview ---- */
 .overview {
     padding: 8px 12px;
@@ -493,18 +535,50 @@ pre.body.hex {
     flex-shrink: 0;
 }
 .auth-editor {
-    display: grid;
-    gap: 12px;
-    max-width: 560px;
+    max-width: 640px;
 }
-.auth-editor label {
+/* Label column plus field column, so the form stays short in a low panel. */
+.auth-fields {
     display: grid;
-    gap: 5px;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 6px 12px;
 }
-.auth-editor input,
-.auth-editor select {
+.auth-fields > label {
+    color: var(--vscode-descriptionForeground);
+}
+.auth-fields > input,
+.auth-fields > select,
+.auth-secret input {
     width: 100%;
     min-width: 0;
+    height: 24px;
+}
+/* The type dropdown holds four short words; full width would look adrift. */
+.auth-fields > select.auth-type {
+    width: auto;
+    min-width: 180px;
+    justify-self: start;
+}
+.auth-secret {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.auth-preview {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-faint);
+}
+.auth-preview-label {
+    flex: none;
+}
+.auth-preview code {
+    min-width: 0;
+    user-select: text;
 }
 .editor-page {
     padding: 8px 0 0;

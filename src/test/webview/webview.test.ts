@@ -16,7 +16,15 @@ import {
     toggleSort,
     type Filters
 } from '../../webview/lib/filter'
-import { findJwts, formFields, imageType, isMarkup, prettyMarkup } from '../../webview/lib/http'
+import {
+    findJwts,
+    formFields,
+    imageType,
+    isMarkup,
+    jwtClaims,
+    prettyMarkup,
+    relativeTime
+} from '../../webview/lib/http'
 import { tokenize } from '../../webview/lib/jsonHighlight'
 import { aggregate } from '../../webview/lib/stats'
 import { scrollIntoView, visibleRange } from '../../webview/lib/virtual'
@@ -560,7 +568,65 @@ describe('body helpers', () => {
         expect(jwt.header).toEqual({ alg: 'HS256' })
         expect(jwt.payload).toEqual({ sub: '1', exp: 1700000000 })
         expect(jwt.expires).toBe(1700000000)
+        expect(jwt.token).toBe('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzAwMDAwMDAwfQ.sig')
         expect(findJwts({ cookie: 'a=b' })).toEqual([])
+    })
+
+    it.each(['1e309', '-1e309', '1e308', '8640000000001'])(
+        'ignores out-of-range JWT times (%s) while retaining the decoded payload',
+        (number) => {
+            const payload = `{"exp":${number},"nbf":${number},"iat":${number},"sub":"user"}`
+            const token = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${Buffer.from(payload).toString('base64url')}.`
+            const [jwt] = findJwts({ Authorization: `Bearer ${token}` })
+            expect(jwt.payload).toEqual(JSON.parse(payload))
+            expect(jwt.expires).toBeUndefined()
+            expect(jwt.notBefore).toBeUndefined()
+            expect(jwt.issuedAt).toBeUndefined()
+            expect(jwtClaims(jwt.payload, {})).toEqual([
+                { name: 'sub', label: 'sub', value: 'user' }
+            ])
+        }
+    )
+
+    it('handles non-finite relative times without throwing', () => {
+        for (const at of [Infinity, -Infinity, NaN, 1e308]) expect(relativeTime(at)).toBe('')
+    })
+
+    it('summarises the registered JWT claims and their times', () => {
+        const labels = {
+            iss: 'Issuer',
+            sub: 'Subject',
+            aud: 'Audience',
+            iat: 'Issued',
+            nbf: 'Not before',
+            exp: 'Expires'
+        }
+        const claims = jwtClaims(
+            {
+                iss: 'https://auth.example.com',
+                sub: 'user-1',
+                aud: ['a.example.com', 'b.example.com'],
+                exp: 1700000000,
+                scope: 'read'
+            },
+            labels
+        )
+        // Registered claims only, in RFC 7519 order, with `aud` arrays joined.
+        expect(claims.map((c) => c.name)).toEqual(['iss', 'sub', 'aud', 'exp'])
+        expect(claims[2]).toMatchObject({
+            label: 'Audience',
+            value: 'a.example.com, b.example.com'
+        })
+        expect(claims[3].value).toBe(new Date(1700000000 * 1000).toLocaleString())
+        expect(jwtClaims('not an object', labels)).toEqual([])
+    })
+
+    it('formats claim times relative to now', () => {
+        const now = 1700000000000
+        expect(relativeTime(1700000000 + 3600, now)).toMatch(/hour/)
+        expect(relativeTime(1700000000 - 7200, now)).toMatch(/hour/)
+        expect(relativeTime(1700000000 + 30, now)).toMatch(/second/)
+        expect(relativeTime(1700000000 - 86400 * 3, now)).toMatch(/day/)
     })
     it('parses multipart form fields', () => {
         const body =

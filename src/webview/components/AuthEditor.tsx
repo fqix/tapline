@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { formatAuth, parseAuth, type Auth } from '../lib/auth'
 import { t } from '../lib/i18n'
-import { useState } from 'react'
+import { IconButton } from './IconButton'
 
+/** Authorization header as a small form, with the header it produces shown below it. */
 export function AuthEditor({ value, onChange }: { value: string; onChange(value: string): void }) {
     const [state, setState] = useState(() => ({ value, auth: parseAuth(value) }))
+    const [reveal, setReveal] = useState(false)
     if (state.value !== value) setState({ value, auth: parseAuth(value) })
     const auth = state.auth
     const update = (patch: Partial<Auth>) => {
@@ -14,9 +17,11 @@ export function AuthEditor({ value, onChange }: { value: string; onChange(value:
     }
     return (
         <div className="auth-editor">
-            <label>
-                {t('authType')}
+            <div className="auth-fields">
+                <label htmlFor="auth-type">{t('authType')}</label>
                 <select
+                    id="auth-type"
+                    className="auth-type"
                     value={auth.type}
                     onChange={(e) =>
                         update({
@@ -32,43 +37,66 @@ export function AuthEditor({ value, onChange }: { value: string; onChange(value:
                     <option value="basic">Basic Auth</option>
                     <option value="custom">{t('customAuth')}</option>
                 </select>
-            </label>
-            {auth.type === 'basic' ? (
-                <>
-                    <label>
-                        {t('username')}
+                {auth.type === 'basic' && (
+                    <>
+                        <label htmlFor="auth-username">{t('username')}</label>
                         <input
+                            id="auth-username"
                             type="text"
                             autoComplete="off"
+                            spellCheck={false}
                             value={auth.username}
                             onChange={(e) => update({ username: e.target.value.replace(/:/g, '') })}
                         />
-                    </label>
-                    <label>
-                        {t('password')}
+                        <label htmlFor="auth-password">{t('password')}</label>
+                        <span className="auth-secret">
+                            <input
+                                id="auth-password"
+                                type={reveal ? 'text' : 'password'}
+                                autoComplete="off"
+                                spellCheck={false}
+                                value={auth.password}
+                                onChange={(e) => update({ password: e.target.value })}
+                            />
+                            <IconButton
+                                icon={reveal ? 'eye-closed' : 'eye'}
+                                title={t(reveal ? 'hideValue' : 'revealValue')}
+                                active={reveal}
+                                onClick={() => setReveal(!reveal)}
+                            />
+                        </span>
+                    </>
+                )}
+                {(auth.type === 'bearer' || auth.type === 'custom') && (
+                    <>
+                        <label htmlFor="auth-token">
+                            {auth.type === 'bearer' ? 'Token' : t('headerValue')}
+                        </label>
                         <input
-                            type="password"
-                            autoComplete="off"
-                            value={auth.password}
-                            onChange={(e) => update({ password: e.target.value })}
-                        />
-                    </label>
-                </>
-            ) : (
-                auth.type !== 'none' && (
-                    <label>
-                        {auth.type === 'bearer' ? 'Token' : 'Authorization'}
-                        <input
+                            id="auth-token"
                             type="text"
                             className="mono"
                             autoComplete="off"
                             spellCheck={false}
+                            placeholder={auth.type === 'bearer' ? 'eyJhbGciOi…' : 'Digest …'}
                             value={auth.token}
                             onChange={(e) => update({ token: e.target.value })}
                         />
-                    </label>
-                )
-            )}
+                    </>
+                )}
+            </div>
+            <p className="auth-preview muted">
+                {value ? (
+                    <>
+                        <span className="auth-preview-label">{t('authSends')}</span>
+                        <code className="mono ellipsis" title={value}>
+                            Authorization: {value}
+                        </code>
+                    </>
+                ) : (
+                    t('authSendsNothing')
+                )}
+            </p>
         </div>
     )
 }
