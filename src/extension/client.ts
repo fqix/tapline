@@ -363,7 +363,9 @@ export class AgentClient implements vscode.Disposable {
     private attach(socket: net.Socket) {
         this.socket = socket
         socket.setNoDelay(true)
-        createInterface({ input: socket }).on('line', (line) => {
+        const lines = createInterface({ input: socket })
+        lines.on('error', () => socket.destroy())
+        lines.on('line', (line) => {
             if (this.socket !== socket) return
             let message: Message
             try {
