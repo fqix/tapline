@@ -88,6 +88,7 @@ export class SettingsPanel implements vscode.Disposable {
                 // 0 while capture is stopped: the port is assigned when it starts.
                 port: this.client.port || 0,
                 certificatePath: this.client.certificatePath || '<tapline-ca.pem>',
+                caBundlePath: this.client.caBundlePath || '<tapline-ca-bundle.pem>',
                 truststorePath: this.client.truststorePath || '<tapline-truststore.p12>'
             },
             ...result

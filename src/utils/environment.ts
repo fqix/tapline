@@ -5,6 +5,8 @@
 export interface CaptureTarget {
     port: number
     certificatePath: string
+    /** Public roots plus Tapline, for replacement CA settings. */
+    caBundlePath?: string
     /** PKCS#12 trust store for JVMs when TLS decryption is enabled. */
     truststorePath?: string
     /** Configured decryption patterns; an empty list preserves native CA trust. */
@@ -71,6 +73,10 @@ export function proxyVariables(
     }
 }
 
+const proxyProfileVariables: Partial<Record<Profile, Record<string, string>>> = {
+    node: { NODE_USE_ENV_PROXY: '1' }
+}
+
 const variables: Record<
     Profile,
     (target: CaptureTarget, noProxy: string, decryptTLS: boolean) => Record<string, string>
@@ -82,8 +88,6 @@ const variables: Record<
     git: ({ certificatePath }) => ({ GIT_SSL_CAINFO: certificatePath }),
     node: ({ certificatePath }) => ({
         NODE_EXTRA_CA_CERTS: certificatePath,
-        // Node 22.21+/24+: fetch/undici honour HTTP(S)_PROXY only with this flag.
-        NODE_USE_ENV_PROXY: '1',
         npm_config_cafile: certificatePath
     }),
     python: ({ certificatePath }) => ({
@@ -129,13 +133,18 @@ export function captureEnvironment(
         target.sslNoHosts?.some((host) => host.trim() === '*')
     const decryptTLS =
         !excludesAll && hosts.some((host) => host.trim() && !host.trim().startsWith('!'))
+    const trustTarget = {
+        ...target,
+        certificatePath: target.caBundlePath || target.certificatePath
+    }
     for (const profile of profiles) {
-        if (!decryptTLS && profile !== 'java') {
-            if (profile === 'node') env.NODE_USE_ENV_PROXY = '1'
-            continue
+        Object.assign(env, proxyProfileVariables[profile])
+        if ((decryptTLS || profile === 'java') && profile in variables) {
+            const values = variables[profile](trustTarget, env.NO_PROXY, decryptTLS)
+            // Node adds this CA to its native roots instead of replacing them.
+            if (values.NODE_EXTRA_CA_CERTS) values.NODE_EXTRA_CA_CERTS = target.certificatePath
+            Object.assign(env, values)
         }
-        if (profile in variables)
-            Object.assign(env, variables[profile](target, env.NO_PROXY, decryptTLS))
     }
     return env
 }

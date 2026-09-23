@@ -8,6 +8,7 @@ import tls from 'node:tls'
 import {
     certificatePaths,
     ensureRootIdentity,
+    ensureCertificateBundle,
     ensureTruststore,
     type RootIdentity
 } from './certificate'
@@ -109,6 +110,9 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     get certificatePath() {
         return certificatePaths(this.directory).certificate
     }
+    get caBundlePath() {
+        return certificatePaths(this.directory).bundle
+    }
     get truststorePath() {
         return certificatePaths(this.directory).truststore
     }
@@ -181,6 +185,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     /** Prepare files before a client checks OS trust, without starting capture. */
     async prepareCertificates() {
         this.root = await ensureRootIdentity(this.directory)
+        ensureCertificateBundle(this.directory, this.root.certificate)
         ensureTruststore(this.directory, this.root.certificate)
         return this.root
     }

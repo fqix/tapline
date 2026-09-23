@@ -161,6 +161,9 @@ export class AgentClient implements vscode.Disposable {
     get certificatePath() {
         return this.state.certificatePath
     }
+    get caBundlePath() {
+        return this.state.caBundlePath
+    }
     get truststorePath() {
         return this.state.truststorePath
     }

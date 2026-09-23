@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { rootCertificates } from 'node:tls'
+import { ensureCertificateBundle } from '../../core/certificate'
 import forge from 'node-forge'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ensureRootIdentity, ensureTruststore, TRUSTSTORE_PASSWORD } from '../../core/certificate'
@@ -46,4 +48,19 @@ describe('Java trust store', () => {
         expect(keytool).toMatch(/trustedCertEntry/)
         expect(keytool).toMatch(/contains \d+ entries/)
     }, 60000)
+})
+
+describe('PEM trust bundle', () => {
+    it('retains every public root alongside Tapline and refreshes stale contents', async () => {
+        const directory = mkdtempSync(join(tmpdir(), 'tapline-bundle-'))
+        const root = await ensureRootIdentity(directory)
+        const path = ensureCertificateBundle(directory, root.certificate)
+        const bundle = readFileSync(path, 'utf8')
+        expect(bundle).toContain(root.certificate)
+        for (const certificate of rootCertificates) expect(bundle).toContain(certificate)
+        expect(bundle).not.toContain('PRIVATE KEY')
+        writeFileSync(path, 'stale bundle')
+        expect(ensureCertificateBundle(directory, root.certificate)).toBe(path)
+        expect(readFileSync(path, 'utf8')).toBe(bundle)
+    })
 })

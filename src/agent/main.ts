@@ -66,6 +66,7 @@ function state(sessionId: string): AgentState {
         recording: engine.recording,
         port: engine.settings.port,
         certificatePath: engine.certificatePath,
+        caBundlePath: engine.caBundlePath,
         truststorePath: engine.truststorePath,
         clients: [...clients.values()].filter((id) => id === sessionId).length,
         pid: process.pid,

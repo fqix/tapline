@@ -52,6 +52,7 @@ export class CaptureEnvironment implements vscode.Disposable {
             sslHosts: preferences.get<string[]>('ssl.hosts', []),
             sslNoHosts: preferences.get<string[]>('ssl.noHosts', []),
             certificatePath: this.client.certificatePath,
+            caBundlePath: this.client.caBundlePath,
             truststorePath: this.client.truststorePath || undefined
         }
     }

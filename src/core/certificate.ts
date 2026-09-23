@@ -15,6 +15,7 @@ export interface RootIdentity {
 export function certificatePaths(directory: string) {
     return {
         certificate: join(directory, 'ca.pem'),
+        bundle: join(directory, 'ca-bundle.pem'),
         key: join(directory, 'ca.key'),
         truststore: join(directory, 'ca.p12')
     }
@@ -35,6 +36,15 @@ export function ensureTruststore(directory: string, certificate: string): string
     const certs = [certificate, ...rootCertificates].map((pem) => forge.pem.decode(pem)[0].body)
     const asn1 = trustStoreAsn1(certs, TRUSTSTORE_PASSWORD)
     writeFileSync(path, Buffer.from(forge.asn1.toDer(asn1).getBytes(), 'binary'), { mode: 0o644 })
+    return path
+}
+
+/** Public roots plus Tapline for clients whose CA file replaces native trust. */
+export function ensureCertificateBundle(directory: string, certificate: string): string {
+    const path = certificatePaths(directory).bundle
+    const bundle = [certificate, ...rootCertificates].join('\n') + '\n'
+    if (!existsSync(path) || readFileSync(path, 'utf8') !== bundle)
+        writeFileSync(path, bundle, { mode: 0o644 })
     return path
 }
 

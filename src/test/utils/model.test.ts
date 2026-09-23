@@ -200,6 +200,33 @@ describe('format', () => {
         expect(customNoProxy.no_proxy).toBe(customNoProxy.NO_PROXY)
     })
 
+    it('uses public-root bundles for partial decryption but only the Tapline CA for Node additive trust', () => {
+        const env = captureEnvironment(
+            {
+                port: 3606,
+                certificatePath: '/tmp/ca.pem',
+                caBundlePath: '/tmp/ca-bundle.pem',
+                sslHosts: ['*', '!github.com']
+            },
+            PROFILES
+        )
+        expect(env.NODE_EXTRA_CA_CERTS).toBe('/tmp/ca.pem')
+        expect(env.NODE_USE_ENV_PROXY).toBe('1')
+        for (const name of [
+            'SSL_CERT_FILE',
+            'CURL_CA_BUNDLE',
+            'GIT_SSL_CAINFO',
+            'npm_config_cafile',
+            'REQUESTS_CA_BUNDLE',
+            'PIP_CERT',
+            'AWS_CA_BUNDLE',
+            'CARGO_HTTP_CAINFO',
+            'DENO_CERT',
+            'GRPC_DEFAULT_SSL_ROOTS_FILE_PATH'
+        ])
+            expect(env[name]).toBe('/tmp/ca-bundle.pem')
+    })
+
     it('maps inherited and configured proxy exclusions to JVM host patterns', () => {
         vi.stubEnv('NO_PROXY', 'inherited.test,.corp.test')
         try {
