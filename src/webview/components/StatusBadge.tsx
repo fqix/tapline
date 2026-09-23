@@ -23,7 +23,7 @@ const tone = (x: Subject) =>
  * gRPC the dot follows `grpc-status` (HTTP is always 200) and the tooltip names it.
  */
 export function StatusBadge({ x }: { x: Subject }) {
-    if (x.scheme === 'connect' && x.state !== 'error')
+    if (x.scheme === 'connect' && x.state === 'completed')
         return (
             <span className="status" title={t('tunnel')}>
                 <span className="codicon codicon-lock" aria-hidden="true" />
