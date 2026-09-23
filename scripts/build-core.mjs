@@ -143,6 +143,17 @@ if (values.test) {
         cwd: SOURCE,
         env
     })
+    // Scan the patched module graph, including dependencies invisible in patch text.
+    run(
+        GO,
+        [
+            'run',
+            'golang.org/x/vuln/cmd/govulncheck@v1.8.0',
+            `-tags=${tags}`,
+            './service/taplineinspector/...'
+        ],
+        { cwd: SOURCE, env }
+    )
     process.exit(0)
 }
 for (const target of targets) {

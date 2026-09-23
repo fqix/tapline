@@ -1,6 +1,6 @@
-From 8fc541557d581865bbb12fa637a9adbd16a0d791 Mon Sep 17 00:00:00 2001
+From 880189359ec3681f57ccebfa35a50003600f826c Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
-Date: Wed, 23 Sep 2026 10:30:37 +0800
+Date: Wed, 23 Sep 2026 10:36:03 +0800
 Subject: [PATCH] fix(route): synchronize network manager startup
 
 ---

@@ -40,11 +40,31 @@ Populate [../../sing-box](../../sing-box) with
 `git submodule update --init --recursive`. `scripts/build-core.mjs` verifies the
 pinned revision, applies patches with plain `git apply`, and builds
 `core/<platform>-<arch>/sing-box[.exe]`, its `.build.json` manifest and license
-notices. Go 1.27+ is required (`TAPLINE_GO` may select the executable).
+notices. The build toolchain is `go1.27.1` in `pin.json` (`TAPLINE_GO` may select
+the executable). The upstream `go.mod` directive `go 1.25.5` declares its
+language/module compatibility minimum, not the pinned build toolchain version.
 
 `npm run core:test` runs race-enabled tests and vet for the inspector, include,
 CLI, JA3 parser and SOCKS packages, covering every patched test package. Build
 scripts reset the submodule: commit or save local submodule edits first.
+
+## Patched dependencies and security ownership
+
+The core integration adds these pinned modules to the upstream module graph:
+
+| Module | Version | Role |
+| --- | --- | --- |
+| `github.com/elazarl/goproxy` | `v1.9.1` | HTTP proxy and HTTPS interception engine |
+| `github.com/gobwas/ws` | `v1.4.0` | WebSocket framing and handshake |
+
+Tapline maintainers own their security review and updates separately from the
+upstream sing-box pin. npm audit and manifest-only dependency bots do not inspect
+module requirements inside patch text. `core:test` scans the patched inspector
+source with `govulncheck v1.8.0`, so reachable advisories fail CI. Review new
+advisories and releases when changing the pin or patch series; update via `go get`
+in the isolated source branch, retain Go-generated go.mod/go.sum ordering, and
+re-export the core patch. The bundled core manifest records compiled module
+versions and license notices for auditing shipped artifacts.
 
 ## Updating the series
 

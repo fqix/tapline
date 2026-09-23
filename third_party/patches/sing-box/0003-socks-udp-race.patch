@@ -1,6 +1,6 @@
-From fe2063e8b5d77fbcce08b6e519d04355de80f0fa Mon Sep 17 00:00:00 2001
+From fb4355630f4a504dd370d41089ec32ab7deee052 Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
-Date: Wed, 23 Sep 2026 10:30:37 +0800
+Date: Wed, 23 Sep 2026 10:36:03 +0800
 Subject: [PATCH] fix(socks): bind UDP replies before concurrent routing
 
 ---
