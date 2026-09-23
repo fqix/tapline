@@ -7,8 +7,8 @@ English | [简体中文](README.zh-CN.md)
 
 Capture, inspect, rewrite and replay HTTP, HTTPS, HTTP/2, HTTP/3, gRPC, WebSocket and
 SSE traffic without leaving VS Code. Integrated terminals and debug sessions are routed
-through a local proxy that decrypts TLS with its own root CA; nothing else on the system
-changes.
+through a local proxy that decrypts configured hosts with the Tapline root CA.
+By default all hosts are selected; excluded hosts pass through unchanged.
 
 Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
 or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
@@ -156,6 +156,25 @@ it, and _Tapline: Uninstall Root Certificate_ removes it.
 
 Firefox and snap/flatpak browsers keep their own stores and need a manual import. Set
 `tapline.ssl.hosts` to `[]` to capture without decryption or any certificate.
+
+TLS interception follows host inclusion/exclusion settings. Unlike Charles's
+opt-in default, Tapline keeps `tapline.ssl.hosts` at `["*"]` (all hosts). Set it to
+`[]` or exclude a host: its HTTPS/WSS connections pass through unchanged and are
+marked **Undecrypted**. Only connection metadata and byte counts are recorded;
+clients see the original server certificate, including when they use certificate pinning.
+With no decryption hosts configured, terminal/debug environments inject only proxy
+settings, preserving the client's native CA trust.
+
+Add a hostname or wildcard to `tapline.ssl.hosts` to decrypt its traffic; `*` opts in
+all hosts. `tapline.ssl.noHosts` and `!` patterns exclude hosts and take precedence.
+Existing saved patterns are preserved. Changes apply to new connections, so reconnect
+or restart capture to replace existing tunnels. Composer/Replay explicitly inspects its
+own request without changing the host policy for other clients.
+
+An opted-in connection that fails TLS is not automatically retried or switched to
+passthrough. Exclude pinned hosts before connecting. Tapline uses Go TLS rather than
+Charles's TLS implementation: malformed certificate acceptance is not guaranteed to
+match, even with `ssl.insecureUpstream` enabled.
 
 ## MCP server
 

@@ -7,8 +7,24 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Added
 
+- An Undecrypted label for opaque CONNECT tunnels in the request list.
 - `tapline.port` setting for the capture proxy port (default 3606). A busy port falls
   back to a free OS-assigned one; set it to 0 to always ask the OS for a free port.
+- `tapline.ssl.noHosts` and `!`-prefixed patterns in `tapline.ssl.hosts` to exclude
+  hosts from HTTPS decryption; excluded hosts are tunnelled opaquely.
+- `tapline.ssl.noProxy` to append hostnames to NO_PROXY/no_proxy in captured
+  terminals and debug sessions, on top of the host's own NO_PROXY.
+- `tapline.ssl.insecureUpstream` to accept any upstream certificate on decrypted
+  connections, for self-signed or expired development backends. Off by default: the
+  client only ever sees the Tapline certificate, so upstream interception would
+  otherwise go unnoticed.
+
+### Changed
+
+- TLS decryption follows host inclusion/exclusion settings, keeping
+  `tapline.ssl.hosts` at `["*"]` by default (unlike Charles's opt-in default).
+  Excluded hosts keep their original TLS connection, including certificate pinning.
+  There is no extra TLS probe or automatic retry/fallback after a handshake failure.
 
 ## [0.11.0]
 

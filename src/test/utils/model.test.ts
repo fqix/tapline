@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { matchHost, toCurl, toHAR, type Transaction } from '../../shared/model'
 import { bodyExtension, renderTransaction } from '../../utils/format'
 import { captureEnvironment, defaultDebugRuntimes, PROFILES } from '../../utils/environment'
@@ -75,6 +75,61 @@ describe('toHAR', () => {
 })
 
 describe('format', () => {
+    it('preserves native CA trust in passthrough mode while routing Node and Java', () => {
+        for (const policy of [
+            { sslHosts: [] },
+            { sslHosts: ['!private.test'] },
+            { sslHosts: ['*', '!*'] },
+            { sslHosts: ['*', ' ! * '] },
+            { sslHosts: ['*'], sslNoHosts: [' * '] },
+            { sslNoHosts: ['*'] }
+        ]) {
+            const env = captureEnvironment(
+                {
+                    port: 3606,
+                    certificatePath: '/tapline.pem',
+                    truststorePath: '/tapline.p12',
+                    ...policy
+                },
+                PROFILES
+            )
+            expect(env.HTTPS_PROXY).toBe('http://127.0.0.1:3606')
+            expect(env.NODE_USE_ENV_PROXY).toBe('1')
+            expect(env.JAVA_TOOL_OPTIONS).toContain('-Dhttps.proxyPort=3606')
+            expect(env.JAVA_TOOL_OPTIONS).not.toContain('trustStore')
+            expect(Object.keys(env).sort()).toEqual(
+                [
+                    'http_proxy',
+                    'https_proxy',
+                    'HTTP_PROXY',
+                    'HTTPS_PROXY',
+                    'NO_PROXY',
+                    'no_proxy',
+                    'NODE_USE_ENV_PROXY',
+                    'JAVA_TOOL_OPTIONS'
+                ].sort()
+            )
+        }
+    })
+    it('keeps CA injection for partially excluded interception policies', () => {
+        for (const policy of [
+            {},
+            { sslHosts: ['*', '!private.test'] },
+            { sslHosts: ['*'], sslNoHosts: ['private.test'] }
+        ]) {
+            const env = captureEnvironment(
+                {
+                    port: 3606,
+                    certificatePath: '/tapline.pem',
+                    truststorePath: '/tapline.p12',
+                    ...policy
+                },
+                PROFILES
+            )
+            expect(env.REQUESTS_CA_BUNDLE).toBe('/tapline.pem')
+            expect(env.JAVA_TOOL_OPTIONS).toContain('-Djavax.net.ssl.trustStore=/tapline.p12')
+        }
+    })
     it('picks body extensions from content types', () => {
         expect(bodyExtension({ 'content-type': 'application/json' }, '', false)).toBe('json')
         expect(bodyExtension({}, '[1]', false)).toBe('json')
@@ -135,5 +190,45 @@ describe('format', () => {
         ])
         for (const profiles of Object.values(defaultDebugRuntimes))
             for (const p of profiles) expect(PROFILES).toContain(p)
+        const customNoProxy = captureEnvironment(
+            target,
+            [],
+            ['vcluster.hd-04.alayanew.com', 'internal.net']
+        )
+        expect(customNoProxy.NO_PROXY).toContain('vcluster.hd-04.alayanew.com')
+        expect(customNoProxy.NO_PROXY).toContain('internal.net')
+        expect(customNoProxy.no_proxy).toBe(customNoProxy.NO_PROXY)
+    })
+
+    it('maps inherited and configured proxy exclusions to JVM host patterns', () => {
+        vi.stubEnv('NO_PROXY', 'inherited.test,.corp.test')
+        try {
+            const env = captureEnvironment(
+                { port: 3606, certificatePath: '/tmp/ca.pem', truststorePath: '/tmp/ca.p12' },
+                ['java'],
+                ['api.internal', '*.dev.test', '10.0.0.1', 'port.test:8443', '10.0.0.0/8']
+            )
+            const patterns = env.JAVA_TOOL_OPTIONS.match(/-Dhttp.nonProxyHosts=([^ ]+)/)![1].split(
+                '|'
+            )
+            expect(patterns).toEqual([
+                'localhost',
+                '*.localhost',
+                '127.0.0.1',
+                '[::1]',
+                'inherited.test',
+                '*.inherited.test',
+                'corp.test',
+                '*.corp.test',
+                'api.internal',
+                '*.api.internal',
+                '*.dev.test',
+                '10.0.0.1'
+            ])
+            expect(env.NO_PROXY).toContain('api.internal')
+            expect(env.no_proxy).toBe(env.NO_PROXY)
+        } finally {
+            vi.unstubAllEnvs()
+        }
     })
 })

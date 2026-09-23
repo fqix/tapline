@@ -32,7 +32,8 @@ export class CaptureEnvironment implements vscode.Disposable {
             preferences.onDidChange((change) => {
                 if (
                     change.affectsConfiguration('tapline.terminal') ||
-                    change.affectsConfiguration('tapline.debug')
+                    change.affectsConfiguration('tapline.debug') ||
+                    change.affectsConfiguration('tapline.ssl')
                 )
                     this.apply()
             }),
@@ -48,6 +49,8 @@ export class CaptureEnvironment implements vscode.Disposable {
     private target(): CaptureTarget {
         return {
             port: this.client.port,
+            sslHosts: preferences.get<string[]>('ssl.hosts', []),
+            sslNoHosts: preferences.get<string[]>('ssl.noHosts', []),
             certificatePath: this.client.certificatePath,
             truststorePath: this.client.truststorePath || undefined
         }
@@ -60,8 +63,11 @@ export class CaptureEnvironment implements vscode.Disposable {
     }
 
     /** Variables for the given profiles, or undefined when capture is not running. */
-    environment(profiles: readonly Profile[]) {
-        return this.client.running ? captureEnvironment(this.target(), profiles) : undefined
+    environment(profiles: readonly Profile[], extraNoProxy?: readonly string[]) {
+        const noProxy = extraNoProxy ?? preferences.get<string[]>('ssl.noProxy', [])
+        return this.client.running
+            ? captureEnvironment(this.target(), profiles, noProxy)
+            : undefined
     }
 
     private apply() {

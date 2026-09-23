@@ -74,6 +74,8 @@ export class SharedCore {
                         dynamicInbounds: true,
                         intercept: (host, inbound) =>
                             Boolean(inbound && this.targets.get(inbound)?.intercepts(host)),
+                        insecureUpstream: (id) =>
+                            Boolean(this.requests.get(id)?.settings.insecureUpstream),
                         bindSession: (id, inbound) => {
                             const target = this.targets.get(inbound)
                             if (!target) throw new Error('Unknown capture inlet')

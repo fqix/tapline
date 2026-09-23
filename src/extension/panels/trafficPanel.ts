@@ -431,6 +431,7 @@ function panelStrings(): Record<string, string> {
             'Body truncated to the retained limit; the full body was forwarded.'
         ),
         tunnel: vscode.l10n.t('TLS was not decrypted for this host (see tapline.ssl.hosts).'),
+        undecrypted: vscode.l10n.t('Undecrypted'),
         gone: vscode.l10n.t('This request is no longer available.'),
         url: vscode.l10n.t('URL'),
         method: vscode.l10n.t('Method'),

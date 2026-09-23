@@ -5,8 +5,12 @@
 export interface CaptureTarget {
     port: number
     certificatePath: string
-    /** PKCS#12 trust store for JVMs; without it the `java` profile injects nothing. */
+    /** PKCS#12 trust store for JVMs when TLS decryption is enabled. */
     truststorePath?: string
+    /** Configured decryption patterns; an empty list preserves native CA trust. */
+    sslHosts?: readonly string[]
+    /** Exclusions take precedence over the decryption patterns. */
+    sslNoHosts?: readonly string[]
 }
 
 export type Profile = 'openssl' | 'git' | 'node' | 'python' | 'java' | 'rust' | 'deno' | 'grpc'
@@ -36,19 +40,41 @@ export const profileDescriptions: Record<Profile, string> = {
 }
 
 /** Always injected: the proxy itself. Every common HTTP client reads these. */
-export function proxyVariables(port: number): Record<string, string> {
+export function proxyVariables(
+    port: number,
+    extraNoProxy?: readonly string[]
+): Record<string, string> {
     const proxy = `http://127.0.0.1:${port}`
+    const defaults = ['localhost', '127.0.0.1', '::1']
+    // Shared with the webview bundle, where `process` does not exist: reach for it
+    // through globalThis so the host's own NO_PROXY is honoured without a hard import.
+    const procEnv = (
+        globalThis as unknown as {
+            process?: { env?: Record<string, string | undefined> }
+        }
+    ).process?.env
+    const envNoProxy = procEnv?.NO_PROXY || procEnv?.no_proxy || ''
+    const existing = envNoProxy
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean)
+    const combined = Array.from(new Set([...defaults, ...existing, ...(extraNoProxy ?? [])])).join(
+        ','
+    )
     return {
         http_proxy: proxy,
         https_proxy: proxy,
         HTTP_PROXY: proxy,
         HTTPS_PROXY: proxy,
-        NO_PROXY: 'localhost,127.0.0.1,::1',
-        no_proxy: 'localhost,127.0.0.1,::1'
+        NO_PROXY: combined,
+        no_proxy: combined
     }
 }
 
-const variables: Record<Profile, (target: CaptureTarget) => Record<string, string>> = {
+const variables: Record<
+    Profile,
+    (target: CaptureTarget, noProxy: string, decryptTLS: boolean) => Record<string, string>
+> = {
     openssl: ({ certificatePath }) => ({
         SSL_CERT_FILE: certificatePath,
         CURL_CA_BUNDLE: certificatePath
@@ -65,8 +91,8 @@ const variables: Record<Profile, (target: CaptureTarget) => Record<string, strin
         PIP_CERT: certificatePath,
         AWS_CA_BUNDLE: certificatePath
     }),
-    java: ({ port, truststorePath }): Record<string, string> =>
-        truststorePath
+    java: ({ port, truststorePath }, noProxy, decryptTLS): Record<string, string> =>
+        truststorePath || !decryptTLS
             ? {
                   // JVMs ignore HTTP_PROXY; JAVA_TOOL_OPTIONS is read by every JVM at start.
                   JAVA_TOOL_OPTIONS: [
@@ -74,10 +100,14 @@ const variables: Record<Profile, (target: CaptureTarget) => Record<string, strin
                       `-Dhttp.proxyPort=${port}`,
                       `-Dhttps.proxyHost=127.0.0.1`,
                       `-Dhttps.proxyPort=${port}`,
-                      `-Dhttp.nonProxyHosts=localhost|127.0.0.1`,
-                      `-Djavax.net.ssl.trustStore=${quoteJavaOption(truststorePath)}`,
-                      `-Djavax.net.ssl.trustStorePassword=changeit`,
-                      `-Djavax.net.ssl.trustStoreType=PKCS12`
+                      `-Dhttp.nonProxyHosts=${quoteJavaOption(javaNonProxyHosts(noProxy))}`,
+                      ...(decryptTLS && truststorePath
+                          ? [
+                                `-Djavax.net.ssl.trustStore=${quoteJavaOption(truststorePath)}`,
+                                `-Djavax.net.ssl.trustStorePassword=changeit`,
+                                `-Djavax.net.ssl.trustStoreType=PKCS12`
+                            ]
+                          : [])
                   ].join(' ')
               }
             : {},
@@ -89,12 +119,38 @@ const variables: Record<Profile, (target: CaptureTarget) => Record<string, strin
 /** Proxy variables plus the CA variables of the selected profiles. */
 export function captureEnvironment(
     target: CaptureTarget,
-    profiles: readonly Profile[]
+    profiles: readonly Profile[],
+    extraNoProxy?: readonly string[]
 ): Record<string, string> {
-    const env = proxyVariables(target.port)
-    for (const profile of profiles)
-        if (profile in variables) Object.assign(env, variables[profile](target))
+    const env = proxyVariables(target.port, extraNoProxy)
+    const hosts = target.sslHosts ?? ['*']
+    const excludesAll =
+        hosts.some((host) => host.trim().startsWith('!') && host.trim().slice(1).trim() === '*') ||
+        target.sslNoHosts?.some((host) => host.trim() === '*')
+    const decryptTLS =
+        !excludesAll && hosts.some((host) => host.trim() && !host.trim().startsWith('!'))
+    for (const profile of profiles) {
+        if (!decryptTLS && profile !== 'java') {
+            if (profile === 'node') env.NODE_USE_ENV_PROXY = '1'
+            continue
+        }
+        if (profile in variables)
+            Object.assign(env, variables[profile](target, env.NO_PROXY, decryptTLS))
+    }
     return env
+}
+
+/** JVM patterns use | and require an explicit wildcard for domain suffixes. */
+function javaNonProxyHosts(noProxy: string): string {
+    const hosts = noProxy.split(',').flatMap((entry) => {
+        const host = entry.trim().replace(/^\./, '')
+        // JVM nonProxyHosts cannot express CIDRs or port-specific bypasses.
+        if (!host || host.includes('/') || /^[^:]+:\d+$/.test(host)) return []
+        if (host.includes(':')) return [host.startsWith('[') ? host : `[${host}]`]
+        if (host.includes('*') || /^[\d.]+$/.test(host)) return [host]
+        return [host, `*.${host}`]
+    })
+    return [...new Set(hosts)].join('|')
 }
 
 /** JAVA_TOOL_OPTIONS splits on whitespace unless the value is double-quoted. */

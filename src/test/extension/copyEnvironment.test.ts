@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import type { AgentClient } from '../../extension/client'
 import { CaptureEnvironment } from '../../extension/environment/captureEnvironment'
+import { preferences } from '../../extension/preferences'
 
 const ui = vi.hoisted(() => ({
     pick: vi.fn(),
@@ -37,10 +38,11 @@ function setup() {
     }
     const context = {
         globalState: { get: ui.get, update: ui.update },
-        environmentVariableCollection: { clear() {}, replace() {} }
+        environmentVariableCollection: { clear() {}, replace(_name: string, _value: string) {} }
     }
     return {
         client,
+        context,
         environment: new CaptureEnvironment(
             context as unknown as vscode.ExtensionContext,
             client as unknown as AgentClient
@@ -48,8 +50,54 @@ function setup() {
     }
 }
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetAllMocks()
+})
 describe('copy environment command', () => {
+    it('updates terminal trust variables when SSL Proxying is disabled and re-enabled', () => {
+        let onChange!: Parameters<typeof preferences.onDidChange>[0]
+        vi.spyOn(preferences, 'onDidChange').mockImplementation((listener) => {
+            onChange = listener
+            return { dispose() {} }
+        })
+        const get = preferences.get.bind(preferences)
+        let hosts: string[] = ['*']
+        let excluded: string[] = []
+        vi.spyOn(preferences, 'get').mockImplementation((key, fallback) =>
+            key === 'ssl.hosts' ? hosts : key === 'ssl.noHosts' ? excluded : get(key, fallback)
+        )
+        const { context, environment } = setup()
+        const variables = new Map<string, string>()
+        context.environmentVariableCollection.clear = () => variables.clear()
+        context.environmentVariableCollection.replace = (name: string, value: string) => {
+            variables.set(name, value)
+        }
+        const change = () => onChange({ affectsConfiguration: (key) => key === 'tapline.ssl' })
+        try {
+            change()
+            expect(variables.get('SSL_CERT_FILE')).toBe('/tmp/test ca.pem')
+            for (const passthrough of [[], ['!private.test'], ['*', '!*']]) {
+                hosts = passthrough
+                change()
+                expect(variables.get('HTTP_PROXY')).toBe('http://127.0.0.1:3638')
+                expect(variables.has('SSL_CERT_FILE')).toBe(false)
+                expect(variables.has('CURL_CA_BUNDLE')).toBe(false)
+                expect(variables.has('GIT_SSL_CAINFO')).toBe(false)
+            }
+            hosts = ['*']
+            excluded = ['*']
+            change()
+            expect(variables.get('HTTP_PROXY')).toBe('http://127.0.0.1:3638')
+            expect(variables.has('SSL_CERT_FILE')).toBe(false)
+            excluded = []
+            change()
+            expect(variables.get('SSL_CERT_FILE')).toBe('/tmp/test ca.pem')
+        } finally {
+            environment.dispose()
+        }
+    })
+
     it('offers all shells, uses the current port and remembers the choice', async () => {
         const { client, environment } = setup()
         ui.get.mockReturnValue('Fish')
@@ -68,9 +116,7 @@ describe('copy environment command', () => {
         expect(ui.write).toHaveBeenCalledWith(
             expect.stringContaining("set -gx HTTP_PROXY 'http://127.0.0.1:4000'")
         )
-        expect(ui.write).toHaveBeenCalledWith(
-            expect.stringContaining("set -gx SSL_CERT_FILE '/tmp/test ca.pem'")
-        )
+        expect(ui.write.mock.calls[0][0]).toContain("set -gx SSL_CERT_FILE '/tmp/test ca.pem'")
         expect(ui.update).toHaveBeenCalledWith('copyEnvironment.shell', 'Fish')
     })
     it('leaves the clipboard untouched when the picker is cancelled', async () => {
@@ -121,6 +167,15 @@ describe('debug environment injection', () => {
         }
     )
 
+    it('preserves native CA trust when all hosts are passed through', () => {
+        const get = preferences.get.bind(preferences)
+        vi.spyOn(preferences, 'get').mockImplementation(<T>(key: string, fallback?: T): T =>
+            key === 'ssl.hosts' ? ([] as T) : get<T>(key, fallback)
+        )
+        const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
+        expect(config.env.NODE_EXTRA_CA_CERTS).toBeUndefined()
+        expect(config.env.NODE_USE_ENV_PROXY).toBe('1')
+    })
     it('keeps extra CA trust for normal Node debugging', () => {
         const config = resolve({ type: 'node', name: 'Node', request: 'launch' })
         expect(config.env.NODE_EXTRA_CA_CERTS).toBe('/tmp/test ca.pem')

@@ -32,11 +32,11 @@ export function freePort() {
 }
 
 /** Self-signed leaf for 127.0.0.1 / localhost, RSA 2048. */
-export function selfSigned() {
+export function selfSigned(serialNumber = '02') {
     const pair = forge.pki.rsa.generateKeyPair(2048)
     const cert = forge.pki.createCertificate()
     cert.publicKey = pair.publicKey
-    cert.serialNumber = '02'
+    cert.serialNumber = serialNumber
     cert.validity.notBefore = new Date(Date.now() - 60000)
     cert.validity.notAfter = new Date(Date.now() + 86400000)
     const subject = [{ name: 'commonName', value: 'localhost' }]
@@ -149,7 +149,7 @@ export async function viaProxyTLS(
     proxyPort: number,
     url: string,
     ca: string,
-    options: http.RequestOptions = {},
+    options: http.RequestOptions & Pick<tls.ConnectionOptions, 'checkServerIdentity'> = {},
     body?: string
 ) {
     const target = new URL(url)
@@ -171,11 +171,20 @@ export async function viaProxyTLS(
         }
         socket.on('data', onData)
     })
-    const secure = tls.connect({ socket, servername: target.hostname, ca: [ca] })
+    const secure = tls.connect({
+        socket,
+        servername: target.hostname,
+        ca: [ca],
+        ...(options.checkServerIdentity ? { checkServerIdentity: options.checkServerIdentity } : {})
+    })
     return new Promise<{ status: number; body: string }>((resolve, reject) => {
+        // An explicit agent also works inside VS Code, whose proxy support wraps
+        // http.request and can replace an options-only createConnection hook.
+        const agent = new http.Agent()
+        agent.createConnection = () => secure
         const request = http.request(
             {
-                createConnection: () => secure as unknown as net.Socket,
+                agent,
                 host: target.hostname,
                 port: target.port,
                 path: target.pathname + target.search,
@@ -194,6 +203,11 @@ export async function viaProxyTLS(
                 })
             }
         )
+        request.once('upgrade', (response, socket) => {
+            resolve({ status: response.statusCode!, body: '' })
+            socket.destroy()
+            secure.destroy()
+        })
         request.on('error', reject)
         request.end(body)
     })

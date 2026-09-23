@@ -26,6 +26,14 @@ function setup(data = new Map<string, unknown>()) {
     return { data, context, dispose: () => subscriptions.forEach((d) => d.dispose()) }
 }
 describe('global preferences', () => {
+    it('defaults to all hosts while preserving a saved passthrough preference', async () => {
+        expect(new Preferences().get('ssl.hosts')).toEqual(['*'])
+        const fixture = setup(new Map<string, unknown>([['preferences.ssl.hosts', []]]))
+        const store = new Preferences()
+        await store.initialize(fixture.context)
+        expect(store.get('ssl.hosts')).toEqual([])
+        fixture.dispose()
+    })
     it('migrates only explicit global values once and preserves subsequent edits', async () => {
         const fixture = setup()
         const store = new Preferences()
@@ -61,9 +69,9 @@ describe('global preferences', () => {
         await store.initialize(fixture.context)
         const listener = vi.fn()
         store.onDidChange(listener)
-        fixture.data.set('preferences.ssl.hosts', [])
+        fixture.data.set('preferences.ssl.hosts', ['example.com'])
         vi.advanceTimersByTime(2000)
-        expect(store.get('ssl.hosts')).toEqual([])
+        expect(store.get('ssl.hosts')).toEqual(['example.com'])
         expect(listener.mock.calls[0][0].affectsConfiguration('tapline.ssl')).toBe(true)
         fixture.dispose()
         vi.useRealTimers()

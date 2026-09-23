@@ -108,6 +108,8 @@ export interface InspectorOptions {
     intercept(host: string, inbound?: string): boolean
     /** Extra PEM CA the core should trust for upstream servers (tests, private CAs). */
     upstreamCA?: string
+    /** Whether the session accepts any upstream certificate; read per request, it is a live setting. */
+    insecureUpstream?(id: string): boolean
 }
 
 export function coreConfig(host: string, port: number) {
@@ -399,7 +401,13 @@ export class Inspector {
                     this.fail(id, error)
                 })
                 socket.once('close', () => upstream.destroy())
-                upstream.once('close', () => socket.destroy())
+                // Drain the IPC writer before destroying the duplex: an origin
+                // can close while its final chunk is still waiting for credit.
+                // Destroying now would discard the end message and strand clients.
+                socket.once('finish', () => socket.destroy())
+                upstream.once('close', () => {
+                    if (!upstream.readableEnded) socket.destroy()
+                })
                 return
             }
             case 'request': {
@@ -433,7 +441,8 @@ export class Inspector {
                     path: target.pathname + target.search,
                     method: decision.method ?? request.method ?? 'GET',
                     headers: decision.headers ?? headers,
-                    ...(this.options.upstreamCA ? { ca: this.options.upstreamCA } : {})
+                    ...(this.options.upstreamCA ? { ca: this.options.upstreamCA } : {}),
+                    ...(this.options.insecureUpstream?.(id) ? { insecure: true } : {})
                 }
                 this.send({ type: 'request-result', id, options, url, route: '' })
                 await this.relay(
@@ -505,7 +514,12 @@ export class Inspector {
                 this.send({
                     type: 'websocket-result',
                     id,
-                    options: { url: message.url, headers: message.headers },
+                    options: {
+                        url: message.url,
+                        headers: message.headers,
+                        ...(this.options.upstreamCA ? { ca: this.options.upstreamCA } : {}),
+                        ...(this.options.insecureUpstream?.(id) ? { insecure: true } : {})
+                    },
                     route: ''
                 })
                 return

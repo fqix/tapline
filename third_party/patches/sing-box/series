@@ -7,3 +7,4 @@
 0007-websocket-resend.patch
 0008-upstream-address.patch
 0009-window-inlets.patch
+0010-upstream-insecure.patch

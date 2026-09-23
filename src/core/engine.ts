@@ -37,6 +37,7 @@ import {
 } from './rules'
 import {
     defaultSettings,
+    isHostIntercepted,
     matchHost,
     ruleLabel,
     ruleMatches,
@@ -81,6 +82,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     upstreamCA?: string
     private inspector?: Inspector
     private root?: RootIdentity
+    /** Explicitly composed requests opt in only their own loopback connection. */
+    private composedClients = new Set<number>()
     private sequence = 0
     private starting?: Promise<void>
     private captures = new Map<string, { request: Capture; response: Capture }>()
@@ -216,7 +219,8 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
                 port: this.settings.port,
                 root,
                 intercept: (host) => this.intercepts(host),
-                upstreamCA: this.upstreamCA
+                upstreamCA: this.upstreamCA,
+                insecureUpstream: () => this.settings.insecureUpstream
             },
             this
         )
@@ -249,7 +253,10 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     intercepts(host: string) {
-        return this.settings.sslHosts.some((pattern) => matchHost(pattern, host))
+        if (this.settings.sslNoHosts.some((pattern) => matchHost(pattern, host))) {
+            return false
+        }
+        return isHostIntercepted(this.settings.sslHosts, host)
     }
 
     // ---- inspector handlers ------------------------------------------------
@@ -381,7 +388,9 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     connect(id: string, host: string, port: number, client: Client) {
-        const intercept = this.intercepts(host)
+        const intercept =
+            this.intercepts(host) ||
+            (client.remoteAddress === '127.0.0.1' && this.composedClients.has(client.remotePort))
         if (!intercept) {
             const t = this.create(
                 id,
@@ -843,88 +852,94 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
             socket.once('error', reject)
         })
         const localPort = proxy.localPort!
-        const found = new Promise<Transaction>((resolve, reject) => {
-            const listener = (event: Event) => {
-                if (event.type !== 'transaction') return
-                const t = event.transaction
-                if (t.client !== `127.0.0.1:${localPort}` || t.state === 'pending') return
-                this.off('event', listener)
-                if (input.replayOf) {
-                    t.replayOf = input.replayOf
-                    this.publish(t)
-                }
-                resolve(t)
-            }
-            this.on('event', listener)
-            setTimeout(() => {
-                this.off('event', listener)
-                reject(new Error('Replay timed out'))
-            }, 60000).unref()
-        })
-        const headers: Headers = {}
-        for (const [name, value] of Object.entries(input.headers))
-            if (
-                ![
-                    'content-length',
-                    'transfer-encoding',
-                    'host',
-                    'connection',
-                    'proxy-connection'
-                ].includes(name.toLowerCase())
-            )
-                headers[name] = value
-        const body = Buffer.from(
-            input.body ?? '',
-            input.bodyEncoding === 'base64' ? 'base64' : 'utf8'
-        )
-        if (body.length) headers['content-length'] = String(body.length)
-        // URL.host omits default ports, matching what browsers and curl send.
-        headers['host'] = target.host
-        let socket: net.Socket | tls.TLSSocket = proxy
-        if (target.protocol === 'https:') {
-            const host = `${target.hostname}:${target.port || 443}`
-            proxy.write(`CONNECT ${host} HTTP/1.1\r\nHost: ${host}\r\n\r\n`)
-            await new Promise<void>((resolve, reject) => {
-                let buffer = ''
-                const onData = (chunk: Buffer) => {
-                    buffer += chunk.toString('latin1')
-                    const end = buffer.indexOf('\r\n\r\n')
-                    if (end < 0) return
-                    proxy.off('data', onData)
-                    if (!/^HTTP\/1\.[01] 200/.test(buffer))
-                        return reject(
-                            new Error(`Proxy refused CONNECT: ${buffer.split('\r\n')[0]}`)
-                        )
-                    resolve()
-                }
-                proxy.on('data', onData)
-                proxy.once('error', reject)
-            })
-            socket = tls.connect({
-                socket: proxy,
-                servername: target.hostname,
-                ca: [this.root.certificate]
-            })
-        }
-        const request = http.request({
-            createConnection: () => socket as net.Socket,
-            method: input.method,
-            host: target.hostname,
-            port: target.port || (target.protocol === 'https:' ? 443 : 80),
-            path: target.protocol === 'https:' ? target.pathname + target.search : input.url,
-            headers,
-            setHost: false,
-            timeout: 30000
-        })
-        request.on('response', (response) => response.resume())
-        request.on('error', () => {})
-        request.on('timeout', () => request.destroy(new Error('Replay timed out')))
-        request.end(body)
+        this.composedClients.add(localPort)
         try {
-            return await found
+            const found = new Promise<Transaction>((resolve, reject) => {
+                const listener = (event: Event) => {
+                    if (event.type !== 'transaction') return
+                    const t = event.transaction
+                    if (t.client !== `127.0.0.1:${localPort}` || t.state === 'pending') return
+                    this.off('event', listener)
+                    if (input.replayOf) {
+                        t.replayOf = input.replayOf
+                        this.publish(t)
+                    }
+                    resolve(t)
+                }
+                this.on('event', listener)
+                setTimeout(() => {
+                    this.off('event', listener)
+                    reject(new Error('Replay timed out'))
+                }, 60000).unref()
+            })
+            const headers: Headers = {}
+            for (const [name, value] of Object.entries(input.headers))
+                if (
+                    ![
+                        'content-length',
+                        'transfer-encoding',
+                        'host',
+                        'connection',
+                        'proxy-connection'
+                    ].includes(name.toLowerCase())
+                )
+                    headers[name] = value
+            const body = Buffer.from(
+                input.body ?? '',
+                input.bodyEncoding === 'base64' ? 'base64' : 'utf8'
+            )
+            if (body.length) headers['content-length'] = String(body.length)
+            // URL.host omits default ports, matching what browsers and curl send.
+            headers['host'] = target.host
+            let socket: net.Socket | tls.TLSSocket = proxy
+            if (target.protocol === 'https:') {
+                const host = `${target.hostname}:${target.port || 443}`
+                proxy.write(`CONNECT ${host} HTTP/1.1\r\nHost: ${host}\r\n\r\n`)
+                await new Promise<void>((resolve, reject) => {
+                    let buffer = ''
+                    const onData = (chunk: Buffer) => {
+                        buffer += chunk.toString('latin1')
+                        const end = buffer.indexOf('\r\n\r\n')
+                        if (end < 0) return
+                        proxy.off('data', onData)
+                        if (!/^HTTP\/1\.[01] 200/.test(buffer))
+                            return reject(
+                                new Error(`Proxy refused CONNECT: ${buffer.split('\r\n')[0]}`)
+                            )
+                        resolve()
+                    }
+                    proxy.on('data', onData)
+                    proxy.once('error', reject)
+                })
+                socket = tls.connect({
+                    socket: proxy,
+                    servername: target.hostname,
+                    ca: [this.root.certificate]
+                })
+            }
+            const request = http.request({
+                createConnection: () => socket as net.Socket,
+                method: input.method,
+                host: target.hostname,
+                port: target.port || (target.protocol === 'https:' ? 443 : 80),
+                path: target.protocol === 'https:' ? target.pathname + target.search : input.url,
+                headers,
+                setHost: false,
+                timeout: 30000
+            })
+            request.on('response', (response) => response.resume())
+            request.on('error', () => {})
+            request.on('timeout', () => request.destroy(new Error('Replay timed out')))
+            request.end(body)
+            try {
+                return await found
+            } finally {
+                request.destroy()
+                socket.destroy()
+            }
         } finally {
-            request.destroy()
-            socket.destroy()
+            this.composedClients.delete(localPort)
+            proxy.destroy()
         }
     }
 }

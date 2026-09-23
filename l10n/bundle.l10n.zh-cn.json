@@ -46,6 +46,7 @@
     "Binary body ({0} bytes)": "二进制内容（{0} 字节）",
     "Body truncated to the retained limit; the full body was forwarded.": "内容已按保留上限截断；完整内容已正常转发。",
     "TLS was not decrypted for this host (see tapline.ssl.hosts).": "未对该域名解密 TLS（见 tapline.ssl.hosts）。",
+    "Undecrypted": "未解密",
     "URL": "URL",
     "Method": "方法",
     "Status": "状态",

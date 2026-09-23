@@ -1,6 +1,9 @@
 import { grpcStatusName, type Transaction } from '../../shared/model'
+import { t } from '../lib/i18n'
 
-type Subject = Pick<Transaction, 'status' | 'state' | 'paused'> & { grpcStatus?: number }
+type Subject = Pick<Transaction, 'status' | 'state' | 'paused' | 'scheme'> & {
+    grpcStatus?: number
+}
 
 const tone = (x: Subject) =>
     x.paused
@@ -20,6 +23,13 @@ const tone = (x: Subject) =>
  * gRPC the dot follows `grpc-status` (HTTP is always 200) and the tooltip names it.
  */
 export function StatusBadge({ x }: { x: Subject }) {
+    if (x.scheme === 'connect' && x.state !== 'error')
+        return (
+            <span className="status" title={t('tunnel')}>
+                <span className="codicon codicon-lock" aria-hidden="true" />
+                <span>{t('undecrypted')}</span>
+            </span>
+        )
     const label = x.paused
         ? (x.status ?? '')
         : x.state === 'pending'

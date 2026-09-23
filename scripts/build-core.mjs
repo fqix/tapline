@@ -34,14 +34,15 @@ const output = (command, args, options = {}) =>
         ...options
     }).trim()
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex')
-const patches = ['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009'].map(
-    (prefix) => {
-        const name = readFileSync(join(PATCHES, 'series'), 'utf8')
-            .split('\n')
-            .find((line) => line.startsWith(prefix))
-        return { name, path: join(PATCHES, name), sha256: sha256(join(PATCHES, name)) }
-    }
-)
+const patches = readFileSync(join(PATCHES, 'series'), 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((name) => {
+        const path = join(PATCHES, name)
+        if (!existsSync(path)) throw new Error(`series lists a missing patch: ${name}`)
+        return { name, path, sha256: sha256(path) }
+    })
 
 function checkout() {
     const git = (...args) => output('git', args, { cwd: SOURCE })

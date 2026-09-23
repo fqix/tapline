@@ -15,6 +15,21 @@ export const settingsCatalog: Record<
     autoStart: { category: 'general', en: 'Start capture automatically', zh: '自动开始抓包' },
     port: { category: 'capture', en: 'Proxy port', zh: '代理端口' },
     'ssl.hosts': { category: 'capture', en: 'HTTPS host patterns', zh: 'HTTPS 主机匹配规则' },
+    'ssl.noHosts': {
+        category: 'capture',
+        en: 'Bypass HTTPS decryption hosts',
+        zh: '不解密的主机模式（纯 TCP 隧道）'
+    },
+    'ssl.insecureUpstream': {
+        category: 'capture',
+        en: 'Accept any upstream certificate',
+        zh: '接受上游任意证书（不校验）'
+    },
+    'ssl.noProxy': {
+        category: 'capture',
+        en: 'Bypass proxy hosts (NO_PROXY)',
+        zh: '绕过代理主机（NO_PROXY）'
+    },
     maxEntries: { category: 'capture', en: 'Request limit', zh: '请求数量上限' },
     maxBodyKiB: { category: 'capture', en: 'Body size limit (KiB)', zh: '正文大小上限（KiB）' },
     'terminal.profiles': {

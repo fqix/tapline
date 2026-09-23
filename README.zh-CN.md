@@ -6,8 +6,8 @@
 [![Open VSX downloads](https://img.shields.io/open-vsx/dt/fqix/tapline?label=Open%20VSX%20downloads)](https://open-vsx.org/extension/fqix/tapline)
 
 不离开 VS Code 即可捕获、检查、改写和重放 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC、WebSocket
-和 SSE 流量。集成终端和调试会话经由本地代理转发，代理用自己的根 CA 解密 TLS；系统其他
-部分不受影响。
+和 SSE 流量。集成终端和调试会话经由本地代理转发，使用 Tapline 根 CA 解密选中的域名。
+默认选中全部主机，被排除的主机原样透传。
 
 从 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
 或 [Open VSX](https://open-vsx.org/extension/fqix/tapline) 安装。
@@ -137,6 +137,21 @@ CA 位于扩展的全局存储目录（_Tapline: 复制根证书路径_）。只
 
 Firefox 和 snap/flatpak 浏览器使用自己的证书存储，需要手动导入。将
 `tapline.ssl.hosts` 设为 `[]` 可在不解密、不安装证书的情况下抓包。
+
+TLS 解密按域名启用和排除。与 Charles 默认不解密不同，Tapline 保留
+`tapline.ssl.hosts = ["*"]`，默认解密全部主机。设为 `[]` 或排除指定域名后，
+对应 HTTPS/WSS 连接原样透传，列表标记**未解密**，只记录连接信息和字节数。客户端看到服务端原始证书，
+包括启用 SSL pinning 的客户端。未配置解密域名时，终端和调试会话只注入代理配置，
+保留客户端原有的 CA 信任设置。
+
+在 `tapline.ssl.hosts` 添加域名或通配符即可解密，`*` 表示全部主机；
+`tapline.ssl.noHosts` 和 `!` 模式用于排除，且排除规则优先。已有保存的配置保持不变。
+配置修改只影响新连接，需重新连接或重启抓包才能替换已有隧道。
+Composer/重放是主动发出的检查请求，仅解密自身连接，不改变其他客户端的域名策略。
+
+主动开启解密后遇到 TLS 错误，不自动重试或改为透传。请提前排除有 pinning 的域名。
+Tapline 使用 Go TLS，无法保证与 Charles 对异常证书的接受范围完全相同；
+`ssl.insecureUpstream` 也不能绕过证书格式解析错误。
 
 ## MCP 服务器
 

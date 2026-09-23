@@ -6,7 +6,9 @@ import { execFile } from 'node:child_process'
 import http from 'node:http'
 import net from 'node:net'
 import { join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { X509Certificate } from 'node:crypto'
+import { httpsServer, selfSigned, viaProxyTLS } from '../test/helpers/helpers'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
@@ -56,6 +58,20 @@ function viaProxy(url: string, options: http.RequestOptions = {}, body?: string)
             request.end(body)
         }
     )
+}
+
+function viaProxyConnect(host: string, port: number) {
+    return new Promise<net.Socket>((resolve, reject) => {
+        const request = http.request({
+            host: '127.0.0.1',
+            port: proxyPort,
+            method: 'CONNECT',
+            path: `${host}:${port}`
+        })
+        request.on('connect', (_res, socket) => resolve(socket))
+        request.on('error', reject)
+        request.end()
+    })
 }
 
 function echoServer() {
@@ -163,6 +179,24 @@ suite('Tapline end to end', function () {
         assert.equal(JSON.parse(t.responseBody).body, 'ping')
         assert.equal(t.responseHeaders['x-echo'], '1')
         assert.equal(t.sequence >= 1, true)
+    })
+
+    test('tunnels CONNECT requests when host is not intercepted', async () => {
+        const socket = await viaProxyConnect('127.0.0.1', origin.port)
+        const data = await new Promise<string>((resolve, reject) => {
+            const chunks: Buffer[] = []
+            socket.setTimeout(10000, () =>
+                socket.destroy(new Error('CONNECT tunnel did not close'))
+            )
+            socket.on('error', reject)
+            socket.on('data', (c) => chunks.push(c))
+            socket.on('end', () => resolve(Buffer.concat(chunks).toString()))
+            socket.write('GET /via-tunnel HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
+        })
+        assert.ok(data.includes('200 OK'))
+        const t = await settled((t) => t.path === `127.0.0.1:${origin.port}`)
+        assert.equal(t.method, 'CONNECT')
+        assert.equal(t.tls, false)
     })
 
     test('opens immutable request comparisons in the native diff editor', async () => {
@@ -372,6 +406,161 @@ suite('Tapline end to end', function () {
         } finally {
             await api.client.pushSettings()
             if (!wasRunning) await api.client.stop()
+        }
+    })
+
+    test('switches TLS policy without retrying pinned requests or remembering failures', async () => {
+        const identity = selfSigned()
+        const fingerprint = new X509Certificate(identity.cert).fingerprint256
+        let requests = 0
+        const upstream = await httpsServer(identity, (req, res) => {
+            requests++
+            const chunks: Buffer[] = []
+            req.on('data', (chunk) => chunks.push(chunk))
+            req.on('end', () => res.end(Buffer.concat(chunks)))
+        })
+        const root = readFileSync(api.client.certificatePath, 'utf8')
+        const url = `https://127.0.0.1:${upstream.port}/pinned-payment`
+        const configure = (sslHosts = defaultSettings.sslHosts, sslNoHosts: string[] = []) =>
+            api.client.call('settings', {
+                settings: {
+                    ...defaultSettings,
+                    port: proxyPort,
+                    mcpPort: 3627,
+                    sslHosts,
+                    sslNoHosts,
+                    insecureUpstream: true
+                }
+            })
+        const pinned = () =>
+            viaProxyTLS(
+                proxyPort,
+                url,
+                root + '\n' + identity.cert,
+                {
+                    method: 'POST',
+                    checkServerIdentity: (_host, certificate) =>
+                        certificate.fingerprint256 === fingerprint
+                            ? undefined
+                            : new Error('Pinned certificate mismatch')
+                },
+                'send-once'
+            )
+        try {
+            await configure()
+            assert.equal(
+                (await viaProxyTLS(proxyPort, url, root, { method: 'POST' }, 'decrypted')).body,
+                'decrypted'
+            )
+            const decrypted = await settled((t) => t.url === url)
+            assert.equal(decrypted.scheme, 'https')
+            assert.equal(decrypted.tls, true)
+            assert.equal(decrypted.requestBody, 'decrypted')
+            for (let attempt = 0; attempt < 2; attempt++)
+                await assert.rejects(pinned(), /Pinned certificate mismatch/)
+            assert.equal(requests, 1, 'pinning failures must not retry the POST upstream')
+
+            for (const [hosts, excluded] of [
+                [[], []],
+                [['*'], ['127.0.0.1']],
+                [['*', '!127.0.0.1'], []]
+            ] as [string[], string[]][]) {
+                await configure(hosts, excluded)
+                const before = new Set(transactions().map((t) => t.id))
+                assert.deepEqual(await pinned(), { status: 200, body: 'send-once' })
+                const tunnel = await settled(
+                    (t) => !before.has(t.id) && t.path === `127.0.0.1:${upstream.port}`
+                )
+                assert.equal(tunnel.scheme, 'connect')
+                assert.equal(tunnel.method, 'CONNECT')
+                assert.equal(tunnel.tls, false)
+                assert.equal(tunnel.state, 'completed', tunnel.error)
+                assert.equal(tunnel.requestBody, '')
+                assert.equal(tunnel.responseBody, '')
+                assert.ok(tunnel.requestBytes > 0)
+                assert.ok(tunnel.responseBytes > 0)
+            }
+            assert.equal(requests, 4, 'each successful request reaches the origin exactly once')
+            await configure()
+            await assert.rejects(pinned(), /Pinned certificate mismatch/)
+            assert.equal(requests, 4, 're-enabling SSL Proxying restores pinning rejection')
+        } finally {
+            upstream.server.closeAllConnections()
+            upstream.server.close()
+            await api.client.pushSettings()
+        }
+    })
+
+    test('composes HTTPS in passthrough mode without changing other clients’ TLS policy', async () => {
+        const identity = selfSigned()
+        const upstream = await httpsServer(identity, (_req, res) => res.end('private response'))
+        const url = `https://127.0.0.1:${upstream.port}/compose-tls`
+        try {
+            await api.client.call('settings', {
+                settings: {
+                    ...defaultSettings,
+                    port: proxyPort,
+                    mcpPort: 3627,
+                    sslHosts: [],
+                    insecureUpstream: true
+                }
+            })
+            const composed = await api.client.compose({ url, method: 'GET', headers: {}, body: '' })
+            assert.equal(composed.status, 200)
+            assert.equal(composed.responseBody, 'private response')
+            assert.equal(composed.tls, true)
+            // Trust only the origin: an accidental global interception override fails TLS.
+            assert.equal(
+                (await viaProxyTLS(proxyPort, url, identity.cert)).body,
+                'private response'
+            )
+            const tunnel = await settled(
+                (t) => t.scheme === 'connect' && t.path === `127.0.0.1:${upstream.port}`
+            )
+            assert.equal(tunnel.responseBody, '')
+        } finally {
+            upstream.server.closeAllConnections()
+            upstream.server.close()
+            await api.client.pushSettings()
+        }
+    })
+
+    test('passes an unparseable legacy certificate through without probing or duplicating the POST', async () => {
+        // OpenSSL accepts negative serials; Go's certificate parser rejects them.
+        const identity = selfSigned('80')
+        let connections = 0
+        let requests = 0
+        const upstream = await httpsServer(identity, (req, res) => {
+            requests++
+            const chunks: Buffer[] = []
+            req.on('data', (chunk) => chunks.push(chunk))
+            req.on('end', () => res.end(Buffer.concat(chunks)))
+        })
+        upstream.server.on('connection', () => connections++)
+        try {
+            await api.client.call('settings', {
+                settings: { ...defaultSettings, port: proxyPort, mcpPort: 3627, sslHosts: [] }
+            })
+            const reply = await viaProxyTLS(
+                proxyPort,
+                `https://127.0.0.1:${upstream.port}/legacy`,
+                identity.cert,
+                { method: 'POST' },
+                'legacy-once'
+            )
+            assert.deepEqual(reply, { status: 200, body: 'legacy-once' })
+            const tunnel = await settled(
+                (t) => t.scheme === 'connect' && t.path === `127.0.0.1:${upstream.port}`
+            )
+            assert.equal(tunnel.state, 'completed', tunnel.error)
+            assert.equal(tunnel.requestBody, '')
+            assert.equal(tunnel.responseBody, '')
+            assert.equal(connections, 1, 'passthrough must not preflight TLS')
+            assert.equal(requests, 1)
+        } finally {
+            upstream.server.closeAllConnections()
+            upstream.server.close()
+            await api.client.pushSettings()
         }
     })
 

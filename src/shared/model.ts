@@ -233,6 +233,14 @@ export interface Settings {
     /** Proxy port; 0 asks the core for a free one. Defaults to 3606. */
     port: number
     sslHosts: string[]
+    /** Host patterns excluded from HTTPS decryption (opaque tunnel). */
+    sslNoHosts: string[]
+    /**
+     * Accept any upstream certificate on decrypted connections. Off by default: the
+     * client only ever sees our own leaf, so a rejected upstream chain would otherwise
+     * be invisible. Turn it on for self-signed or expired development backends.
+     */
+    insecureUpstream: boolean
     maxEntries: number
     maxBodyBytes: number
     /** Loopback port of the MCP endpoint; 0 disables it. */
@@ -246,6 +254,8 @@ export interface Settings {
 export const defaultSettings: Settings = {
     port: 3606,
     sslHosts: ['*'],
+    sslNoHosts: [],
+    insecureUpstream: false,
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,
     mcpPort: 3607,
@@ -305,6 +315,26 @@ export function matchHost(pattern: string, host: string): boolean {
     return h === p
 }
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Checks if a host should be intercepted according to patterns.
+ * Patterns starting with `!` are exclusion rules (e.g. `!*.alayanew.com` or `!vcluster.*`).
+ * A host is intercepted if it matches at least one positive pattern and does not match any negative pattern.
+ */
+export function isHostIntercepted(patterns: readonly string[], host: string): boolean {
+    const positive: string[] = []
+    const negative: string[] = []
+    for (const p of patterns) {
+        const trimmed = p.trim()
+        if (trimmed.startsWith('!')) {
+            if (trimmed.length > 1) negative.push(trimmed.slice(1))
+        } else if (trimmed) {
+            positive.push(trimmed)
+        }
+    }
+    if (negative.some((p) => matchHost(p, host))) return false
+    return positive.some((p) => matchHost(p, host))
+}
 
 export function toCurl(
     t: Pick<Transaction, 'method' | 'url' | 'requestHeaders' | 'requestBody' | 'requestBinary'>

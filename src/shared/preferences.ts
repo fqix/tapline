@@ -19,6 +19,27 @@ export const preferenceSchema: Record<string, PreferenceSchema> = {
         default: ['*'],
         description: '%config.ssl.hosts%'
     },
+    'ssl.noHosts': {
+        type: 'array',
+        items: {
+            type: 'string'
+        },
+        default: [],
+        description: '%config.ssl.noHosts%'
+    },
+    'ssl.insecureUpstream': {
+        type: 'boolean',
+        default: false,
+        description: '%config.ssl.insecureUpstream%'
+    },
+    'ssl.noProxy': {
+        type: 'array',
+        items: {
+            type: 'string'
+        },
+        default: [],
+        description: '%config.ssl.noProxy%'
+    },
     maxEntries: {
         type: 'integer',
         minimum: 100,
@@ -253,8 +274,20 @@ export const preferenceDescriptions: Record<string, { en: string; zh: string }> 
         zh: '抓包代理的监听端口。默认 3606。设为 0 表示由系统自动分配空闲端口。'
     },
     'ssl.hosts': {
-        en: 'Host patterns whose HTTPS traffic is decrypted (wildcards allowed). An empty list captures without decryption, and then no root certificate has to be trusted.',
-        zh: '需要解密 HTTPS 流量的主机模式（支持通配符）。留空则只抓包不解密，此时也不需要信任根证书。'
+        en: 'Host patterns whose HTTPS traffic is decrypted. Defaults to * (all hosts); an empty list passes all encrypted traffic through. Wildcards are allowed; ! excludes a host. Exclusions take priority.',
+        zh: '需要解密 HTTPS 流量的主机模式。默认为 *（所有主机）；留空则透传全部加密流量。支持通配符，! 表示排除，排除规则优先。'
+    },
+    'ssl.noHosts': {
+        en: 'Host patterns whose HTTPS traffic is passed through without decryption (opaque tunnel). Equivalent to a ! pattern in the list above; an exclusion always wins over a match.',
+        zh: '不需要解密 HTTPS 流量的主机模式列表（直接走纯 TCP 隧道透传）。与上面列表里的 ! 模式等价；只要命中任一排除规则就不解密。'
+    },
+    'ssl.insecureUpstream': {
+        en: 'Accept any certificate from the upstream server on decrypted connections. Off by default; the client only sees the Tapline certificate, so upstream interception would go unnoticed. Turn it on for self-signed or expired development backends.',
+        zh: '解密连接时接受上游服务器的任意证书。默认关闭：客户端只会看到 Tapline 自己的证书，上游若被劫持将无从察觉。仅在调试自签名或已过期的后端时开启。'
+    },
+    'ssl.noProxy': {
+        en: 'Hostnames or domains to bypass proxying (appended to NO_PROXY/no_proxy).',
+        zh: '需要绕过代理的主机或域名列表（追加至 NO_PROXY/no_proxy）。'
     },
     maxEntries: {
         en: 'Maximum live transactions kept in memory.',

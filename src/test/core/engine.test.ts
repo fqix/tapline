@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { createHash, X509Certificate } from 'node:crypto'
+import http from 'node:http'
 import { Engine } from '../../core/engine'
 import {
     CORE,
@@ -97,6 +99,33 @@ describeCore('engine with the bundled core', () => {
         expect(t.responseBody).toBe('secret for /private')
     })
 
+    it('preserves certificate pinning in passthrough mode and after excluding an opted-in host', async () => {
+        const fingerprint = new X509Certificate(identity.cert).fingerprint256
+        const root = readFileSync(engine.certificatePath, 'utf8')
+        const url = `https://127.0.0.1:${secure.port}/pinned`
+        const pinnedRequest = () =>
+            viaProxyTLS(engine.settings.port, url, root + '\n' + identity.cert, {
+                checkServerIdentity: (_host, certificate) =>
+                    certificate.fingerprint256 === fingerprint
+                        ? undefined
+                        : new Error('Pinned certificate mismatch')
+            })
+        engine.settings.sslHosts = []
+        try {
+            expect(engine.settings.sslHosts).toEqual([])
+            expect((await pinnedRequest()).body).toBe('secret for /pinned')
+            engine.settings.sslHosts = ['127.0.0.1']
+            await expect(pinnedRequest()).rejects.toThrow('Pinned certificate mismatch')
+            // Failure must not silently change policy or retry the request.
+            await expect(pinnedRequest()).rejects.toThrow('Pinned certificate mismatch')
+            engine.settings.sslNoHosts = ['127.0.0.1']
+            expect((await pinnedRequest()).body).toBe('secret for /pinned')
+        } finally {
+            engine.settings.sslHosts = ['*']
+            engine.settings.sslNoHosts = []
+        }
+    })
+
     it('tunnels CONNECT without decryption for excluded hosts', async () => {
         engine.settings.sslHosts = []
         try {
@@ -111,6 +140,187 @@ describeCore('engine with the bundled core', () => {
             expect(t.serverAddress).toBe(`127.0.0.1:${secure.port}`)
         } finally {
             engine.settings.sslHosts = ['*']
+        }
+    })
+
+    it('closes a plain HTTP CONNECT tunnel when the origin closes it', async () => {
+        engine.settings.sslHosts = []
+        try {
+            const data = await new Promise<string>((resolve, reject) => {
+                const request = http.request({
+                    host: '127.0.0.1',
+                    port: engine.settings.port,
+                    method: 'CONNECT',
+                    path: `127.0.0.1:${plain.port}`
+                })
+                request.on('error', reject)
+                request.on('connect', (_response, socket) => {
+                    let data = ''
+                    socket.setTimeout(5000, () =>
+                        socket.destroy(new Error(`Tunnel did not close: ${data}`))
+                    )
+                    socket.on('error', reject)
+                    socket.on('data', (chunk) => {
+                        data += chunk.toString()
+                    })
+                    socket.on('end', () => resolve(data))
+                    socket.write(
+                        'GET /opaque-http HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n'
+                    )
+                })
+                request.end()
+            })
+            expect(data).toContain('200 OK')
+        } finally {
+            engine.settings.sslHosts = ['*']
+        }
+    })
+
+    it('captures an explicitly composed HTTPS request without changing host policy', async () => {
+        engine.settings.sslHosts = []
+        try {
+            const result = await engine.compose({
+                url: `https://127.0.0.1:${secure.port}/composed`,
+                method: 'GET',
+                headers: {},
+                body: ''
+            })
+            expect(result.status).toBe(200)
+            expect(result.responseBody).toBe('secret for /composed')
+            expect(engine.settings.sslHosts).toEqual([])
+            expect(
+                (
+                    await viaProxyTLS(
+                        engine.settings.port,
+                        `https://127.0.0.1:${secure.port}/after-compose`,
+                        identity.cert
+                    )
+                ).status
+            ).toBe(200)
+        } finally {
+            engine.settings.sslHosts = ['*']
+        }
+    })
+
+    it('tunnels CONNECT without decryption for negative ssl.hosts patterns', async () => {
+        engine.settings.sslHosts = ['*', '!127.0.0.1']
+        try {
+            const url = `https://127.0.0.1:${secure.port}/opaque-negative`
+            const reply = await viaProxyTLS(engine.settings.port, url, identity.cert)
+            expect(reply.body).toBe('secret for /opaque-negative')
+            const t = await settled(engine, (t) => t.path === `127.0.0.1:${secure.port}`)
+            expect(t.method).toBe('CONNECT')
+            expect(t.tls).toBe(false)
+        } finally {
+            engine.settings.sslHosts = ['*']
+        }
+    })
+
+    it('tunnels CONNECT without decryption for hosts in sslNoHosts', async () => {
+        engine.settings.sslNoHosts = ['127.0.0.1']
+        try {
+            const url = `https://127.0.0.1:${secure.port}/opaque-nohosts`
+            const reply = await viaProxyTLS(engine.settings.port, url, identity.cert)
+            expect(reply.body).toBe('secret for /opaque-nohosts')
+            const t = await settled(engine, (t) => t.path === `127.0.0.1:${secure.port}`)
+            expect(t.method).toBe('CONNECT')
+            expect(t.tls).toBe(false)
+        } finally {
+            engine.settings.sslNoHosts = []
+        }
+    })
+
+    it('rejects untrusted upstream certificates on explicitly decrypted connections', async () => {
+        const upstreamIdentity = selfSigned()
+        const untrustedServer = await httpsServer(upstreamIdentity, (_req, res) => {
+            res.setHeader('content-type', 'text/plain')
+            res.end('untrusted ok')
+        })
+        const root = readFileSync(engine.certificatePath, 'utf8')
+        const url = `https://127.0.0.1:${untrustedServer.port}/insecure-upstream`
+        try {
+            const rejected = await viaProxyTLS(engine.settings.port, url, root)
+            expect(rejected.status).toBe(502)
+            expect(rejected.body).not.toBe('untrusted ok')
+
+            engine.settings.insecureUpstream = true
+            const reply = await viaProxyTLS(engine.settings.port, url, root)
+            expect(reply.body).toBe('untrusted ok')
+            const t = await settled(engine, (t) => t.url === url && t.status === 200)
+            expect(t.responseBody).toBe('untrusted ok')
+        } finally {
+            engine.settings.insecureUpstream = false
+            untrustedServer.server.close()
+        }
+    })
+
+    it('applies upstream certificate verification changes to WSS upgrades', async () => {
+        const upstreamIdentity = selfSigned()
+        const upstream = await httpsServer(upstreamIdentity, (_req, res) => res.end())
+        upstream.server.on('upgrade', (request, socket) => {
+            socket.on('error', () => undefined)
+            const accept = createHash('sha1')
+                .update(
+                    request.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+                )
+                .digest('base64')
+            socket.end(
+                `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
+            )
+        })
+        const root = readFileSync(engine.certificatePath, 'utf8')
+        const upgrade = (ca: string) =>
+            viaProxyTLS(engine.settings.port, `https://127.0.0.1:${upstream.port}/socket`, ca, {
+                headers: {
+                    Connection: 'Upgrade',
+                    Upgrade: 'websocket',
+                    'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+                    'Sec-WebSocket-Version': '13'
+                }
+            })
+        try {
+            expect((await upgrade(root)).status).toBe(502)
+            engine.settings.insecureUpstream = true
+            expect((await upgrade(root)).status).toBe(101)
+            engine.settings.insecureUpstream = false
+            expect((await upgrade(root)).status).toBe(502)
+        } finally {
+            engine.settings.insecureUpstream = false
+            upstream.server.close()
+        }
+    })
+
+    it('passes legacy certificates through when SSL Proxying is not enabled', async () => {
+        // OpenSSL accepts this legacy negative serial; Go rejects it even in insecure mode.
+        const legacyIdentity = selfSigned('80')
+        let requests = 0
+        const upstream = await httpsServer(legacyIdentity, (req, res) => {
+            requests++
+            const chunks: Buffer[] = []
+            req.on('data', (chunk) => chunks.push(chunk))
+            req.on('end', () => res.end(Buffer.concat(chunks)))
+        })
+        engine.settings.sslHosts = []
+        try {
+            const reply = await viaProxyTLS(
+                engine.settings.port,
+                `https://127.0.0.1:${upstream.port}/payment`,
+                legacyIdentity.cert,
+                { method: 'POST' },
+                'send-once'
+            )
+            expect(reply).toEqual({ status: 200, body: 'send-once' })
+            expect(requests).toBe(1)
+            const tunnel = await settled(engine, (t) => t.path === `127.0.0.1:${upstream.port}`)
+            expect(tunnel.scheme).toBe('connect')
+            expect(tunnel.tls).toBe(false)
+            expect(tunnel.requestBody).toBe('')
+            expect(tunnel.responseBody).toBe('')
+            expect(tunnel.requestBytes).toBeGreaterThan(0)
+            expect(tunnel.responseBytes).toBeGreaterThan(0)
+        } finally {
+            engine.settings.sslHosts = ['*']
+            upstream.server.close()
         }
     })
 
