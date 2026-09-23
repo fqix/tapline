@@ -28,7 +28,7 @@
     "config.autoStart": "Start capture when VS Code opens.",
     "config.port": "Port for the capture proxy. Defaults to 3606. Set to 0 to ask the OS for a free port.",
     "config.ssl.hosts": "Host patterns whose HTTPS traffic is decrypted. Defaults to * (all hosts); an empty list passes all encrypted traffic through. Wildcards are allowed; ! excludes a host. Exclusions take priority.",
-    "config.ssl.insecureUpstream": "Accept any certificate from the upstream server on decrypted connections. Off by default; the client only sees the Tapline certificate, so upstream interception would go unnoticed. Turn it on for self-signed or expired development backends.",
+    "config.ssl.insecureUpstream": "Accept any certificate from the upstream server on decrypted connections. Enabled by default so self-signed, expired or hostname-mismatched certificates do not interrupt capture. This skips upstream certificate identity verification; turn it off to enforce validation.",
     "config.ssl.noHosts": "Host patterns whose HTTPS traffic is passed through without decryption (opaque tunnel). Equivalent to a ! pattern in the list above; an exclusion always wins over a match.",
     "config.maxEntries": "Maximum live transactions kept in memory.",
     "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",

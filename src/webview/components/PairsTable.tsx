@@ -5,8 +5,8 @@ import { IconButton } from './IconButton'
 
 /**
  * Name/value rows (headers, query, cookies, form fields). Text in the table can be
- * selected and copied natively (`data-clipboard` exempts it from the panel-wide
- * clipboard block), and each row has a copy button for the single `name: value` line.
+ * selected and copied natively, and each row has a copy button for the single
+ * `name: value` line.
  */
 export function PairsTable({ pairs, empty = '—' }: { pairs: Pair[]; empty?: string }) {
     if (!pairs.length) return <p className="muted">{empty}</p>

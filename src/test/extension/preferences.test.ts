@@ -34,6 +34,16 @@ describe('global preferences', () => {
         expect(store.get('ssl.hosts')).toEqual([])
         fixture.dispose()
     })
+    it('accepts upstream certificates by default but preserves an explicit strict setting', async () => {
+        expect(new Preferences().get('ssl.insecureUpstream')).toBe(true)
+        const fixture = setup(
+            new Map<string, unknown>([['preferences.ssl.insecureUpstream', false]])
+        )
+        const store = new Preferences()
+        await store.initialize(fixture.context)
+        expect(store.get('ssl.insecureUpstream')).toBe(false)
+        fixture.dispose()
+    })
     it('migrates only explicit global values once and preserves subsequent edits', async () => {
         const fixture = setup()
         const store = new Preferences()

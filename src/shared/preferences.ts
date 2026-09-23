@@ -29,7 +29,7 @@ export const preferenceSchema: Record<string, PreferenceSchema> = {
     },
     'ssl.insecureUpstream': {
         type: 'boolean',
-        default: false,
+        default: true,
         description: '%config.ssl.insecureUpstream%'
     },
     'ssl.noProxy': {
@@ -282,8 +282,8 @@ export const preferenceDescriptions: Record<string, { en: string; zh: string }> 
         zh: '不需要解密 HTTPS 流量的主机模式列表（直接走纯 TCP 隧道透传）。与上面列表里的 ! 模式等价；只要命中任一排除规则就不解密。'
     },
     'ssl.insecureUpstream': {
-        en: 'Accept any certificate from the upstream server on decrypted connections. Off by default; the client only sees the Tapline certificate, so upstream interception would go unnoticed. Turn it on for self-signed or expired development backends.',
-        zh: '解密连接时接受上游服务器的任意证书。默认关闭：客户端只会看到 Tapline 自己的证书，上游若被劫持将无从察觉。仅在调试自签名或已过期的后端时开启。'
+        en: 'Accept any certificate from the upstream server on decrypted connections. Enabled by default so self-signed, expired or hostname-mismatched certificates do not interrupt capture. This skips upstream certificate identity verification; turn it off to enforce validation.',
+        zh: '解密连接时接受上游服务器的任意证书。默认开启，避免自签名、过期或域名不匹配的证书中断抓包请求。这会跳过上游证书身份校验；关闭后恢复严格校验。'
     },
     'ssl.noProxy': {
         en: 'Hostnames or domains to bypass proxying (appended to NO_PROXY/no_proxy).',

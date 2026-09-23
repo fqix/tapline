@@ -230,7 +230,7 @@ describeCore('engine with the bundled core', () => {
         }
     })
 
-    it('rejects untrusted upstream certificates on explicitly decrypted connections', async () => {
+    it('accepts untrusted upstream certificates by default and validates when disabled', async () => {
         const upstreamIdentity = selfSigned()
         const untrustedServer = await httpsServer(upstreamIdentity, (_req, res) => {
             res.setHeader('content-type', 'text/plain')
@@ -239,6 +239,9 @@ describeCore('engine with the bundled core', () => {
         const root = readFileSync(engine.certificatePath, 'utf8')
         const url = `https://127.0.0.1:${untrustedServer.port}/insecure-upstream`
         try {
+            expect(engine.settings.insecureUpstream).toBe(true)
+            expect((await viaProxyTLS(engine.settings.port, url, root)).body).toBe('untrusted ok')
+            engine.settings.insecureUpstream = false
             const rejected = await viaProxyTLS(engine.settings.port, url, root)
             expect(rejected.status).toBe(502)
             expect(rejected.body).not.toBe('untrusted ok')
@@ -249,7 +252,7 @@ describeCore('engine with the bundled core', () => {
             const t = await settled(engine, (t) => t.url === url && t.status === 200)
             expect(t.responseBody).toBe('untrusted ok')
         } finally {
-            engine.settings.insecureUpstream = false
+            engine.settings.insecureUpstream = true
             untrustedServer.server.close()
         }
     })
@@ -279,13 +282,15 @@ describeCore('engine with the bundled core', () => {
                 }
             })
         try {
+            expect((await upgrade(root)).status).toBe(101)
+            engine.settings.insecureUpstream = false
             expect((await upgrade(root)).status).toBe(502)
             engine.settings.insecureUpstream = true
             expect((await upgrade(root)).status).toBe(101)
             engine.settings.insecureUpstream = false
             expect((await upgrade(root)).status).toBe(502)
         } finally {
-            engine.settings.insecureUpstream = false
+            engine.settings.insecureUpstream = true
             upstream.server.close()
         }
     })

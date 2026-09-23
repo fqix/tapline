@@ -255,7 +255,7 @@ export const defaultSettings: Settings = {
     port: 3606,
     sslHosts: ['*'],
     sslNoHosts: [],
-    insecureUpstream: false,
+    insecureUpstream: true,
     maxEntries: 2000,
     maxBodyBytes: 512 * 1024,
     mcpPort: 3607,

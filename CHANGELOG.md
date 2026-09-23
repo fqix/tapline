@@ -5,6 +5,17 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.1]
+
+### Changed
+
+- Enable acceptance of any upstream certificate by default for decrypted connections;
+  an explicit disabled setting still enforces certificate validation.
+
+### Fixed
+
+- Allow native text selection copying and context menus throughout traffic webviews.
+
 ## [0.12.0]
 
 ### Added

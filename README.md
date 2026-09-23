@@ -171,6 +171,10 @@ Existing saved patterns are preserved. Changes apply to new connections, so reco
 or restart capture to replace existing tunnels. Composer/Replay explicitly inspects its
 own request without changing the host policy for other clients.
 
+`tapline.ssl.insecureUpstream` is enabled by default: decrypted connections accept
+self-signed, expired and hostname-mismatched upstream certificates. Disable it to
+verify the upstream server certificate. Explicitly saved settings are preserved.
+
 An opted-in connection that fails TLS is not automatically retried or switched to
 passthrough. Exclude pinned hosts before connecting. Tapline uses Go TLS rather than
 Charles's TLS implementation: malformed certificate acceptance is not guaranteed to

@@ -9,13 +9,9 @@ import { App } from './App'
 
 const settingsView = document.body.dataset.view === 'settings'
 
-// The panel offers its own copy actions (which go through the extension host); the
-// browser's cut / copy / paste — keyboard shortcuts, the context menu and drag-drop —
-// are blocked so nothing leaves or enters the webview through the system clipboard.
-// Elements marked `data-clipboard` (header tables, the request editor) keep the native
-// clipboard: tables for selection and copy, the editor so a URL, a body or a whole curl
-// command can be pasted in. Elements with `data-vscode-context` keep `contextmenu` so VS Code
-// can display its contributed context menus.
+// Keep native selection/copy and context menus available throughout the panel.
+// Only editing clipboard operations and drops require an explicit editable region;
+// the request editor uses data-clipboard so URLs, bodies and curl commands can be pasted.
 const element = (target: EventTarget | null): Element | null =>
     target instanceof Element ? target : target instanceof Node ? target.parentElement : null
 
@@ -24,19 +20,17 @@ const exempt = (event: Event) => {
     const el = element(event.target)
     if (!el) return false
     if (el.closest('[data-clipboard]')) return true
-    if (event.type === 'contextmenu' && el.closest('[data-vscode-context]')) return true
     return false
 }
 const block = (event: Event) => {
     if (!exempt(event)) event.preventDefault()
 }
-for (const type of ['cut', 'copy', 'paste', 'contextmenu', 'drop'] as const)
-    document.addEventListener(type, block, true)
+for (const type of ['cut', 'paste', 'drop'] as const) document.addEventListener(type, block, true)
 document.addEventListener(
     'keydown',
     (event) => {
         if (settingsView) return
-        if ((event.metaKey || event.ctrlKey) && ['c', 'x', 'v'].includes(event.key.toLowerCase()))
+        if ((event.metaKey || event.ctrlKey) && ['x', 'v'].includes(event.key.toLowerCase()))
             if (!exempt(event)) event.preventDefault()
     },
     true
