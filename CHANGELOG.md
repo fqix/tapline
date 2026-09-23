@@ -28,6 +28,11 @@ All notable changes to Tapline are documented here. The format follows
   Excluded hosts keep their original TLS connection, including certificate pinning.
   There is no extra TLS probe or automatic retry/fallback after a handshake failure.
 
+### Fixed
+
+- Avoid marking completed passthrough tunnels as failed when the client closes
+  before trailing TLS bytes reach the internal pipe.
+
 ## [0.11.0]
 
 ### Added

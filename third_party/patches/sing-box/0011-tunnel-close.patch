@@ -1,0 +1,97 @@
+diff --git a/service/taplineinspector/internal/proxy/proxy.go b/service/taplineinspector/internal/proxy/proxy.go
+--- a/service/taplineinspector/internal/proxy/proxy.go
++++ b/service/taplineinspector/internal/proxy/proxy.go
+@@ -111,11 +111,11 @@
+ 					session.workers.Go(func() {
+ 						err := r.peer.Pipe(ctx, session.id+":tunnel:in", client, nil)
+ 						if err != nil {
+-							session.finish(false, err)
++							session.finishTunnel(err)
+ 						}
+ 					})
+ 					_, err := io.Copy(client, out)
+-					session.finish(err == nil, err)
++					session.finishTunnel(err)
+ 				},
+ 			}, host
+ 		}
+@@ -471,3 +471,14 @@
+ 	}
+ 	return ""
+ }
++
++// Closing either end of an opaque tunnel is normal: the client can finish its
++// HTTP response before the origin's TLS close_notify reaches the memory pipe.
++// Keep transport failures visible, but do not turn local pipe/socket teardown
++// into a failed transaction merely because the copy goroutines raced.
++func (s *session) finishTunnel(err error) {
++	if errors.Is(err, io.ErrClosedPipe) || errors.Is(err, net.ErrClosed) {
++		err = nil
++	}
++	s.finish(err == nil, err)
++}
+diff --git a/service/taplineinspector/internal/proxy/tunnel_close_test.go b/service/taplineinspector/internal/proxy/tunnel_close_test.go
+new file mode 100644
+--- /dev/null
++++ b/service/taplineinspector/internal/proxy/tunnel_close_test.go
+@@ -0,0 +1,60 @@
++package proxy
++
++import (
++	"bytes"
++	"context"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"strings"
++	"testing"
++
++	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
++)
++
++func TestTunnelCloseDoesNotReportTransportFailure(t *testing.T) {
++	// Deterministically reproduce the E2E race: the client has consumed its
++	// response and closes before trailing TLS bytes are copied to the pipe.
++	client, server := net.Pipe()
++	client.Close()
++	defer server.Close()
++	_, closedPipe := io.Copy(server, strings.NewReader("TLS close_notify"))
++	if !errors.Is(closedPipe, io.ErrClosedPipe) {
++		t.Fatalf("expected closed memory pipe, got %v", closedPipe)
++	}
++	for _, test := range []struct {
++		name   string
++		err    error
++		failed bool
++	}{
++		{"EOF", nil, false},
++		{"client closed pipe", closedPipe, false},
++		{"wrapped closed pipe", fmt.Errorf("read forwarded body: %w", closedPipe), false},
++		{"closed socket", &net.OpError{Op: "read", Net: "tcp", Err: net.ErrClosed}, false},
++		{"transport error", errors.New("upstream transport failed"), true},
++		{"truncated stream", io.ErrUnexpectedEOF, true},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			var output bytes.Buffer
++			ctx, cancel := context.WithCancel(t.Context())
++			defer cancel()
++			runtime := &runtime{peer: ipc.NewPeer(&output, cancel)}
++			_, session := runtime.session(ctx)
++			session.finishTunnel(test.err)
++			if test.failed {
++				failure, err := readControl(&output)
++				if err != nil || failure["type"] != "failure" || failure["error"] != test.err.Error() {
++					t.Fatalf("failure=%v err=%v", failure, err)
++				}
++			}
++			closed, err := readControl(&output)
++			if err != nil || closed["type"] != "closed" || closed["aborted"] != test.failed {
++				t.Fatalf("closed=%v err=%v", closed, err)
++			}
++			if output.Len() != 0 {
++				t.Fatal("unexpected extra lifecycle message")
++			}
++		})
++	}
++}
