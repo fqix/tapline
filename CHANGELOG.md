@@ -5,6 +5,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0]
+
 ### Added
 
 - Settings buttons to set VS Code's user proxy to the live capture port or remove
@@ -23,6 +25,9 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Changed
 
+- Simplify the sidebar toolbar to Start/Stop, Clear, Traffic Panel and Settings;
+  move less frequent actions into the overflow menu.
+- Consolidate the sing-box patch series and scan the patched Go dependencies in CI.
 - TLS decryption follows host inclusion/exclusion settings, keeping
   `tapline.ssl.hosts` at `["*"]` by default (unlike Charles's opt-in default).
   Excluded hosts keep their original TLS connection, including certificate pinning.
@@ -35,7 +40,6 @@ All notable changes to Tapline are documented here. The format follows
 - Preserve public CA trust for partially decrypted terminal and debug traffic with
   a combined PEM trust bundle.
 - Keep shared capture alive when a window disconnects with unread IPC replies.
-
 - Avoid marking completed passthrough tunnels as failed when the client closes
   before trailing TLS bytes reach the internal pipe.
 
