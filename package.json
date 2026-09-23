@@ -235,7 +235,7 @@
                 "command": "tapline.openSequence",
                 "title": "%command.openSequence%",
                 "category": "Tapline",
-                "icon": "$(list-flat)"
+                "icon": "$(table)"
             },
             {
                 "command": "tapline.configureMcp",
@@ -326,22 +326,22 @@
                 {
                     "command": "tapline.toggleRecording",
                     "when": "view == tapline.traffic && tapline.running",
-                    "group": "navigation@2"
+                    "group": "0_capture@1"
                 },
                 {
                     "command": "tapline.clear",
                     "when": "view == tapline.traffic",
-                    "group": "navigation@3"
+                    "group": "navigation@2"
                 },
                 {
                     "command": "tapline.openSequence",
                     "when": "view == tapline.traffic",
-                    "group": "navigation@5"
+                    "group": "navigation@3"
                 },
                 {
                     "command": "tapline.openTerminal",
                     "when": "view == tapline.traffic",
-                    "group": "navigation@4"
+                    "group": "1_tools@1"
                 },
                 {
                     "command": "tapline.exportHar",
@@ -361,17 +361,17 @@
                 {
                     "command": "tapline.installCertificate",
                     "when": "view == tapline.traffic && tapline.certificateStatus != 'trusted' && tapline.certificateStatus != 'installed'",
-                    "group": "navigation@0"
+                    "group": "3_cert@0"
                 },
                 {
                     "command": "tapline.trustCertificate",
                     "when": "view == tapline.traffic && tapline.certificateStatus == 'installed'",
-                    "group": "navigation@0"
+                    "group": "3_cert@0"
                 },
                 {
                     "command": "tapline.uninstallCertificate",
                     "when": "view == tapline.traffic && tapline.certificateStatus == 'trusted'",
-                    "group": "navigation@0"
+                    "group": "3_cert@5"
                 },
                 {
                     "command": "tapline.uninstallCertificate",
@@ -396,27 +396,27 @@
                 {
                     "command": "tapline.compose",
                     "when": "view == tapline.traffic",
-                    "group": "navigation@6"
+                    "group": "1_tools@3"
                 },
                 {
                     "command": "tapline.rules",
                     "when": "view == tapline.traffic",
-                    "group": "1_tools@1"
+                    "group": "1_tools@4"
                 },
                 {
                     "command": "tapline.stats",
                     "when": "view == tapline.traffic",
-                    "group": "1_tools@2"
+                    "group": "1_tools@5"
                 },
                 {
                     "command": "tapline.copyEnvironment",
                     "when": "view == tapline.traffic && tapline.running",
-                    "group": "navigation@4.1"
+                    "group": "1_tools@2"
                 },
                 {
                     "command": "tapline.settings",
                     "when": "view == tapline.traffic",
-                    "group": "navigation@99"
+                    "group": "navigation@4"
                 }
             ],
             "view/item/context": [

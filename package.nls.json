@@ -34,7 +34,7 @@
     "config.maxBodyKiB": "Maximum request/response body bytes retained per direction, in KiB. Traffic is forwarded in full; larger bodies are marked truncated.",
     "command.openHost": "Open Host Overview",
     "command.openText": "Open as Text",
-    "command.openSequence": "Open Sequence View",
+    "command.openSequence": "Open Traffic Panel",
     "view.welcome.stopped": "Capture is stopped.\n[Start Capture](command:tapline.start)\nOnce running, new integrated terminals and debug sessions are routed through Tapline automatically.",
     "view.welcome.running": "Capture is running; no requests yet.\n[New Captured Terminal](command:tapline.openTerminal)\nRun any curl, npm, pip or git command there, or start a debug session — requests appear here as they happen.\n[Copy Root Certificate Path](command:tapline.copyCertificatePath) for tools that need the CA configured manually.",
     "config.terminal.profiles": "Which sets of environment variables every new terminal gets besides the proxy variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY). Each name stands for the variables a runtime reads to trust the Tapline CA; the resolved variables are listed below. Keep this generic and use \"New Captured Terminal\" for a runtime-specific terminal.",
