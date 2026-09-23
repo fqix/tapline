@@ -12,6 +12,7 @@ import { httpsServer, selfSigned, viaProxyTLS } from '../test/helpers/helpers'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
+import { updateVSCodeProxy } from '../extension/panels/settingsPanel'
 import { defaultSettings, type Rule, type Transaction } from '../shared/model'
 
 /** The window's proxy port is OS-assigned; read after capture starts. */
@@ -165,6 +166,23 @@ suite('Tapline end to end', function () {
         proxyPort = api.client.port
         assert.ok(proxyPort > 0, 'proxy port assigned')
         assert.ok(api.client.mcpUrl?.endsWith(':3627/mcp'), 'MCP endpoint is served')
+    })
+
+    test('sets and removes the VS Code user proxy without changing TLS validation', async () => {
+        const config = () => vscode.workspace.getConfiguration('http')
+        const original = config().inspect<string>('proxy')?.globalValue
+        const strictSSL = config().get('proxyStrictSSL')
+        const support = config().get('proxySupport')
+        try {
+            await updateVSCodeProxy(api.client, true)
+            assert.equal(config().inspect('proxy')?.globalValue, `http://127.0.0.1:${proxyPort}`)
+            await updateVSCodeProxy(api.client, false)
+            assert.equal(config().inspect('proxy')?.globalValue, undefined)
+            assert.equal(config().get('proxyStrictSSL'), strictSSL)
+            assert.equal(config().get('proxySupport'), support)
+        } finally {
+            await config().update('proxy', original, vscode.ConfigurationTarget.Global)
+        }
     })
 
     test('records a request sent through the proxy', async () => {

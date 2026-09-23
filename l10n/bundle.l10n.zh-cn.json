@@ -322,5 +322,6 @@
     "Choose a body file": "选择正文文件",
     "Type": "类型",
     "Add field": "添加字段",
-    "This request has no body.": "此请求没有正文。"
+    "This request has no body.": "此请求没有正文。",
+    "Start capture before setting the VS Code proxy.": "请先开始抓包，再设置 VS Code 代理。"
 }

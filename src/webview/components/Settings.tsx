@@ -82,6 +82,7 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
     const zh = document.documentElement.lang.toLowerCase().startsWith('zh')
     const [values, setValues] = useState<Record<string, unknown>>()
     const [target, setTarget] = useState<CaptureTarget>()
+    const [proxy, setProxy] = useState<{ configured: boolean; canSet: boolean }>()
     const [drafts, setDrafts] = useState<Record<string, string>>({})
     const [status, setStatus] = useState('')
     const [pending, setPending] = useState(false)
@@ -109,6 +110,7 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
             if (message.type !== 'settings') return
             setValues(message.values)
             if (message.target) setTarget(message.target)
+            if (message.vscodeProxy) setProxy(message.vscodeProxy)
             if (message.saved || message.error) {
                 setPending(false)
                 setStatus(message.error || (zh ? '已保存' : 'Saved'))
@@ -322,6 +324,69 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                 {zh ? '保存' : 'Save'}
                                             </button>
                                         </>
+                                    )}
+                                    {key === 'port' && (
+                                        <div className="settings-proxy-actions">
+                                            <p className="muted">
+                                                {zh
+                                                    ? 'VS Code 用户级代理，影响共用用户配置的窗口。设置为当前抓包端口；移除后恢复默认或系统代理。HTTPS 解密需要信任 Tapline 根证书。'
+                                                    : 'VS Code user proxy, shared by windows using this profile. Uses the live capture port; removing restores default or system proxy behavior. HTTPS decryption requires trusting the Tapline root certificate.'}
+                                            </p>
+                                            <p className="muted">
+                                                {proxy?.canSet
+                                                    ? `http://127.0.0.1:${target?.port}`
+                                                    : zh
+                                                      ? '请先开始抓包'
+                                                      : 'Start capture first'}
+                                                {' · '}
+                                                {proxy?.configured
+                                                    ? zh
+                                                        ? '已配置用户代理'
+                                                        : 'User proxy configured'
+                                                    : zh
+                                                      ? '未配置用户代理'
+                                                      : 'No user proxy configured'}
+                                            </p>
+                                            <div
+                                                className="settings-proxy-buttons"
+                                                aria-busy={pending}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="button"
+                                                    disabled={pending || !proxy?.canSet}
+                                                    onClick={() => {
+                                                        setPending(true)
+                                                        setStatus(
+                                                            zh ? '正在设置代理…' : 'Setting proxy…'
+                                                        )
+                                                        vscode.postMessage({
+                                                            type: 'setVSCodeProxy'
+                                                        })
+                                                    }}
+                                                >
+                                                    {zh ? '设置 VS Code 代理' : 'Set VS Code proxy'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="button secondary"
+                                                    disabled={pending || !proxy?.configured}
+                                                    onClick={() => {
+                                                        setPending(true)
+                                                        setStatus(
+                                                            zh ? '正在移除代理…' : 'Removing proxy…'
+                                                        )
+                                                        vscode.postMessage({
+                                                            type: 'removeVSCodeProxy'
+                                                        })
+                                                    }}
+                                                >
+                                                    {zh
+                                                        ? '移除 VS Code 代理'
+                                                        : 'Remove VS Code proxy'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )

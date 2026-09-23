@@ -7,6 +7,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Added
 
+- Settings buttons to set VS Code's user proxy to the live capture port or remove
+  the user proxy override, with capture-state feedback and unchanged TLS validation.
 - An Undecrypted label for opaque CONNECT tunnels in the request list.
 - `tapline.port` setting for the capture proxy port (default 3606). A busy port falls
   back to a free OS-assigned one; set it to 0 to always ask the OS for a free port.

@@ -611,6 +611,11 @@ input[type='checkbox'] {
     line-height: 1.5;
     font-weight: 600;
 }
+.settings-proxy-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 .settings-field textarea {
     width: 100%;
     box-sizing: border-box;

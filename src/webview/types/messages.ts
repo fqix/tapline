@@ -87,6 +87,7 @@ export type HostMessage =
           values: Record<string, unknown>
           /** What the environment variables resolve to on this machine. */
           target?: CaptureTarget
+          vscodeProxy?: { configured: boolean; canSet: boolean }
           saved?: string
           error?: string
       }
@@ -112,6 +113,7 @@ export type HostMessage =
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
+    | { type: 'setVSCodeProxy' | 'removeVSCodeProxy' }
     | { type: 'openSettings' | 'closeSettings' | 'openRules' }
     | { type: 'loadSettings' }
     | { type: 'saveSetting'; key: string; value: unknown }

@@ -4,15 +4,45 @@ import type { AgentClient } from '../client'
 import { preferences } from '../preferences'
 import type { HostMessage, PanelMessage } from '../../webview/types/messages'
 
+/** Change the user setting only; never weaken certificate validation. */
+export async function updateVSCodeProxy(
+    client: Pick<AgentClient, 'running' | 'port'>,
+    enabled: boolean
+) {
+    if (
+        enabled &&
+        (!client.running ||
+            !Number.isInteger(client.port) ||
+            client.port < 1 ||
+            client.port > 65535)
+    )
+        throw new Error(vscode.l10n.t('Start capture before setting the VS Code proxy.'))
+    await vscode.workspace
+        .getConfiguration('http')
+        .update(
+            'proxy',
+            enabled ? `http://127.0.0.1:${client.port}` : undefined,
+            vscode.ConfigurationTarget.Global
+        )
+}
+
 /** Settings owns an editor tab independently of the traffic view. */
 export class SettingsPanel implements vscode.Disposable {
     private panel?: vscode.WebviewPanel
     private readonly changes = preferences.onDidChange(() => this.post())
+    private readonly configurationChanges = vscode.workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration('http.proxy')) this.post()
+    })
+    private readonly stateChanges: vscode.Disposable
 
     constructor(
         private readonly context: vscode.ExtensionContext,
         private readonly client: AgentClient
-    ) {}
+    ) {
+        this.stateChanges = client.onEvent((event) => {
+            if (event.type === 'state') this.post()
+        })
+    }
 
     show() {
         if (this.panel) {
@@ -46,6 +76,12 @@ export class SettingsPanel implements vscode.Disposable {
         const message: HostMessage = {
             type: 'settings',
             values: preferences.values(),
+            vscodeProxy: {
+                configured:
+                    vscode.workspace.getConfiguration('http').inspect('proxy')?.globalValue !==
+                    undefined,
+                canSet: this.client.running && this.client.port > 0
+            },
             target: {
                 sslHosts: preferences.get<string[]>('ssl.hosts', []),
                 sslNoHosts: preferences.get<string[]>('ssl.noHosts', []),
@@ -61,6 +97,15 @@ export class SettingsPanel implements vscode.Disposable {
 
     private async receive(panel: vscode.WebviewPanel, message: PanelMessage) {
         switch (message.type) {
+            case 'setVSCodeProxy':
+            case 'removeVSCodeProxy':
+                try {
+                    await updateVSCodeProxy(this.client, message.type === 'setVSCodeProxy')
+                    this.post({ saved: 'http.proxy' }, panel)
+                } catch (error) {
+                    this.post({ error: String(error) }, panel)
+                }
+                return
             case 'loadSettings':
                 this.post({}, panel)
                 return
@@ -102,6 +147,8 @@ export class SettingsPanel implements vscode.Disposable {
 
     dispose() {
         this.changes.dispose()
+        this.configurationChanges.dispose()
+        this.stateChanges.dispose()
         this.panel?.dispose()
     }
 }
