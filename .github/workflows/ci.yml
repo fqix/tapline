@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
   # Lets release.yml reuse the build so published VSIX files come from the same pipeline.
