@@ -163,6 +163,75 @@ describe('capture agent client lifecycle', () => {
         expect(client.running).toBe(true)
     })
 
+    it('applies removal bursts without fetching another snapshot', async () => {
+        respond = (socket, request) =>
+            reply(
+                socket,
+                request.id,
+                request.method === 'snapshot'
+                    ? { state, transactions: [{ id: 'keep' }, { id: 'old' }] }
+                    : state
+            )
+        await client.connect()
+        const socket = [...sockets][0]
+        socket.write(JSON.stringify({ event: { type: 'removed', ids: ['old', 'missing'] } }) + '\n')
+        for (let i = 0; i < 100; i++) {
+            socket.write(
+                JSON.stringify({ event: { type: 'transaction', transaction: { id: String(i) } } }) +
+                    '\n'
+            )
+            socket.write(JSON.stringify({ event: { type: 'removed', ids: [String(i)] } }) + '\n')
+        }
+        socket.write(
+            JSON.stringify({ event: { type: 'transaction', transaction: { id: 'last' } } }) + '\n'
+        )
+        await vi.waitFor(() => expect([...client.transactions.keys()]).toEqual(['keep', 'last']))
+        expect(requests).toEqual(['hello', 'snapshot'])
+    })
+
+    it.each(['connection', 'reset', 'failed upgrade'])(
+        'applies a snapshot before subsequent events in the same socket chunk during %s',
+        async (phase) => {
+            if (phase === 'failed upgrade') stageAgent(true)
+            let sendBurst = phase !== 'reset'
+            const remote = phase === 'failed upgrade' ? { ...state, agentVersion: '0.9.0' } : state
+            respond = (socket, request) => {
+                if (request.method !== 'snapshot') return reply(socket, request.id, remote)
+                const snapshot = {
+                    id: request.id,
+                    result: { state: remote, transactions: [{ id: 'old' }, { id: 'keep' }] }
+                }
+                const messages = sendBurst
+                    ? [
+                          { event: { type: 'transaction', transaction: { id: 'before' } } },
+                          snapshot,
+                          { event: { type: 'removed', ids: ['old'] } },
+                          {
+                              event: {
+                                  type: 'transaction',
+                                  transaction: { id: 'keep', note: 'updated' }
+                              }
+                          },
+                          { event: { type: 'transaction', transaction: { id: 'new' } } },
+                          { event: { type: 'state', state: { ...remote, running: true } } }
+                      ]
+                    : [snapshot]
+                socket.write(messages.map((message) => JSON.stringify(message) + '\n').join(''))
+            }
+            await client.connect()
+            if (phase === 'reset') {
+                sendBurst = true
+                ;[...sockets][0].write(JSON.stringify({ event: { type: 'reset' } }) + '\n')
+            }
+            await vi.waitFor(() => expect([...client.transactions.keys()]).toEqual(['keep', 'new']))
+            expect(client.transactions.get('keep')?.note).toBe('updated')
+            expect(client.running).toBe(true)
+            expect(requests.filter((method) => method === 'snapshot')).toHaveLength(
+                phase === 'reset' ? 2 : 1
+            )
+        }
+    )
+
     it.each(['older', 'newer', 'unstamped'] as const)(
         'reuses the same release with a compatible %s build across reconnects without stopping capture',
         async (kind) => {

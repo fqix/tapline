@@ -77,6 +77,7 @@ export function useTraffic() {
                 case 'rows':
                     setRows((prev) => {
                         const next = message.reset ? new Map<string, Row>() : new Map(prev)
+                        for (const id of message.removed ?? []) next.delete(id)
                         for (const row of message.rows) next.set(row.id, row)
                         return next
                     })

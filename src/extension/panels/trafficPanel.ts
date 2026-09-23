@@ -84,6 +84,13 @@ export class TrafficPanel implements vscode.Disposable {
                         this.revealed.delete(`${t.id}:request`)
                         this.revealed.delete(`${t.id}:response`)
                     }
+                } else if (event.type === 'removed') {
+                    for (const id of event.ids) {
+                        this.dirty.add(id)
+                        this.revealed.delete(`${id}:request`)
+                        this.revealed.delete(`${id}:response`)
+                    }
+                    this.scheduleRows()
                 } else if (event.type === 'state') this.postAll()
             }),
             preferences.onDidChange((change) => {
@@ -137,7 +144,7 @@ export class TrafficPanel implements vscode.Disposable {
         if (t) this.post({ type: 'detail', transaction: t })
     }
 
-    /** Coalesce bursts of transaction events into one batch of changed rows. */
+    /** Coalesce transaction updates and removals into one batch of changed rows. */
     private scheduleRows() {
         if (this.rowsTimer) return
         this.rowsTimer = setTimeout(() => {
@@ -146,9 +153,10 @@ export class TrafficPanel implements vscode.Disposable {
             for (const id of this.dirty) {
                 const t = this.client.transactions.get(id)
                 if (t) rows.rows.push(toRow(t))
+                else (rows.removed ??= []).push(id)
             }
             this.dirty.clear()
-            if (rows.rows.length) this.post(rows)
+            if (rows.rows.length || rows.removed?.length) this.post(rows)
         }, 150)
     }
 

@@ -98,7 +98,7 @@ export type HostMessage =
           error?: string
       }
     /** `reset` replaces the whole table; otherwise the rows are upserts. */
-    | { type: 'rows'; rows: Row[]; reset: boolean }
+    | { type: 'rows'; rows: Row[]; reset: boolean; removed?: string[] }
     /** Full record for the selected row, pushed on selection and on every change to it. */
     | { type: 'detail'; transaction: Transaction }
     /** Select a row and scroll it into view (tree click, replay). */

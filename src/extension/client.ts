@@ -403,7 +403,9 @@ export class AgentClient implements vscode.Disposable {
     private receive(event: Event) {
         if (event.type === 'transaction')
             this.transactions.set(event.transaction.id, event.transaction)
-        else if (event.type === 'state') this.state = event.state
+        else if (event.type === 'removed') {
+            for (const id of event.ids) this.transactions.delete(id)
+        } else if (event.type === 'state') this.state = event.state
         else if (event.type === 'log') {
             const log = event.log
             if (log.level === 'error') this.output.error(log.message)
@@ -416,13 +418,17 @@ export class AgentClient implements vscode.Disposable {
         this.events.fire(event)
     }
 
-    /** `reset` means the agent's transaction set changed (clear/delete/eviction). */
+    /** `reset` means the agent's transaction set changed (clear/delete). */
     private async resync(timeout = 0) {
-        const snapshot = await this.request('snapshot', {}, timeout)
-        this.transactions.clear()
-        for (const t of snapshot.transactions) this.transactions.set(t.id, t)
-        this.state = snapshot.state
-        this.events.fire({ type: 'state', state: this.state })
+        await this.request('snapshot', {}, timeout, (snapshot) => {
+            // Apply before readline delivers subsequent events from the same socket chunk.
+            this.transactions.clear()
+            for (const t of snapshot.transactions) this.transactions.set(t.id, t)
+            this.state = snapshot.state
+            // The final upgrade snapshot also ends suppression of live events.
+            this.upgrading = false
+            this.events.fire({ type: 'state', state: this.state })
+        })
     }
 
     async call<M extends Method>(method: M, args: Args<M>): Promise<Responses[M]> {
@@ -434,7 +440,8 @@ export class AgentClient implements vscode.Disposable {
     private request<M extends Method>(
         method: M,
         args: Args<M>,
-        timeout = ['hello', 'start', 'shutdown'].includes(method) ? 30000 : 0
+        timeout = ['hello', 'start', 'shutdown'].includes(method) ? 30000 : 0,
+        onResponse?: (value: Responses[M]) => void
     ): Promise<Responses[M]> {
         const socket = this.socket
         if (!socket || socket.destroyed)
@@ -465,7 +472,12 @@ export class AgentClient implements vscode.Disposable {
             this.pending.set(id, {
                 resolve: (value) => {
                     finish()
-                    resolve(value as Responses[M])
+                    try {
+                        onResponse?.(value as Responses[M])
+                        resolve(value as Responses[M])
+                    } catch (error) {
+                        reject(error)
+                    }
                 },
                 reject: (error) => {
                     finish()

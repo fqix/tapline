@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createHash, X509Certificate } from 'node:crypto'
 import http from 'node:http'
 import { Engine } from '../../core/engine'
+import type { Event } from '../../shared/model'
 import {
     CORE,
     httpServer,
@@ -15,6 +16,39 @@ import {
 } from '../helpers/helpers'
 
 const describeCore = existsSync(CORE) ? describe : describe.skip
+
+it('publishes incremental evictions at capacity and when the limit shrinks', async () => {
+    const engine = new Engine('/unused', '/unused')
+    const events: Event[] = []
+    engine.on('event', (event) => events.push(event))
+    for (let i = 0; i < 2010; i++) {
+        await engine.request(String(i), {
+            method: 'GET',
+            url: 'http://localhost/test',
+            headers: {},
+            client: { remoteAddress: '127.0.0.1', remotePort: 1 },
+            body: async () => Buffer.alloc(0)
+        })
+    }
+    expect(engine.transactions.size).toBe(2000)
+    expect(events.filter((event) => event.type === 'removed')).toEqual(
+        Array.from({ length: 10 }, (_, i) => ({ type: 'removed', ids: [String(i)] }))
+    )
+    expect(events.some((event) => event.type === 'reset')).toBe(false)
+    events.length = 0
+    engine.settings.maxEntries = 2
+    engine.enforceEntryLimit()
+    expect(events).toEqual([
+        { type: 'removed', ids: Array.from({ length: 1998 }, (_, i) => String(i + 10)) }
+    ])
+    expect([...engine.transactions.keys()]).toEqual(['2008', '2009'])
+    events.length = 0
+    engine.enforceEntryLimit()
+    engine.responseEnd('0', {})
+    expect(events).toEqual([])
+    engine.clear()
+    expect(events).toEqual([{ type: 'reset' }])
+})
 
 describeCore('engine with the bundled core', () => {
     let engine: Engine

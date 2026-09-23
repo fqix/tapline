@@ -301,6 +301,7 @@ export interface AgentState {
 
 export type Event =
     | { type: 'transaction'; transaction: Transaction }
+    | { type: 'removed'; ids: string[] }
     | { type: 'reset' }
     | { type: 'log'; log: LogEntry }
     | { type: 'state'; state: AgentState }

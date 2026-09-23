@@ -136,15 +136,15 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
     }
 
     enforceEntryLimit() {
-        let evicted = false
+        const ids: string[] = []
         while (this.transactions.size > this.settings.maxEntries) {
             const oldest = this.transactions.keys().next().value
             if (oldest === undefined) break
             this.transactions.delete(oldest)
             this.captures.delete(oldest)
-            evicted = true
+            ids.push(oldest)
         }
-        if (evicted) this.emit('event', { type: 'reset' })
+        if (ids.length) this.emit('event', { type: 'removed', ids })
     }
 
     clear() {
