@@ -1,8 +1,28 @@
+From fe2063e8b5d77fbcce08b6e519d04355de80f0fa Mon Sep 17 00:00:00 2001
+From: fengqi <fengqi0508@gmail.com>
+Date: Wed, 23 Sep 2026 10:30:37 +0800
+Subject: [PATCH] fix(socks): bind UDP replies before concurrent routing
+
+---
+ protocol/socks/inbound.go      |  41 ++++++++++++
+ protocol/socks/inbound_test.go | 119 +++++++++++++++++++++++++++++++++
+ 2 files changed, 160 insertions(+)
+ create mode 100644 protocol/socks/inbound_test.go
+
 diff --git a/protocol/socks/inbound.go b/protocol/socks/inbound.go
-index 0f570b5..ea7f1a8 100644
+index 0f570b51f84dccc4d3a710505f035b3bb36bb1ba..c2dd30947d5c72173b418383034bc8dd76aca40d 100644
 --- a/protocol/socks/inbound.go
 +++ b/protocol/socks/inbound.go
-@@ -13,9 +13,13 @@ import (
+@@ -3,6 +3,8 @@ package socks
+ import (
+ 	std_bufio "bufio"
+ 	"context"
++	"fmt"
++	"log/slog"
+ 	"net"
+ 	"time"
+ 
+@@ -13,9 +15,13 @@ import (
  	C "github.com/sagernet/sing-box/constant"
  	"github.com/sagernet/sing-box/log"
  	"github.com/sagernet/sing-box/option"
@@ -16,7 +36,7 @@ index 0f570b5..ea7f1a8 100644
  	N "github.com/sagernet/sing/common/network"
  	"github.com/sagernet/sing/protocol/socks"
  )
-@@ -97,6 +101,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
+@@ -97,6 +103,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
  }
  
  func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -24,7 +44,7 @@ index 0f570b5..ea7f1a8 100644
  	metadata.Inbound = h.Tag()
  	metadata.InboundType = h.Type()
  	user, loaded := auth.UserFromContext[string](ctx)
-@@ -117,3 +122,33 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
+@@ -117,3 +124,37 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
  	}
  	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
  }
@@ -47,23 +67,27 @@ index 0f570b5..ea7f1a8 100644
 +			common.WithUpstream
 +		})
 +		if !ok {
++			slog.Debug("SOCKS UDP client binding unavailable", "upstream", fmt.Sprintf("%T", c.Upstream()))
 +			return conn
 +		}
 +		packets, ok := server.Upstream().(net.PacketConn)
 +		if !ok {
++			slog.Debug("SOCKS UDP client binding unavailable", "upstream", fmt.Sprintf("%T", c.Upstream()))
 +			return conn
 +		}
 +		bound := bufio.NewBindPacketConn(packets, M.SocksaddrFromNet(server.RemoteAddr()).UDPAddr())
 +		return socks.NewAssociatePacketConn(bound, M.Socksaddr{}, c)
++	default:
++		slog.Debug("SOCKS UDP client binding skipped unknown wrapper", "type", fmt.Sprintf("%T", conn))
 +	}
 +	return conn
 +}
 diff --git a/protocol/socks/inbound_test.go b/protocol/socks/inbound_test.go
 new file mode 100644
-index 0000000..6f54ae2
+index 0000000000000000000000000000000000000000..b4e39c76c88d0e57e80c66445536f38701b30fff
 --- /dev/null
 +++ b/protocol/socks/inbound_test.go
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,119 @@
 +package socks
 +
 +import (
@@ -118,6 +142,21 @@ index 0000000..6f54ae2
 +	if bound != cached || cached.PacketConn != timed || timed.Timeout() != 5*time.Second {
 +		t.Fatal("binding replaced the cache or timeout wrapper")
 +	}
++	timeout, ok := timed.(*canceler.TimeoutPacketConn)
++	if !ok {
++		t.Fatalf("unexpected timeout wrapper: %T", timed)
++	}
++	boundAssociate, ok := timeout.PacketConn.(*socks.AssociatePacketConn)
++	if !ok || boundAssociate == associate {
++		t.Fatalf("UDP association was not rebound: %T", timeout.PacketConn)
++	}
++	wrapped, ok := boundAssociate.Upstream().(*bufio.ExtendedConnWrapper)
++	if !ok {
++		t.Fatalf("unexpected association wrapper: %T", boundAssociate.Upstream())
++	}
++	if fmt.Sprintf("%T", wrapped.Upstream()) != fmt.Sprintf("%T", bufio.NewBindPacketConn(server, client.LocalAddr())) {
++		t.Fatalf("UDP reply endpoint is not bound: %T", wrapped.Upstream())
++	}
 +	packets := bufio.NewNetPacketConn(bound)
 +	data := make([]byte, 64)
 +	n, addr, err := packets.ReadFrom(data)
@@ -168,3 +207,6 @@ index 0000000..6f54ae2
 +		t.Fatal("binding lost TCP control connection ownership")
 +	}
 +}
+-- 
+2.54.0 (Apple Git-157)
+

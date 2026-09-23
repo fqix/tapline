@@ -1,11 +1,3 @@
-0001-tapline-transport.patch
-0002-tapline-transport-profile.patch
-0003-tapline-inspector-service.patch
-0004-network-startup-race.patch
-0005-tapline-http3.patch
-0006-socks-udp-race.patch
-0007-websocket-resend.patch
-0008-upstream-address.patch
-0009-window-inlets.patch
-0010-upstream-insecure.patch
-0011-tunnel-close.patch
+0001-tapline-core.patch
+0002-network-startup-race.patch
+0003-socks-udp-race.patch

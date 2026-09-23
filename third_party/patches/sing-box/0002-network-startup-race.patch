@@ -1,5 +1,14 @@
+From 8fc541557d581865bbb12fa637a9adbd16a0d791 Mon Sep 17 00:00:00 2001
+From: fengqi <fengqi0508@gmail.com>
+Date: Wed, 23 Sep 2026 10:30:37 +0800
+Subject: [PATCH] fix(route): synchronize network manager startup
+
+---
+ route/network.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
 diff --git a/route/network.go b/route/network.go
-index 07de814..13bf585 100644
+index 07de8145f3265d5da8925cc201f383967c3630d0..13bf585a3d17bbb67987e52154df8adb6ff745fc 100644
 --- a/route/network.go
 +++ b/route/network.go
 @@ -9,6 +9,7 @@ import (
@@ -37,3 +46,6 @@ index 07de814..13bf585 100644
  		return
  	}
  	r.ResetNetwork(ctx)
+-- 
+2.54.0 (Apple Git-157)
+

@@ -120,7 +120,13 @@ const tags = readFileSync(join(SOURCE, 'release/DEFAULT_BUILD_TAGS_OTHERS'), 'ut
 const ldflags = readFileSync(join(SOURCE, 'release/LDFLAGS'), 'utf8').trim()
 if (values.test) {
     const env = { ...environment(process.platform, process.arch), CGO_ENABLED: '1' }
-    const packages = ['./service/taplineinspector/...', './include', './cmd/sing-box']
+    const packages = [
+        './service/taplineinspector/...',
+        './include',
+        './cmd/sing-box',
+        './common/ja3/...',
+        './protocol/socks/...'
+    ]
     run(
         GO,
         [
