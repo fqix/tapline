@@ -4,26 +4,61 @@ import type { AgentClient } from '../client'
 import { preferences } from '../preferences'
 import type { HostMessage, PanelMessage } from '../../webview/types/messages'
 
-/** Change the user setting only; never weaken certificate validation. */
-export async function updateVSCodeProxy(
-    client: Pick<AgentClient, 'running' | 'port'>,
-    enabled: boolean
+type ProxyClient = Pick<AgentClient, 'running' | 'port'>
+const managed = new WeakMap<
+    ProxyClient,
+    { value?: string; previous?: string; queue: Promise<void> }
+>()
+function proxyOperation(
+    client: ProxyClient,
+    operation: (state: NonNullable<ReturnType<typeof managed.get>>) => Promise<void>
 ) {
-    if (
-        enabled &&
-        (!client.running ||
-            !Number.isInteger(client.port) ||
-            client.port < 1 ||
-            client.port > 65535)
-    )
-        throw new Error(vscode.l10n.t('Start capture before setting the VS Code proxy.'))
-    await vscode.workspace
-        .getConfiguration('http')
-        .update(
-            'proxy',
-            enabled ? `http://127.0.0.1:${client.port}` : undefined,
-            vscode.ConfigurationTarget.Global
+    let state = managed.get(client)
+    if (!state) managed.set(client, (state = { queue: Promise.resolve() }))
+    const next = state.queue.then(() => operation(state!))
+    state.queue = next.catch(() => {})
+    return next
+}
+
+/** Change only the user override; retain its previous value for lifecycle cleanup. */
+export function updateVSCodeProxy(client: ProxyClient, enabled: boolean) {
+    return proxyOperation(client, async (state) => {
+        if (
+            enabled &&
+            (!client.running ||
+                !Number.isInteger(client.port) ||
+                client.port < 1 ||
+                client.port > 65535)
         )
+            throw new Error(vscode.l10n.t('Start capture before setting the VS Code proxy.'))
+        const config = vscode.workspace.getConfiguration('http')
+        const current = config.inspect<string>('proxy')?.globalValue
+        const next = enabled ? `http://127.0.0.1:${client.port}` : undefined
+        const previous = current === state.value ? state.previous : current
+        await config.update('proxy', next, vscode.ConfigurationTarget.Global)
+        state.previous = enabled ? previous : undefined
+        state.value = next
+    })
+}
+
+/** Follow this window's port, restoring prior settings only while we still own the value. */
+export function synchronizeVSCodeProxy(client: ProxyClient, closing = false) {
+    return proxyOperation(client, async (state) => {
+        if (!state.value) return
+        const config = vscode.workspace.getConfiguration('http')
+        if (config.inspect<string>('proxy')?.globalValue !== state.value) {
+            state.value = state.previous = undefined
+            return
+        }
+        const next =
+            !closing && client.running && client.port > 0
+                ? `http://127.0.0.1:${client.port}`
+                : state.previous
+        if (next !== state.value)
+            await config.update('proxy', next, vscode.ConfigurationTarget.Global)
+        state.value = !closing && client.running ? next : undefined
+        if (!state.value) state.previous = undefined
+    })
 }
 
 /** Settings owns an editor tab independently of the traffic view. */
@@ -40,7 +75,14 @@ export class SettingsPanel implements vscode.Disposable {
         private readonly client: AgentClient
     ) {
         this.stateChanges = client.onEvent((event) => {
-            if (event.type === 'state') this.post()
+            if (event.type === 'state') {
+                this.post()
+                void synchronizeVSCodeProxy(client)
+                    .then(() => this.post())
+                    .catch((error) =>
+                        this.post({ error: error instanceof Error ? error.message : String(error) })
+                    )
+            }
         })
     }
 
@@ -73,6 +115,10 @@ export class SettingsPanel implements vscode.Disposable {
 
     private post(result: { saved?: string; error?: string } = {}, panel = this.panel) {
         if (!panel) return
+        const config = vscode.workspace.getConfiguration('http')
+        const configured = config.inspect<string>('proxy')
+        const effective = config.get<string>('proxy') || ''
+        const current = `http://127.0.0.1:${this.client.port}`
         const message: HostMessage = {
             type: 'settings',
             values: preferences.values(),
@@ -80,7 +126,15 @@ export class SettingsPanel implements vscode.Disposable {
                 configured:
                     vscode.workspace.getConfiguration('http').inspect('proxy')?.globalValue !==
                     undefined,
-                canSet: this.client.running && this.client.port > 0
+                canSet: this.client.running && this.client.port > 0,
+                effective,
+                scope:
+                    configured?.workspaceFolderValue !== undefined
+                        ? 'folder'
+                        : configured?.workspaceValue !== undefined
+                          ? 'workspace'
+                          : 'user',
+                matches: this.client.running && effective === current
             },
             target: {
                 sslHosts: preferences.get<string[]>('ssl.hosts', []),
@@ -104,7 +158,10 @@ export class SettingsPanel implements vscode.Disposable {
                     await updateVSCodeProxy(this.client, message.type === 'setVSCodeProxy')
                     this.post({ saved: 'http.proxy' }, panel)
                 } catch (error) {
-                    this.post({ error: String(error) }, panel)
+                    this.post(
+                        { error: error instanceof Error ? error.message : String(error) },
+                        panel
+                    )
                 }
                 return
             case 'loadSettings':
@@ -115,7 +172,10 @@ export class SettingsPanel implements vscode.Disposable {
                     await preferences.update(message.key, message.value)
                     this.post({ saved: message.key }, panel)
                 } catch (error) {
-                    this.post({ error: String(error) }, panel)
+                    this.post(
+                        { error: error instanceof Error ? error.message : String(error) },
+                        panel
+                    )
                 }
                 return
             case 'closeSettings':

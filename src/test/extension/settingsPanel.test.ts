@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import type { AgentClient } from '../../extension/client'
-import { SettingsPanel } from '../../extension/panels/settingsPanel'
+import { SettingsPanel, synchronizeVSCodeProxy } from '../../extension/panels/settingsPanel'
 import type { PanelMessage, HostMessage } from '../../webview/types/messages'
 
 const ui = vi.hoisted(() => ({
@@ -9,6 +9,7 @@ const ui = vi.hoisted(() => ({
     configuration: undefined as
         undefined | ((event: { affectsConfiguration(key: string): boolean }) => void),
     value: undefined as string | undefined,
+    workspaceValue: undefined as string | undefined,
     post: vi.fn(),
     update: vi.fn(),
     dispose: vi.fn()
@@ -30,7 +31,11 @@ vi.mock('vscode', () => ({
     workspace: {
         getConfiguration: (section: string) => {
             expect(section).toBe('http')
-            return { inspect: () => ({ globalValue: ui.value }), update: ui.update }
+            return {
+                inspect: () => ({ globalValue: ui.value, workspaceValue: ui.workspaceValue }),
+                get: () => ui.workspaceValue ?? ui.value,
+                update: ui.update
+            }
         },
         onDidChangeConfiguration: (listener: typeof ui.configuration) => {
             ui.configuration = listener
@@ -72,6 +77,7 @@ const latest = () => ui.post.mock.lastCall![0] as Extract<HostMessage, { type: '
 beforeEach(() => {
     vi.clearAllMocks()
     ui.value = undefined
+    ui.workspaceValue = undefined
     ui.update.mockImplementation(async (_key, value) => {
         ui.value = value
     })
@@ -84,7 +90,7 @@ describe('VS Code proxy buttons', () => {
         ui.receive!({ type: 'setVSCodeProxy' })
         await vi.waitFor(() => expect(latest().saved).toBe('http.proxy'))
         expect(ui.update).toHaveBeenCalledExactlyOnceWith('proxy', 'http://127.0.0.1:45678', 1)
-        expect(latest().vscodeProxy).toEqual({ configured: true, canSet: true })
+        expect(latest().vscodeProxy).toMatchObject({ configured: true, canSet: true })
         panel.dispose()
     })
 
@@ -106,14 +112,14 @@ describe('VS Code proxy buttons', () => {
         ui.receive!({ type: 'removeVSCodeProxy' })
         await vi.waitFor(() => expect(latest().saved).toBe('http.proxy'))
         expect(ui.update).toHaveBeenCalledExactlyOnceWith('proxy', undefined, 1)
-        expect(latest().vscodeProxy).toEqual({ configured: false, canSet: false })
+        expect(latest().vscodeProxy).toMatchObject({ configured: false, canSet: false })
         panel.dispose()
     })
 
     it('refreshes button availability on capture and external configuration changes', () => {
         const { panel, client, state } = setup(false, 0)
         ui.receive!({ type: 'loadSettings' })
-        expect(latest().vscodeProxy).toEqual({ configured: false, canSet: false })
+        expect(latest().vscodeProxy).toMatchObject({ configured: false, canSet: false })
         expect(latest().target?.sslNoHosts).toEqual(['private.test'])
         client.running = true
         client.port = 43210
@@ -123,6 +129,47 @@ describe('VS Code proxy buttons', () => {
         ui.value = 'http://other-proxy:8080'
         ui.configuration!({ affectsConfiguration: (key) => key === 'http.proxy' })
         expect(latest().vscodeProxy?.configured).toBe(true)
+        panel.dispose()
+    })
+
+    it('follows port changes and restores the previous user proxy on stop', async () => {
+        ui.value = 'http://original:8080'
+        const { panel, client, state } = setup()
+        ui.receive!({ type: 'setVSCodeProxy' })
+        await vi.waitFor(() => expect(ui.value).toBe('http://127.0.0.1:43123'))
+        client.port = 45678
+        state()
+        await vi.waitFor(() => expect(ui.value).toBe('http://127.0.0.1:45678'))
+        client.running = false
+        state()
+        await vi.waitFor(() => expect(ui.value).toBe('http://original:8080'))
+        panel.dispose()
+    })
+
+    it('cleans up on deactivation but preserves an external edit or another window proxy', async () => {
+        const { panel, client } = setup()
+        ui.receive!({ type: 'setVSCodeProxy' })
+        await vi.waitFor(() => expect(ui.value).toBe('http://127.0.0.1:43123'))
+        await synchronizeVSCodeProxy(client, true)
+        expect(ui.value).toBeUndefined()
+        ui.receive!({ type: 'setVSCodeProxy' })
+        await vi.waitFor(() => expect(ui.value).toBe('http://127.0.0.1:43123'))
+        ui.value = 'http://127.0.0.1:49999'
+        await synchronizeVSCodeProxy(client, true)
+        expect(ui.value).toBe('http://127.0.0.1:49999')
+        panel.dispose()
+    })
+
+    it('shows the effective workspace override and its mismatch', () => {
+        ui.workspaceValue = 'http://workspace:8080'
+        const { panel } = setup()
+        ui.receive!({ type: 'loadSettings' })
+        expect(latest().vscodeProxy).toMatchObject({
+            effective: ui.workspaceValue,
+            scope: 'workspace',
+            matches: false,
+            configured: false
+        })
         panel.dispose()
     })
 

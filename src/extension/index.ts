@@ -1,4 +1,4 @@
-import { SettingsPanel } from './panels/settingsPanel'
+import { SettingsPanel, synchronizeVSCodeProxy, updateVSCodeProxy } from './panels/settingsPanel'
 import { preferences } from './preferences'
 import * as vscode from 'vscode'
 import { writeFile } from 'node:fs/promises'
@@ -19,6 +19,7 @@ let client: AgentClient | undefined
 /** What `activate` returns; the end-to-end tests drive the extension through it. */
 export interface TaplineApi {
     client: AgentClient
+    setVSCodeProxy(enabled: boolean): Promise<void>
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<TaplineApi> {
@@ -515,10 +516,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
             preferences.get<boolean>('autoStart', false) ? startCapture(false) : undefined
         )
         .catch((error) => client!.output.error(String(error)))
-    return { client }
+    return { client, setVSCodeProxy: (enabled) => updateVSCodeProxy(client!, enabled) }
 }
 
-export function deactivate() {
+export async function deactivate() {
+    if (client)
+        await synchronizeVSCodeProxy(client, true).catch((error) =>
+            client?.output.warn(String(error))
+        )
     // Closing the socket lets the shared agent stop sing-box once no window remains.
     client?.dispose()
     client = undefined

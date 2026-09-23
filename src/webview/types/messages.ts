@@ -87,7 +87,13 @@ export type HostMessage =
           values: Record<string, unknown>
           /** What the environment variables resolve to on this machine. */
           target?: CaptureTarget
-          vscodeProxy?: { configured: boolean; canSet: boolean }
+          vscodeProxy?: {
+              configured: boolean
+              canSet: boolean
+              effective: string
+              scope: 'user' | 'workspace' | 'folder'
+              matches: boolean
+          }
           saved?: string
           error?: string
       }

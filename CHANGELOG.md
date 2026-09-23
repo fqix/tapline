@@ -30,6 +30,12 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Fixed
 
+- Restore the previous VS Code user proxy when capture stops or the extension exits,
+  follow live port changes, and display workspace proxy overrides explicitly.
+- Preserve public CA trust for partially decrypted terminal and debug traffic with
+  a combined PEM trust bundle.
+- Keep shared capture alive when a window disconnects with unread IPC replies.
+
 - Avoid marking completed passthrough tunnels as failed when the client closes
   before trailing TLS bytes reach the internal pipe.
 

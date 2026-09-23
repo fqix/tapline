@@ -82,7 +82,7 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
     const zh = document.documentElement.lang.toLowerCase().startsWith('zh')
     const [values, setValues] = useState<Record<string, unknown>>()
     const [target, setTarget] = useState<CaptureTarget>()
-    const [proxy, setProxy] = useState<{ configured: boolean; canSet: boolean }>()
+    const [proxy, setProxy] = useState<Extract<HostMessage, { type: 'settings' }>['vscodeProxy']>()
     const [drafts, setDrafts] = useState<Record<string, string>>({})
     const [status, setStatus] = useState('')
     const [pending, setPending] = useState(false)
@@ -329,8 +329,8 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                         <div className="settings-proxy-actions">
                                             <p className="muted">
                                                 {zh
-                                                    ? 'VS Code 用户级代理，影响共用用户配置的窗口。设置为当前抓包端口；移除后恢复默认或系统代理。HTTPS 解密需要信任 Tapline 根证书。'
-                                                    : 'VS Code user proxy, shared by windows using this profile. Uses the live capture port; removing restores default or system proxy behavior. HTTPS decryption requires trusting the Tapline root certificate.'}
+                                                    ? 'VS Code 用户级代理，影响共用用户配置的窗口。跟随当前抓包端口，停止或退出时恢复原用户设置。移除仅清除用户级覆盖。HTTPS 解密需要信任 Tapline 根证书。'
+                                                    : 'VS Code user proxy, shared by windows using this profile. Follows the live capture port and restores the previous user setting on stop or exit. Remove clears only the user override. HTTPS decryption requires trusting the Tapline root certificate.'}
                                             </p>
                                             <p className="muted">
                                                 {proxy?.canSet
@@ -346,6 +346,24 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                     : zh
                                                       ? '未配置用户代理'
                                                       : 'No user proxy configured'}
+                                            </p>
+                                            <p className="muted">
+                                                {zh ? '生效代理' : 'Effective proxy'}:{' '}
+                                                {proxy?.effective ||
+                                                    (zh ? '默认 / 系统' : 'Default / system')}
+                                                {' · '}
+                                                {proxy?.scope === 'user'
+                                                    ? zh
+                                                        ? '用户级'
+                                                        : 'User'
+                                                    : zh
+                                                      ? '工作区覆盖；请在工作区设置中修改'
+                                                      : 'Workspace override; edit in workspace settings'}
+                                                {proxy?.effective &&
+                                                    !proxy.matches &&
+                                                    (zh
+                                                        ? ' · 与当前抓包端口不同'
+                                                        : ' · Differs from current capture port')}
                                             </p>
                                             <div
                                                 className="settings-proxy-buttons"
@@ -381,9 +399,7 @@ export function Settings({ onClose, onRules }: { onClose(): void; onRules(): voi
                                                         })
                                                     }}
                                                 >
-                                                    {zh
-                                                        ? '移除 VS Code 代理'
-                                                        : 'Remove VS Code proxy'}
+                                                    {zh ? '移除用户级代理' : 'Remove user proxy'}
                                                 </button>
                                             </div>
                                         </div>

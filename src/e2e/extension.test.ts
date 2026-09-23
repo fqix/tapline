@@ -12,7 +12,6 @@ import { httpsServer, selfSigned, viaProxyTLS } from '../test/helpers/helpers'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import type { TaplineApi } from '../extension'
-import { updateVSCodeProxy } from '../extension/panels/settingsPanel'
 import { defaultSettings, type Rule, type Transaction } from '../shared/model'
 
 /** The window's proxy port is OS-assigned; read after capture starts. */
@@ -155,6 +154,10 @@ suite('Tapline end to end', function () {
         assert.equal(api.client.running, false)
         assert.ok(existsSync(api.client.certificatePath), 'CA exists before capture starts')
         assert.ok(
+            api.client.caBundlePath && existsSync(api.client.caBundlePath),
+            'PEM bundle exists before capture starts'
+        )
+        assert.ok(
             existsSync(api.client.truststorePath),
             'Java trust store exists before capture starts'
         )
@@ -174,14 +177,39 @@ suite('Tapline end to end', function () {
         const strictSSL = config().get('proxyStrictSSL')
         const support = config().get('proxySupport')
         try {
-            await updateVSCodeProxy(api.client, true)
+            await api.setVSCodeProxy(true)
             assert.equal(config().inspect('proxy')?.globalValue, `http://127.0.0.1:${proxyPort}`)
-            await updateVSCodeProxy(api.client, false)
+            await api.setVSCodeProxy(false)
             assert.equal(config().inspect('proxy')?.globalValue, undefined)
             assert.equal(config().get('proxyStrictSSL'), strictSSL)
             assert.equal(config().get('proxySupport'), support)
         } finally {
             await config().update('proxy', original, vscode.ConfigurationTarget.Global)
+        }
+    })
+
+    test('restores the VS Code user proxy when capture stops', async () => {
+        const config = () => vscode.workspace.getConfiguration('http')
+        const original = config().inspect<string>('proxy')?.globalValue
+        try {
+            await config().update(
+                'proxy',
+                'http://previous-proxy.invalid:8080',
+                vscode.ConfigurationTarget.Global
+            )
+            await api.setVSCodeProxy(true)
+            await api.client.stop()
+            await until(
+                () =>
+                    config().inspect<string>('proxy')?.globalValue ===
+                    'http://previous-proxy.invalid:8080',
+                10000,
+                'previous proxy restored'
+            )
+        } finally {
+            await config().update('proxy', original, vscode.ConfigurationTarget.Global)
+            await api.client.start()
+            proxyPort = api.client.port
         }
     })
 
