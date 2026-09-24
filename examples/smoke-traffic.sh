@@ -2,13 +2,14 @@
 # Generate a spread of traffic through the Tapline proxy so every panel feature has
 # something to show: plain HTTP, HTTPS, HTTP/2, redirects, each status class, JSON /
 # form / binary / gzip bodies, cookies, chunked streams and gRPC (unary, server, client and
-# bidirectional streams, plaintext and TLS) and HTTP/3 over QUIC.
+# bidirectional streams, plaintext and TLS), WebSocket echo and HTTP/3 over QUIC.
 #
 # Run it from a VS Code terminal opened while capture is on — Tapline injects
 # HTTP(S)_PROXY and the CA variables there. Elsewhere, set them by hand:
 #   HTTPS_PROXY=http://127.0.0.1:3606 SSL_CERT_FILE=/path/to/tapline-ca.pem examples/smoke-traffic.sh
 #
 # Needs curl; the gRPC part needs grpcurl (brew install grpcurl) and is skipped otherwise.
+# WebSocket needs wscat (npm install -g wscat) and is skipped otherwise.
 set -u
 
 HTTPBIN=${HTTPBIN:-https://httpbin.org}
@@ -105,6 +106,27 @@ step "GET  /stream/5 (chunked json)"  "$HTTPBIN/stream/5"
 step "GET  /drip (slow body)"         "$HTTPBIN/drip?duration=2&numbytes=20&code=200"
 step "GET  /stream-bytes/4096"        "$HTTPBIN/stream-bytes/4096?chunk_size=512"
 step "GET  /range/1024 (partial)"     -r 0-255 "$HTTPBIN/range/1024"
+
+echo "== WebSocket echo (httpbingo)"
+if command -v wscat >/dev/null 2>&1; then
+    ws_args=()
+    proxy=${https_proxy:-${HTTPS_PROXY:-}}
+    [[ -n $proxy ]] && ws_args+=(--proxy "$proxy")
+    ca=${NODE_EXTRA_CA_CERTS:-${SSL_CERT_FILE:-${CURL_CA_BUNDLE:-}}}
+    [[ -n $ca ]] && ws_args+=(--ca "$ca")
+    message='{"hello":"tapline","protocol":"websocket"}'
+    if reply=$(wscat --no-color "${ws_args[@]}" \
+        -c 'wss://httpbingo.org/websocket/echo?max_fragment_size=2048&max_message_size=10240' \
+        -x "$message" -w 3) && [[ $reply == "$message" ]]; then
+        printf '  %-42s ok\n' 'WSS  /websocket/echo (send + receive)'
+        ((pass++))
+    else
+        printf '  %-42s FAIL (echo missing or mismatched)\n' 'WSS  /websocket/echo (send + receive)'
+        ((fail++))
+    fi
+else
+    echo "  wscat not found — skipped (npm install -g wscat)"
+fi
 
 echo "== gRPC ($GRPCBIN_TLS / $GRPCBIN_PLAIN)"
 if command -v grpcurl >/dev/null 2>&1; then
