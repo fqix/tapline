@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { createHash, X509Certificate } from 'node:crypto'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import http from 'node:http'
 import { Engine } from '../../core/engine'
 import type { Event } from '../../shared/model'
@@ -132,6 +134,70 @@ describeCore('engine with the bundled core', () => {
         expect(t.status).toBe(200)
         expect(t.responseBody).toBe('secret for /private')
     })
+
+    it.each([
+        ['socks5', 'http', '127.0.0.1'],
+        ['socks5h', 'http', 'localhost'],
+        ['socks5', 'https', '127.0.0.1'],
+        ['socks5h', 'https', 'localhost'],
+        ['socks5', 'http', 'localhost'],
+        ['socks5', 'https', 'localhost']
+    ])(
+        'captures %s proxy traffic carrying %s for %s on the mixed port',
+        async (proxy, scheme, host) => {
+            // Exercise both IPv4 and domain-name SOCKS5 CONNECT addresses.
+            const port = scheme === 'https' ? secure.port : plain.port
+            const path = `/via-${proxy}-${scheme}-${host}?capture=1`
+            const url = `${scheme}://${host}:${port}${path}`
+            const body = 'SOCKS5 抓包'
+            const { stdout } = await promisify(execFile)(
+                'curl',
+                [
+                    '--disable',
+                    '--silent',
+                    '--show-error',
+                    '--fail',
+                    '--max-time',
+                    '10',
+                    '--ipv4',
+                    '--noproxy',
+                    '',
+                    '--proxy',
+                    `${proxy}://127.0.0.1:${engine.settings.port}`,
+                    '--cacert',
+                    engine.certificatePath,
+                    '--header',
+                    'Content-Type: text/plain; charset=utf-8',
+                    '--data-binary',
+                    body,
+                    url
+                ],
+                { timeout: 15000 }
+            )
+            const expected =
+                scheme === 'https'
+                    ? `secret for ${path}`
+                    : JSON.stringify({ method: 'POST', url: path, body })
+            expect(stdout).toBe(expected)
+            const t = await settled(engine, (t) => t.url === url)
+            expect(t).toMatchObject({
+                state: 'completed',
+                method: 'POST',
+                status: 200,
+                tls: scheme === 'https',
+                requestBody: body,
+                requestBytes: Buffer.byteLength(body),
+                responseBody: expected
+            })
+            expect(t.requestHeaders['content-type']).toBe('text/plain; charset=utf-8')
+
+            // The same listener must still accept an HTTP proxy request after SOCKS5.
+            const httpUrl = `http://127.0.0.1:${plain.port}/after-${proxy}-${scheme}-${host}`
+            const reply = await viaProxy(engine.settings.port, httpUrl)
+            expect(reply.status).toBe(200)
+            expect((await settled(engine, (t) => t.url === httpUrl)).responseBody).toBe(reply.body)
+        }
+    )
 
     it('preserves certificate pinning in passthrough mode and after excluding an opted-in host', async () => {
         const fingerprint = new X509Certificate(identity.cert).fingerprint256

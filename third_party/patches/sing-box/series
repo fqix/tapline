@@ -1,3 +1,4 @@
 0001-tapline-core.patch
 0002-network-startup-race.patch
 0003-socks-udp-race.patch
+0004-socks-tls-sni.patch
