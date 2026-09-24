@@ -107,7 +107,7 @@ step "GET  /drip (slow body)"         "$HTTPBIN/drip?duration=2&numbytes=20&code
 step "GET  /stream-bytes/4096"        "$HTTPBIN/stream-bytes/4096?chunk_size=512"
 step "GET  /range/1024 (partial)"     -r 0-255 "$HTTPBIN/range/1024"
 
-echo "== WebSocket echo (httpbingo)"
+echo "== WebSocket echo (httpbingo / echo.websocket.org)"
 if command -v wscat >/dev/null 2>&1; then
     ws_args=()
     proxy=${https_proxy:-${HTTPS_PROXY:-}}
@@ -115,15 +115,28 @@ if command -v wscat >/dev/null 2>&1; then
     ca=${NODE_EXTRA_CA_CERTS:-${SSL_CERT_FILE:-${CURL_CA_BUNDLE:-}}}
     [[ -n $ca ]] && ws_args+=(--ca "$ca")
     message='{"hello":"tapline","protocol":"websocket"}'
-    if reply=$(wscat --no-color "${ws_args[@]}" \
-        -c 'wss://httpbingo.org/websocket/echo?max_fragment_size=2048&max_message_size=10240' \
-        -x "$message" -w 3) && [[ $reply == "$message" ]]; then
-        printf '  %-42s ok\n' 'WSS  /websocket/echo (send + receive)'
-        ((pass++))
-    else
-        printf '  %-42s FAIL (echo missing or mismatched)\n' 'WSS  /websocket/echo (send + receive)'
-        ((fail++))
-    fi
+    for ws_url in \
+        'wss://httpbingo.org/websocket/echo?max_fragment_size=2048&max_message_size=10240' \
+        'wss://echo.websocket.org'; do
+        # Keep stdin open even in CI, and bound the entire connection attempt.
+        if reply=$(node - --no-color "${ws_args[@]}" \
+            -c "$ws_url" \
+            -x "$message" -w 3 <<'NODE'
+const { spawn } = require('node:child_process');
+const child = spawn('wscat', process.argv.slice(2), {
+    stdio: ['pipe', 'inherit', 'inherit'], timeout: 30000, killSignal: 'SIGKILL'
+});
+child.on('error', error => { console.error(error.message); process.exitCode = 1; });
+child.on('exit', code => { process.exitCode = code ?? 1; });
+NODE
+        ) && grep -Fxq -- "$message" <<<"$reply"; then
+            printf '  %-42s ok\n' "${ws_url%%\?*}"
+            ((pass++))
+        else
+            printf '  %-42s FAIL (echo missing or mismatched)\n' "${ws_url%%\?*}"
+            ((fail++))
+        fi
+    done
 else
     echo "  wscat not found — skipped (npm install -g wscat)"
 fi
