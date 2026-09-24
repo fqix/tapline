@@ -5,8 +5,12 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.2]
+
 ### Fixed
 
+- SOCKS5 HTTPS connections with client-side DNS resolution now use TLS SNI to select
+  the interception certificate, avoiding hostname mismatches for domain requests.
 - Password fields (the composer's Basic auth) were drawn with the browser's default
   white box instead of the editor's input styling.
 - Collapsing one JWT section collapsed every other JWT on the same side; each token now
@@ -14,6 +18,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Changed
 
+- Copy Proxy Environment now produces one line containing only `https_proxy`,
+  `http_proxy` and `all_proxy`, with SOCKS5 support and shell-specific quoting.
 - The composer's Authorization tab puts its labels beside the fields instead of above
   them, sizes the type dropdown to its content, adds a show/hide toggle for the Basic
   auth password, and shows the `Authorization` header the request will send.
@@ -22,6 +28,11 @@ All notable changes to Tapline are documented here. The format follows
   `nbf` / `exp` times as local timestamps — and renders the header and the payload as
   labelled JSON trees instead of two unlabelled blocks. The token and the decoded JSON
   each have a copy button, and the signature is marked as unverified.
+
+### Added
+
+- SOCKS5 HTTP/HTTPS capture regression tests and real-site E2E coverage for both
+  `socks5` and `socks5h`, including upstream certificate validation.
 
 ## [0.12.1]
 
