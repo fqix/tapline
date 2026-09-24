@@ -172,6 +172,8 @@ describeCore('engine with the bundled core', () => {
                     `${proxy}://127.0.0.1:${engine.settings.port}`,
                     '--cacert',
                     engine.certificatePath,
+                    // The temporary CA has no CRL endpoint; keep chain/hostname checks.
+                    ...(process.platform === 'win32' ? ['--ssl-revoke-best-effort'] : []),
                     '--header',
                     'Content-Type: text/plain; charset=utf-8',
                     '--data-binary',

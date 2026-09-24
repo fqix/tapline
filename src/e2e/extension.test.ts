@@ -258,6 +258,8 @@ suite('Tapline end to end', function () {
                         `${proxy}://127.0.0.1:${proxyPort}`,
                         '--cacert',
                         api.client.certificatePath,
+                        // The temporary CA has no CRL endpoint; keep chain/hostname checks.
+                        ...(process.platform === 'win32' ? ['--ssl-revoke-best-effort'] : []),
                         '--header',
                         `X-Tapline-E2E: ${proxy}`,
                         url
