@@ -114,9 +114,8 @@ describe('copy environment command', () => {
         })
         await environment.copyEnvironment()
         expect(ui.write).toHaveBeenCalledWith(
-            expect.stringContaining("set -gx HTTP_PROXY 'http://127.0.0.1:4000'")
+            "set -gx https_proxy 'http://127.0.0.1:4000'; set -gx http_proxy 'http://127.0.0.1:4000'; set -gx all_proxy 'socks5://127.0.0.1:4000'"
         )
-        expect(ui.write.mock.calls[0][0]).toContain("set -gx SSL_CERT_FILE '/tmp/test ca.pem'")
         expect(ui.update).toHaveBeenCalledWith('copyEnvironment.shell', 'Fish')
     })
     it('leaves the clipboard untouched when the picker is cancelled', async () => {

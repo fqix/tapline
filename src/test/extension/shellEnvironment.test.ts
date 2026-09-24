@@ -5,7 +5,7 @@ import { proxyVariables } from '../../utils/environment'
 
 describe('copy proxy environment', () => {
     it.each([
-        ['Bash', "export HTTP_PROXY='http://127.0.0.1:3638'"],
+        ['Bash', "HTTP_PROXY='http://127.0.0.1:3638'"],
         ['Fish', "set -gx HTTP_PROXY 'http://127.0.0.1:3638'"],
         ['Nushell', '$env.HTTP_PROXY = "http://127.0.0.1:3638"'],
         ['CMD', 'set "HTTP_PROXY=http://127.0.0.1:3638"'],
@@ -13,7 +13,7 @@ describe('copy proxy environment', () => {
     ] as const)('formats %s commands with the active port', (shell, expected) => {
         const result = shellEnvironment(proxyVariables(3638), shell)
         expect(result).toContain(expected)
-        expect(result.split(/\r?\n/)).toHaveLength(6)
+        expect(result.split(/\r?\n/)).toHaveLength(1)
         expect(result).toContain('localhost,127.0.0.1,::1')
     })
 
@@ -21,15 +21,18 @@ describe('copy proxy environment', () => {
         'preserves spaces, quotes, Unicode and shell expressions in Bash',
         () => {
             const value = "/tmp/中文 user's $(printf injected) `printf injected` \\ ca.pem"
-            const script = shellEnvironment({ TAPLINE_TEST: value }, 'Bash')
+            const script = shellEnvironment(
+                { TAPLINE_TEST: value, TAPLINE_OTHER: 'second' },
+                'Bash'
+            )
             const result = execFileSync(
                 '/bin/bash',
-                ['-c', script + '\nprintf %s "$TAPLINE_TEST"'],
+                ['-c', script + '\nprintf "%s|%s" "$TAPLINE_TEST" "$TAPLINE_OTHER"'],
                 {
                     encoding: 'utf8'
                 }
             )
-            expect(result).toBe(value)
+            expect(result).toBe(value + '|second')
         }
     )
 

@@ -130,7 +130,7 @@ export class CaptureEnvironment implements vscode.Disposable {
         return Object.keys(result).length ? result : undefined
     }
 
-    /** Copy commands for an existing terminal using the configured terminal profiles. */
+    /** Copy a compact proxy command for an existing terminal. */
     async copyEnvironment() {
         if (!this.client.running) {
             void vscode.window.showInformationMessage(
@@ -157,23 +157,17 @@ export class CaptureEnvironment implements vscode.Disposable {
         )
         if (!pick) return
         // Capture may stop or change ports while the picker is open.
-        const config = preferences
-        const env = this.environment(
-            this.valid(config.get<Profile[]>('terminal.profiles', defaultTerminalProfiles))
-        )
-        if (!env) {
+        if (!this.client.running) {
             void vscode.window.showInformationMessage(
                 vscode.l10n.t('Start capture before copying the proxy environment.')
             )
             return
         }
-        if (pick.shell === 'CMD' && Object.values(env).some((value) => /["%!]/.test(value))) {
-            void vscode.window.showErrorMessage(
-                vscode.l10n.t(
-                    'These environment values contain characters that CMD cannot safely paste. Choose PowerShell instead.'
-                )
-            )
-            return
+        const proxy = `http://127.0.0.1:${this.client.port}`
+        const env = {
+            https_proxy: proxy,
+            http_proxy: proxy,
+            all_proxy: `socks5://127.0.0.1:${this.client.port}`
         }
         await vscode.env.clipboard.writeText(shellEnvironment(env, pick.shell))
         await this.context.globalState.update('copyEnvironment.shell', pick.shell)
