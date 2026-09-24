@@ -4,6 +4,8 @@ import { createHash, X509Certificate } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import http from 'node:http'
+import http2 from 'node:http2'
+import tls from 'node:tls'
 import { Engine } from '../../core/engine'
 import type { Event } from '../../shared/model'
 import {
@@ -84,6 +86,10 @@ describeCore('engine with the bundled core', () => {
             })
         })
         secure = await httpsServer(identity, (req, res) => {
+            if (req.url === '/h2-headers') {
+                res.setHeader('connection', 'keep-alive, x-hop')
+                res.setHeader('x-hop', 'connection-only')
+            }
             res.setHeader('content-type', 'text/plain')
             res.end(`secret for ${req.url}`)
         })
@@ -198,6 +204,52 @@ describeCore('engine with the bundled core', () => {
             expect((await settled(engine, (t) => t.url === httpUrl)).responseBody).toBe(reply.body)
         }
     )
+
+    it('filters HTTP/1 connection headers from HTTP/2 responses', async () => {
+        const socket = await new Promise<import('node:net').Socket>((resolve, reject) => {
+            const req = http.request({
+                host: '127.0.0.1',
+                port: engine.settings.port,
+                method: 'CONNECT',
+                path: `localhost:${secure.port}`
+            })
+            req.once('connect', (_res, socket) => resolve(socket))
+            req.once('error', reject)
+            req.end()
+        })
+        const client = http2.connect(`https://localhost:${secure.port}`, {
+            createConnection: () =>
+                tls.connect({
+                    socket,
+                    servername: 'localhost',
+                    ALPNProtocols: ['h2'],
+                    ca: readFileSync(engine.certificatePath)
+                })
+        })
+        try {
+            const body = await new Promise<string>((resolve, reject) => {
+                client.once('error', reject)
+                const req = client.request({ ':path': '/h2-headers' })
+                const chunks: Buffer[] = []
+                req.once('error', reject)
+                req.on('data', (chunk) => chunks.push(chunk))
+                req.once('response', (headers) => {
+                    for (const name of ['connection', 'keep-alive', 'x-hop'])
+                        if (headers[name] !== undefined)
+                            reject(new Error(`Unexpected ${name} header`))
+                })
+                req.once('end', () => resolve(Buffer.concat(chunks).toString()))
+                req.end()
+            })
+            expect(body).toBe('secret for /h2-headers')
+            const t = await settled(engine, (t) => t.url.endsWith('/h2-headers'))
+            expect(t.state).toBe('completed')
+            expect(t.responseBody).toBe(body)
+        } finally {
+            client.destroy()
+            socket.destroy()
+        }
+    })
 
     it('preserves certificate pinning in passthrough mode and after excluding an opted-in host', async () => {
         const fingerprint = new X509Certificate(identity.cert).fingerprint256

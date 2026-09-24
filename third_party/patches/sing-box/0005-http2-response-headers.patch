@@ -1,0 +1,28 @@
+diff --git a/service/taplineinspector/internal/proxy/proxy.go b/service/taplineinspector/internal/proxy/proxy.go
+--- a/service/taplineinspector/internal/proxy/proxy.go
++++ b/service/taplineinspector/internal/proxy/proxy.go
+@@ -239,7 +239,23 @@
+ 	})
+ }
+ 
+-func (r *runtime) onResponse(resp *http.Response, pc *goproxy.ProxyCtx) *http.Response {
++func (r *runtime) onResponse(resp *http.Response, pc *goproxy.ProxyCtx) (clientResult *http.Response) {
++	defer func() {
++		if clientResult == nil || pc.Req.ProtoMajor < 2 {
++			return
++		}
++		// Keep captured upstream headers intact, but do not forward HTTP/1
++		// connection-specific fields to an HTTP/2 client (including local replies).
++		clientResult.Header = clientResult.Header.Clone()
++		for _, value := range clientResult.Header.Values("Connection") {
++			for _, name := range strings.Split(value, ",") {
++				clientResult.Header.Del(strings.TrimSpace(name))
++			}
++		}
++		for _, name := range []string{"Connection", "Keep-Alive", "Proxy-Connection", "Transfer-Encoding", "Upgrade"} {
++			clientResult.Header.Del(name)
++		}
++	}()
+ 	ex, ok := pc.UserData.(*exchange)
+ 	if !ok || ex.session.local {
+ 		return resp

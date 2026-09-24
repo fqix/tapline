@@ -11,6 +11,8 @@ All notable changes to Tapline are documented here. The format follows
 
 - SOCKS5 HTTPS connections with client-side DNS resolution now use TLS SNI to select
   the interception certificate, avoiding hostname mismatches for domain requests.
+- Filter HTTP/1 connection-specific response headers before forwarding to HTTP/2
+  clients, preventing strict clients from rejecting captured HTTPS responses.
 - Password fields (the composer's Basic auth) were drawn with the browser's default
   white box instead of the editor's input styling.
 - Collapsing one JWT section collapsed every other JWT on the same side; each token now

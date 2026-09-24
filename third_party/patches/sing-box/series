@@ -2,3 +2,4 @@
 0002-network-startup-race.patch
 0003-socks-udp-race.patch
 0004-socks-tls-sni.patch
+0005-http2-response-headers.patch
