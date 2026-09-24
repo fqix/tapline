@@ -89,6 +89,10 @@ const RowView = memo(function RowView({
     onSelect(id: string, options?: SelectOptions): void
 }) {
     const canReplay = row.scheme !== 'connect' && !row.websocket
+    const protocol =
+        row.scheme === 'ws' || row.scheme === 'wss'
+            ? row.scheme.toUpperCase()
+            : formatHttpVersion(row.httpVersion)
     return (
         <div
             className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''}`}
@@ -126,12 +130,8 @@ const RowView = memo(function RowView({
             <span role="gridcell" className={methodClass(methodLabel(row))}>
                 {methodLabel(row)}
             </span>
-            <span
-                role="gridcell"
-                className="mono ellipsis c-proto"
-                title={formatHttpVersion(row.httpVersion)}
-            >
-                {formatHttpVersion(row.httpVersion)}
+            <span role="gridcell" className="mono ellipsis c-proto" title={protocol}>
+                {protocol}
             </span>
             <span role="gridcell" className="mono ellipsis path c-url" title={row.url}>
                 {/* One icon slot per row (paused, local, replay, WebSocket, SSE, rule, TLS) so URLs line up. */}
