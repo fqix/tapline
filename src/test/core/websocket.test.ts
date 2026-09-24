@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import http from 'node:http'
+import https from 'node:https'
+import tls from 'node:tls'
 import net from 'node:net'
 import { Engine } from '../../core/engine'
-import { CORE, settled, startEngine } from '../helpers/helpers'
+import { CORE, selfSigned, settled, startEngine } from '../helpers/helpers'
 
 const describeCore = existsSync(CORE) ? describe : describe.skip
 
@@ -46,13 +48,13 @@ class FrameParser {
     }
 }
 
-describeCore('websocket relay', () => {
+describeCore.each([false, true])('websocket relay (TLS: %s)', (secure) => {
     let engine: Engine
     let server: http.Server
     let port: number
 
     beforeAll(async () => {
-        server = http.createServer()
+        server = secure ? https.createServer(selfSigned()) : http.createServer()
         server.on('upgrade', (req, socket) => {
             const accept = createHash('sha1')
                 .update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
@@ -78,12 +80,44 @@ describeCore('websocket relay', () => {
     })
 
     it('records both directions of a WebSocket session', async () => {
-        const socket = net.connect(engine.settings.port, '127.0.0.1')
+        const proxySocket = net.connect(engine.settings.port, '127.0.0.1')
+        let socket: net.Socket = proxySocket
         const cleanup = () => socket.destroy()
         try {
-            await new Promise<void>((r) => socket.once('connect', r))
+            await new Promise<void>((resolve, reject) => {
+                socket.once('connect', resolve)
+                socket.once('error', reject)
+            })
+            if (secure) {
+                const agent = new http.Agent()
+                agent.createConnection = () => proxySocket
+                const request = http.request({
+                    host: '127.0.0.1',
+                    port: engine.settings.port,
+                    method: 'CONNECT',
+                    path: `localhost:${port}`,
+                    agent
+                })
+                await new Promise<void>((resolve, reject) => {
+                    request.once('connect', (response) => {
+                        if (response.statusCode === 200) resolve()
+                        else reject(new Error(`CONNECT ${response.statusCode}`))
+                    })
+                    request.once('error', reject)
+                    request.end()
+                })
+                socket = tls.connect({
+                    socket: proxySocket,
+                    servername: 'localhost',
+                    ca: readFileSync(engine.certificatePath)
+                })
+                await new Promise<void>((resolve, reject) => {
+                    socket.once('secureConnect', resolve)
+                    socket.once('error', reject)
+                })
+            }
             socket.write(
-                `GET http://127.0.0.1:${port}/socket HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`
+                `GET ${secure ? `/socket` : `http://127.0.0.1:${port}/socket`} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${randomBytes(16).toString('base64')}\r\nSec-WebSocket-Version: 13\r\n\r\n`
             )
             const received: string[] = []
             // Wait for the peer's Close frame before ending TCP.
@@ -116,6 +150,13 @@ describeCore('websocket relay', () => {
             })
             expect(received).toEqual(['echo:one', 'echo:two'])
             const live = [...engine.transactions.values()].find((t) => t.path === '/socket')!
+            expect(live.serverAddress).toBe(`127.0.0.1:${port}`)
+            if (secure) {
+                // Outlast the public endpoint's observed 18–22 second disconnect.
+                // Resending below must still round-trip after this idle period.
+                await new Promise((resolve) => setTimeout(resolve, 25000))
+                expect(live.state, live.error).toBe('pending')
+            }
             const original = live.frames.find((f) => f.direction === 'send' && f.data === 'one')!
             await engine.resendFrame(live.id, original.id)
             await vi.waitFor(() => expect(received).toContain('echo:one'), { timeout: 3000 })
@@ -181,6 +222,7 @@ describeCore('websocket relay', () => {
             await expect(engine.resendFrame(t.id, original.id)).rejects.toThrow('closed')
         } finally {
             cleanup()
+            proxySocket.destroy()
         }
-    })
+    }, 60000)
 })

@@ -74,7 +74,7 @@ export interface Handlers {
     connect(id: string, host: string, port: number, client: Client): boolean
     tunnelBytes(id: string, direction: 'send' | 'receive', count: number): void
     /** The opaque tunnel reached its server. */
-    tunnelConnected(id: string, address: string): void
+    upstreamConnected(id: string, address: string): void
     request(id: string, info: RequestInfo): Promise<RequestDecision | void> | RequestDecision | void
     requestData(id: string, chunk: Buffer): void
     requestEnd(id: string, trailers: Record<string, string>): void
@@ -378,7 +378,7 @@ export class Inspector {
                 const head = Buffer.from(message.head ?? [])
                 upstream.once('connect', () => {
                     if (upstream.remoteAddress)
-                        this.handlers.tunnelConnected(
+                        this.handlers.upstreamConnected(
                             id,
                             `${net.isIPv6(upstream.remoteAddress) ? `[${upstream.remoteAddress}]` : upstream.remoteAddress}:${upstream.remotePort}`
                         )
@@ -494,6 +494,10 @@ export class Inspector {
                 )
                 return
             }
+            case 'upstream-connected':
+                if (this.sessions.has(id) && typeof message.address === 'string')
+                    this.handlers.upstreamConnected(id, message.address)
+                return
             case 'closed':
                 this.tunnels.get(id)?.destroy()
                 this.tunnels.delete(id)

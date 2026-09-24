@@ -1,0 +1,16 @@
+diff --git a/service/taplineinspector/internal/proxy/websocket.go b/service/taplineinspector/internal/proxy/websocket.go
+--- a/service/taplineinspector/internal/proxy/websocket.go
++++ b/service/taplineinspector/internal/proxy/websocket.go
+@@ -63,6 +63,12 @@
+ 	upstream, ok := body.body.(io.ReadWriteCloser)
+ 	if !ok {
+ 		return failedResponse(pc.Req, ex.session, errors.New("upstream is not a WebSocket connection"))
++	}
++	if err := r.peer.Send(map[string]any{
++		"type": "upstream-connected", "id": ex.session.id, "address": ex.address(),
++	}); err != nil {
++		closeQuietly(upstream)
++		return failedResponse(pc.Req, ex.session, err)
+ 	}
+ 	wsBody := newWebSocketBody(pc.Req.Context(), upstream, ex.session)
+ 	body.body = wsBody

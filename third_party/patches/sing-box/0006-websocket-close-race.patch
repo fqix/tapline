@@ -1,0 +1,128 @@
+diff --git a/service/taplineinspector/internal/proxy/websocket.go b/service/taplineinspector/internal/proxy/websocket.go
+--- a/service/taplineinspector/internal/proxy/websocket.go
++++ b/service/taplineinspector/internal/proxy/websocket.go
+@@ -6,6 +6,7 @@
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"strings"
+ 	"sync"
+@@ -101,7 +102,10 @@
+ 	session.workers.Go(func() { <-session.done; cancel() })
+ 	transfer := func(source io.Reader, target io.Writer, fromServer bool) {
+ 		err := relayWebSocket(ctx, source, target, session, fromServer)
+-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
++		// Closing either relay also interrupts the other socket reader. That local
++		// cleanup must not win the race to mark a completed close as a failure.
++		closed := b.closing.Load() && errors.Is(err, net.ErrClosed)
++		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) && !closed {
+ 			session.finish(false, err)
+ 		}
+ 		closeQuietly(b)
+diff --git a/service/taplineinspector/internal/proxy/websocket_send_test.go b/service/taplineinspector/internal/proxy/websocket_send_test.go
+--- a/service/taplineinspector/internal/proxy/websocket_send_test.go
++++ b/service/taplineinspector/internal/proxy/websocket_send_test.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"bytes"
+ 	"context"
++	"errors"
+ 	"io"
+ 	"net"
+ 	"strings"
+@@ -13,6 +14,93 @@
+ 	"github.com/gobwas/ws"
+ 	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
+ )
++
++// Model a TCP/TLS reader interrupted by socket cleanup, rather than pipe EOF.
++type websocketReadErrorConn struct {
++	net.Conn
++	err error
++}
++
++func (c websocketReadErrorConn) Read(p []byte) (int, error) {
++	n, err := c.Conn.Read(p)
++	if errors.Is(err, io.EOF) {
++		err = c.err
++	}
++	return n, err
++}
++
++func (c websocketReadErrorConn) Write(p []byte) (int, error) {
++	if len(p) == 0 {
++		return 0, nil
++	}
++	return c.Conn.Write(p)
++}
++
++func TestWebSocketCloseReadError(t *testing.T) {
++	for _, test := range []struct {
++		name        string
++		closeFrame  bool
++		err         error
++		wantFailure bool
++	}{
++		{"closing socket", true, &net.OpError{Op: "read", Net: "tcp", Err: net.ErrClosed}, false},
++		{"unexpected closed socket", false, net.ErrClosed, true},
++		{"truncated frame during close", true, io.ErrUnexpectedEOF, true},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			var output bytes.Buffer
++			r := &runtime{peer: ipc.NewPeer(&output, func() {})}
++			ctx, session := r.session(context.Background())
++			upstream, remote := net.Pipe()
++			defer remote.Close()
++			body := newWebSocketBody(ctx, websocketReadErrorConn{upstream, test.err}, session)
++			defer body.Close()
++			if test.closeFrame {
++				written := make(chan error, 1)
++				var encoded bytes.Buffer
++				if err := ws.WriteFrame(&encoded, ws.MaskFrame(ws.NewCloseFrame(nil))); err != nil {
++					t.Fatal(err)
++				}
++				go func() { _, err := body.Write(encoded.Bytes()); written <- err }()
++				_ = remote.SetReadDeadline(time.Now().Add(time.Second))
++				frame, err := ws.ReadFrame(remote)
++				if err != nil || frame.Header.OpCode != ws.OpClose {
++					t.Fatalf("close not forwarded: %+v, %v", frame, err)
++				}
++				if err := <-written; err != nil {
++					t.Fatal(err)
++				}
++			}
++			remote.Close()
++			done := make(chan struct{})
++			go func() { session.workers.Wait(); close(done) }()
++			select {
++			case <-done:
++			case <-time.After(2 * time.Second):
++				t.Fatal("WebSocket workers did not stop")
++			}
++			failed, closed := false, false
++			for output.Len() > 0 {
++				msg, err := readControl(&output)
++				if err != nil {
++					t.Fatal(err)
++				}
++				if msg["type"] == "failure" {
++					failed = true
++				}
++				if msg["type"] == "closed" {
++					closed = true
++					if msg["aborted"] != test.wantFailure {
++						t.Fatalf("close: %v", msg)
++					}
++				}
++			}
++			if !closed || failed != test.wantFailure {
++				t.Fatalf("closed=%v failed=%v", closed, failed)
++			}
++		})
++	}
++}
+ 
+ func TestWebSocketWriterSerializesMessages(t *testing.T) {
+ 	var output bytes.Buffer

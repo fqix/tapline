@@ -411,7 +411,7 @@ export class Engine extends EventEmitter<{ event: [Event] }> implements Handlers
         }
         return intercept
     }
-    tunnelConnected(id: string, address: string) {
+    upstreamConnected(id: string, address: string) {
         const t = this.transactions.get(id)
         if (!t) return
         t.serverAddress = address
