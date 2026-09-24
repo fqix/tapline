@@ -2,6 +2,7 @@
 // Build the end-to-end tests and their scratch workspace, then run them in VS Code:
 // `node scripts/e2e.mjs [--build-only]`. Requires `npm run build` and the core for
 // this platform (`npm run core:build`) and Go 1.25+ for the HTTP/3 probe.
+// Public SOCKS5 tests also require curl and network access to https://example.com.
 import { build } from 'esbuild'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'

@@ -227,6 +227,61 @@ suite('Tapline end to end', function () {
         assert.equal(t.sequence >= 1, true)
     })
 
+    for (const proxy of ['socks5', 'socks5h']) {
+        test(`captures the real example.com HTTPS site through ${proxy}`, async () => {
+            const url = `https://example.com/?tapline-e2e=${proxy}`
+            try {
+                await api.client.call('settings', {
+                    settings: {
+                        ...defaultSettings,
+                        port: proxyPort,
+                        mcpPort: 3627,
+                        // Locally resolved SOCKS5 destinations reach the policy as IPs.
+                        sslHosts: ['*'],
+                        insecureUpstream: false,
+                        rules: []
+                    }
+                })
+                const { stdout } = await promisify(execFile)(
+                    'curl',
+                    [
+                        '--disable',
+                        '--silent',
+                        '--show-error',
+                        '--fail',
+                        '--max-time',
+                        '30',
+                        '--ipv4',
+                        '--noproxy',
+                        '',
+                        '--proxy',
+                        `${proxy}://127.0.0.1:${proxyPort}`,
+                        '--cacert',
+                        api.client.certificatePath,
+                        '--header',
+                        `X-Tapline-E2E: ${proxy}`,
+                        url
+                    ],
+                    { timeout: 35000 }
+                )
+                assert.match(stdout, /<title>Example Domain<\/title>/i)
+                const t = await settled((t) => t.url === url, `${proxy} public HTTPS capture`)
+                assert.equal(t.state, 'completed', t.error)
+                assert.equal(t.method, 'GET')
+                assert.equal(t.status, 200)
+                assert.equal(t.scheme, 'https')
+                assert.equal(t.tls, true)
+                assert.notEqual(t.local, true, 'response must come from the real website')
+                assert.equal(t.requestHeaders['x-tapline-e2e'], proxy)
+                assert.match(String(t.responseHeaders['content-type']), /text\/html/i)
+                assert.equal(t.responseBody, stdout)
+                assert.ok(t.responseBytes > 0)
+            } finally {
+                await api.client.pushSettings()
+            }
+        })
+    }
+
     test('tunnels CONNECT requests when host is not intercepted', async () => {
         const socket = await viaProxyConnect('127.0.0.1', origin.port)
         const data = await new Promise<string>((resolve, reject) => {
