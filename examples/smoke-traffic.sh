@@ -109,7 +109,7 @@ step "GET  /range/1024 (partial)"     -r 0-255 "$HTTPBIN/range/1024"
 
 echo "== WebSocket echo (httpbingo / echo.websocket.org)"
 if command -v wscat >/dev/null 2>&1; then
-    ws_args=()
+    ws_args=(--no-color)
     proxy=${https_proxy:-${HTTPS_PROXY:-}}
     [[ -n $proxy ]] && ws_args+=(--proxy "$proxy")
     ca=${NODE_EXTRA_CA_CERTS:-${SSL_CERT_FILE:-${CURL_CA_BUNDLE:-}}}
@@ -119,7 +119,7 @@ if command -v wscat >/dev/null 2>&1; then
         'wss://httpbingo.org/websocket/echo?max_fragment_size=2048&max_message_size=10240' \
         'wss://echo.websocket.org'; do
         # Keep stdin open even in CI, and bound the entire connection attempt.
-        if reply=$(node - --no-color "${ws_args[@]}" \
+        if reply=$(node - "${ws_args[@]}" \
             -c "$ws_url" \
             -x "$message" -w 3 <<'NODE'
 const { spawn } = require('node:child_process');

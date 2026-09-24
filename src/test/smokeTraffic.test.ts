@@ -41,7 +41,7 @@ if (!process.env.TAPLINE_SMOKE_STALL || publicEcho) setTimeout(() => {
     function run(stall = false, mismatch = false) {
         return new Promise<{ code: number; stdout: string }>((resolve, reject) => {
             const child = execFile(
-                'bash',
+                process.platform === 'darwin' ? '/bin/bash' : 'bash',
                 [join(directory, 'smoke.sh')],
                 {
                     timeout: 35000,
