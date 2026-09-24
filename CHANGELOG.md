@@ -5,6 +5,23 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.3]
+
+### Fixed
+
+- Avoid reporting normal WebSocket socket cleanup as a connection error.
+- Show WS/WSS in the Protocol column and publish the upstream server address as
+  soon as the WebSocket handshake completes.
+- Keep WebSocket smoke checks working with closed stdin and enforce a 30-second
+  overall deadline, including connection setup.
+
+### Added
+
+- Real WebSocket echo smoke checks for httpbingo.org and echo.websocket.org,
+  accepting welcome messages while still requiring an exact echo.
+- WSS regression coverage for idle connections, message replay, upstream addresses
+  and normal closure.
+
 ## [0.12.2]
 
 ### Fixed
