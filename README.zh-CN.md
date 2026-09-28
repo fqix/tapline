@@ -6,8 +6,8 @@
 [![Open VSX downloads](https://img.shields.io/open-vsx/dt/fqix/tapline?label=Open%20VSX%20downloads)](https://open-vsx.org/extension/fqix/tapline)
 
 不离开 VS Code 即可捕获、检查、改写和重放 HTTP、HTTPS、HTTP/2、HTTP/3、gRPC、WebSocket
-和 SSE 流量。集成终端和调试会话经由本地代理转发，使用 Tapline 根 CA 解密选中的域名。
-默认选中全部主机，被排除的主机原样透传。
+和 SSE 流量。集成终端和调试会话经由本地代理转发——同一个端口同时接受 HTTP CONNECT 和
+SOCKS5——并使用 Tapline 根 CA 解密选中的域名。默认选中全部主机，被排除的主机原样透传。
 
 从 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
 或 [Open VSX](https://open-vsx.org/extension/fqix/tapline) 安装。
@@ -24,8 +24,9 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   虚拟滚动的 _序列_ 表格（状态码/方法快捷筛选、按主机查看、多选、可调列宽），详情放在
   下方或右侧。
 - **详情** — 请求与响应并排：带时序瀑布图的概览、Raw、参数（Query、Cookie、表单、
-  multipart、JWT 解码）、Headers 与 Trailers，正文支持 JSON 树 / XML / 文本 / 十六进制 /
-  图片并可在正文中查找。gzip、deflate、br、zstd 正文自动解码。
+  multipart）、Headers 与 Trailers，正文支持 JSON 树 / XML / 文本 / 十六进制 / 图片并可
+  在正文中查找。gzip、deflate、br、zstd 正文自动解码。请求头中的 JWT 会解码出注册声明，
+  时间转为本地时间，并标明有效 / 尚未生效 / 已过期。
 - **流式消息** — WebSocket 帧、SSE 事件、gRPC 消息实时到达；可搜索、单条复制、暂停与
   跟随最新、按方向筛选，并在原连接上重发 WebSocket 消息。
 - **gRPC** — 拆出 length-prefixed 消息（含 gzip/deflate 与 gRPC-Web），用工作区的
@@ -38,12 +39,14 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 - **原生右键菜单、编写与对比** — 右键点击请求支持重放、_编辑并重发_、复制为 cURL、以文本打开、对比、星标、备注与删除；支持从零编写请求或粘贴 curl 命令；任选两行或重发记录与原请求在原生差异编辑器中对比。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……按调试类型自动选择）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
-  `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）；
-  其他程序用 _复制代理环境变量_。
+  `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）。
+  其他程序用 _复制代理环境变量_：一行 `https_proxy`、`http_proxy` 和 `all_proxy`
+  （SOCKS5），并按所选 shell 转义。
 - **根证书** — 在 macOS、Windows、Linux 的系统证书存储中一键安装、信任和卸载 CA
   （[见下文](#根证书)）。
-- **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和系统分配的代理端口；
-  同一扩展存储下的窗口共用一个 sing-box 进程和 CA，最后关闭的窗口负责关停。
+- **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和代理端口
+  （`tapline.port`，默认 3606，被占用时自动退回空闲端口）；同一扩展存储下的窗口共用
+  一个 sing-box 进程和 CA，最后关闭的窗口负责关停。
 - **MCP 服务器** — Copilot Chat、Claude Code、Cursor 等助手可以列出、搜索、读取、重放
   和发送抓到的请求（[见下文](#mcp-服务器)）。
 - 原生右键菜单、复制为 cURL、导出 HAR、状态栏控制、中英文界面。
@@ -57,7 +60,8 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 
 - **Params 和 Headers：** 以键值行编辑，勾选要发送的条目；取消勾选的内容仍保留在
   编辑器中。Headers 也支持批量文本编辑。
-- **Authorization：** 配置 Basic、Bearer 或自定义 Authorization 请求头。
+- **Authorization：** 配置 Basic、Bearer 或自定义 Authorization 请求头；下方会显示
+  实际将要发送的请求头。
 - **Body：** 支持 `none`、`form-data`、`x-www-form-urlencoded`、`raw`、`binary` 和
   `GraphQL`。multipart 支持文本和文件字段；URL 编码表单支持勾选、描述和批量编辑；
   binary 按原始字节发送所选文件。GraphQL 提供 Query、Variables 和 Operation Name，
@@ -69,17 +73,21 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
 ## 设置
 
 _Tapline: 设置_（或流量面板的齿轮）打开带搜索的设置标签页。设置和规则保存在扩展的
-全局存储中，同一 VS Code 配置文件下的所有项目共用，不写入 `settings.json`。
+全局存储中，同一 VS Code 配置文件下的所有项目共用，不写入 `settings.json`。该页还可以
+把 VS Code 自身的代理指向当前抓包端口，也可以再撤销。
 
-| 设置项                                      | 默认值           | 作用                               |
-| ------------------------------------------- | ---------------- | ---------------------------------- |
-| `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包         |
-| `tapline.terminal.profiles`                 | openssl, git     | 向新终端注入的变量                 |
-| `tapline.ssl.hosts`                         | `["*"]`          | 解密哪些主机（`[]` 表示不解密）    |
-| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的请求数与正文字节数           |
-| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点          |
-| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema          |
-| `tapline.rules`                             | `[]`             | 拦截规则，用 _Tapline: 规则…_ 编辑 |
+| 设置项                                      | 默认值           | 作用                                                   |
+| ------------------------------------------- | ---------------- | ------------------------------------------------------ |
+| `tapline.autoStart`                         | `false`          | VS Code 启动时自动开始抓包                             |
+| `tapline.port`                              | `3606`           | 抓包端口；被占用时退回空闲端口，`0` 表示总是由系统分配 |
+| `tapline.terminal.profiles`                 | openssl, git     | 向新终端注入的变量                                     |
+| `tapline.ssl.hosts` / `ssl.noHosts`         | `["*"]` / `[]`   | 解密哪些主机，以及排除哪些主机                         |
+| `tapline.ssl.insecureUpstream`              | `true`           | 解密连接是否接受任意上游证书                           |
+| `tapline.ssl.noProxy`                       | `[]`             | 追加到抓包环境 `NO_PROXY` 的域名                       |
+| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | 保留的请求数与正文字节数                               |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | 供 AI 助手使用的 MCP 端点                              |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | 解码 gRPC 消息用的 schema                              |
+| `tapline.rules`                             | `[]`             | 拦截规则，用 _Tapline: 规则…_ 编辑                     |
 
 ## 规则
 

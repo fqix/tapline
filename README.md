@@ -7,8 +7,9 @@ English | [简体中文](README.zh-CN.md)
 
 Capture, inspect, rewrite and replay HTTP, HTTPS, HTTP/2, HTTP/3, gRPC, WebSocket and
 SSE traffic without leaving VS Code. Integrated terminals and debug sessions are routed
-through a local proxy that decrypts configured hosts with the Tapline root CA.
-By default all hosts are selected; excluded hosts pass through unchanged.
+through a local proxy — one port that accepts both HTTP CONNECT and SOCKS5 — which
+decrypts configured hosts with the Tapline root CA. By default all hosts are selected;
+excluded hosts pass through unchanged.
 
 Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=fqix.tapline)
 or [Open VSX](https://open-vsx.org/extension/fqix/tapline).
@@ -25,9 +26,10 @@ the original, decode grpcbin fields with the workspace `.proto`._
   panel with a sortable, virtualised _Sequence_ table (status/method chips, host view,
   multi-select, resizable columns) and an inspector below or beside it.
 - **Inspector** — request and response side by side: Overview with timing waterfall,
-  Raw, Params (query, cookies, form, multipart, decoded JWTs), Headers and trailers,
-  Body as JSON tree / XML / Text / Hex / image with find-in-body. gzip, deflate, br and
-  zstd bodies are decoded.
+  Raw, Params (query, cookies, form, multipart), Headers and trailers, Body as JSON tree
+  / XML / Text / Hex / image with find-in-body. gzip, deflate, br and zstd bodies are
+  decoded. JWTs found in headers are decoded to their registered claims, with local
+  times and a valid / not yet valid / expired state.
 - **Streams** — WebSocket frames, SSE events and gRPC messages arrive live; search,
   copy, pause and follow, filter by direction, resend a WebSocket message on the open
   connection.
@@ -48,13 +50,15 @@ the original, decode grpcbin fields with the workspace `.proto`._
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
   `java`, …; selected automatically by debug type) get `HTTP(S)_PROXY` plus the CA variables of common tools
   (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`,
-  `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …); _Copy Proxy Environment_ for anything else.
+  `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …). _Copy Proxy Environment_ gives any other
+  program one line of `https_proxy`, `http_proxy` and `all_proxy` (SOCKS5), quoted for
+  the shell you pick.
 - **Root certificate** — install, trust and uninstall the CA in the OS store on macOS,
   Windows and Linux with one click ([below](#root-certificate)).
 - **One capture per window** — every VS Code window has its own traffic, controls and
-  OS-assigned proxy port; windows in the
-  same extension storage share one sing-box process and CA, and the last window to
-  close shuts them down.
+  proxy port (`tapline.port`, 3606 by default, falling back to a free port when it is
+  busy); windows in the same extension storage share one sing-box process and CA, and
+  the last window to close shuts them down.
 - **MCP server** — Copilot Chat, Claude Code, Cursor and other assistants can list,
   search, read, replay and send captured requests ([below](#mcp-server)).
 - Context menus, copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
@@ -69,7 +73,8 @@ transport options produce warnings. For binary uploads, select the file in Body.
 
 - **Params and Headers:** edit key/value rows and check which entries to send;
   unchecked entries remain available in the editor. Headers also support bulk editing.
-- **Authorization:** configure Basic, Bearer or a custom Authorization header.
+- **Authorization:** configure Basic, Bearer or a custom Authorization header; the
+  header the request will send is shown below the fields.
 - **Body:** choose `none`, `form-data`, `x-www-form-urlencoded`, `raw`, `binary` or
   `GraphQL`. Multipart supports text and file fields; URL-encoded forms support
   checkboxes, descriptions and bulk editing. Binary sends the selected file's bytes.
@@ -84,17 +89,21 @@ import limitations.
 
 _Tapline: Settings_ (or the gear in the traffic panel) opens a settings tab with search.
 Settings and rules live in the extension's global storage and are shared by every project
-in the same VS Code profile; `settings.json` is not used.
+in the same VS Code profile; `settings.json` is not used. The same tab can point VS Code's
+own proxy at the live capture port, and take it back off again.
 
-| Setting                                     | Default          | Purpose                                           |
-| ------------------------------------------- | ---------------- | ------------------------------------------------- |
-| `tapline.autoStart`                         | `false`          | Start capture when VS Code opens                  |
-| `tapline.terminal.profiles`                 | openssl, git     | Variables injected into new terminals             |
-| `tapline.ssl.hosts`                         | `["*"]`          | Which hosts are decrypted (`[]` for none)         |
-| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Requests kept and body bytes retained             |
-| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants                    |
-| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages                |
-| `tapline.rules`                             | `[]`             | Interception rules, edited with _Tapline: Rules…_ |
+| Setting                                     | Default          | Purpose                                                                  |
+| ------------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| `tapline.autoStart`                         | `false`          | Start capture when VS Code opens                                         |
+| `tapline.port`                              | `3606`           | Capture port; falls back to a free one when busy, `0` always asks the OS |
+| `tapline.terminal.profiles`                 | openssl, git     | Variables injected into new terminals                                    |
+| `tapline.ssl.hosts` / `ssl.noHosts`         | `["*"]` / `[]`   | Which hosts are decrypted, and which are excluded                        |
+| `tapline.ssl.insecureUpstream`              | `true`           | Accept any upstream certificate on decrypted connections                 |
+| `tapline.ssl.noProxy`                       | `[]`             | Hostnames appended to `NO_PROXY` in captured environments                |
+| `tapline.maxEntries` / `tapline.maxBodyKiB` | `2000` / `512`   | Requests kept and body bytes retained                                    |
+| `tapline.mcp.enabled` / `tapline.mcp.port`  | `true` / `3607`  | MCP endpoint for AI assistants                                           |
+| `tapline.grpc.protoFiles`                   | `["**/*.proto"]` | Schemas for decoding gRPC messages                                       |
+| `tapline.rules`                             | `[]`             | Interception rules, edited with _Tapline: Rules…_                        |
 
 ## Rules
 
