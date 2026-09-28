@@ -13,6 +13,17 @@ All notable changes to Tapline are documented here. The format follows
 - Decoding a compressed body is capped at 64 MiB. A few hundred kilobytes of crafted
   gzip, brotli or zstd expanded unbounded and synchronously in the agent shared by every
   window; oversized bodies are now left encoded instead.
+- Strings embedded in the panel's inline script escape `<`, so a translation containing
+  `</script>` cannot end the block early.
+
+### Security
+
+- `-d @file` in an imported curl command is read only from inside the open workspace
+  folders. A pasted command could previously name any absolute path, or escape a folder
+  with `..` or a symlink, and stage that file's contents in the composer body.
+- Decoding a compressed body is capped at 64 MiB. A few hundred kilobytes of crafted
+  gzip, brotli or zstd expanded unbounded and synchronously in the agent shared by every
+  window; oversized bodies are now left encoded instead.
 
 ### Security
 

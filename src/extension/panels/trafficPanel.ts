@@ -339,7 +339,9 @@ export class TrafficPanel implements vscode.Disposable {
         const nonce = randomBytes(16).toString('hex')
         const asset = (name: string) =>
             webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', name))
-        const strings = JSON.stringify(panelStrings())
+        // `JSON.stringify` leaves `</script>` intact, which would end the block early.
+        // Escaping `<` keeps any future translation inert inside an inline script.
+        const strings = JSON.stringify(panelStrings()).replace(/</g, '\\u003c')
         return `<!DOCTYPE html>
 <html lang="${vscode.env.language}">
 <head>
