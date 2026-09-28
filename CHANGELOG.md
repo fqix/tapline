@@ -30,6 +30,38 @@ All notable changes to Tapline are documented here. The format follows
 
 ### Changed
 
+- The four fixes that had accumulated on top of the sing-box core patch are folded back
+  into it, restoring the documented layout: Tapline's own core sources in one patch, and
+  a separate patch per upstream networking fix. The resulting tree is unchanged.
+- A body/header filter rescans only the requests that arrived since its last answer.
+  Every batch of captured rows previously re-read every retained body on the extension
+  host.
+
+### Security
+
+- `-d @file` in an imported curl command is read only from inside the open workspace
+  folders. A pasted command could previously name any absolute path, or escape a folder
+  with `..` or a symlink, and stage that file's contents in the composer body.
+- Decoding a compressed body is capped at 64 MiB. A few hundred kilobytes of crafted
+  gzip, brotli or zstd expanded unbounded and synchronously in the agent shared by every
+  window; oversized bodies are now left encoded instead.
+- CI installs strictly from the committed lockfile. Regenerating it before `npm ci`
+  re-resolved semver ranges on every run, so a newly published version could have
+  reached the VSIX that the release workflow publishes.
+- The release workflow pins `azure/login` to a commit and the `vsce`/`ovsx` publishers
+  to exact versions, so a moved tag or a fresh publish cannot run in the job holding the
+  Marketplace identity.
+- Strings embedded in the panel's inline script escape `<`, so a translation containing
+  `</script>` cannot end the block early.
+
+### Fixed
+
+- Linux reported the root certificate as trusted as soon as the anchor file matched,
+  even when the distribution's CA bundle had not been regenerated and clients still
+  rejected it; that state now reports as installed.
+
+### Changed
+
 - A body/header filter rescans only the requests that arrived since its last answer.
   Every batch of captured rows previously re-read every retained body on the extension
   host.

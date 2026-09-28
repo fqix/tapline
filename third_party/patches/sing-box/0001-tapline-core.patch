@@ -1,6 +1,6 @@
-From 3e5f481d3cdb2ffc6de8c43c474eae11dfc6c98f Mon Sep 17 00:00:00 2001
+From e6fdff75db7ab7ca1299198660130eccee3d8848 Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
-Date: Wed, 23 Sep 2026 10:36:03 +0800
+Date: Mon, 28 Sep 2026 15:07:34 +0800
 Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
 
 ---
@@ -96,7 +96,7 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  include/quic_stub.go                          |   2 +-
  include/registry.go                           |   6 +
  include/registry_tapline.go                   |  62 +++
- include/registry_tapline_test.go              |  60 +++
+ include/registry_tapline_test.go              |  60 ++
  include/tailscale.go                          |   2 +-
  include/tailscale_stub.go                     |   2 +-
  include/tapline_inspect.go                    | 157 ++++++
@@ -115,25 +115,25 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  service/taplineinspector/LICENSE              |  21 +
  service/taplineinspector/README.md            |  71 +++
  service/taplineinspector/inbound_control.go   |  43 ++
- service/taplineinspector/internal/ipc/body.go | 118 +++++
+ service/taplineinspector/internal/ipc/body.go | 118 ++++
  .../taplineinspector/internal/ipc/close.go    |  17 +
  .../taplineinspector/internal/ipc/headers.go  |  40 ++
  service/taplineinspector/internal/ipc/peer.go | 132 +++++
  service/taplineinspector/internal/ipc/wire.go |  93 ++++
  .../internal/ipc/wire_test.go                 | 108 ++++
  .../taplineinspector/internal/proxy/engine.go | 191 +++++++
- .../internal/proxy/engine_test.go             | 224 ++++++++
- .../taplineinspector/internal/proxy/http3.go  | 209 ++++++++
+ .../internal/proxy/engine_test.go             | 231 ++++++++
+ .../taplineinspector/internal/proxy/http3.go  | 209 +++++++
  .../internal/proxy/http3_test.go              | 251 +++++++++
  .../internal/proxy/inbound_control.go         |  12 +
- .../internal/proxy/listener.go                | 201 ++++++++
- .../internal/proxy/listener_test.go           | 174 +++++++
- .../taplineinspector/internal/proxy/proxy.go  | 484 ++++++++++++++++++
+ .../internal/proxy/listener.go                | 201 +++++++
+ .../internal/proxy/listener_test.go           | 174 ++++++
+ .../taplineinspector/internal/proxy/proxy.go  | 523 ++++++++++++++++++
  .../internal/proxy/runtime.go                 | 141 +++++
  .../internal/proxy/session.go                 | 104 ++++
- .../internal/proxy/tunnel_close_test.go       |  60 +++
- .../internal/proxy/websocket.go               | 331 ++++++++++++
- .../internal/proxy/websocket_send_test.go     | 120 +++++
+ .../internal/proxy/tunnel_close_test.go       |  60 ++
+ .../internal/proxy/websocket.go               | 341 ++++++++++++
+ .../internal/proxy/websocket_send_test.go     | 208 +++++++
  .../internal/upstream/close.go                |  17 +
  .../internal/upstream/connect.go              |  84 +++
  .../internal/upstream/http3.go                |  53 ++
@@ -141,9 +141,9 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  .../internal/upstream/timing.go               |  71 +++
  .../taplineinspector/internal/upstream/tls.go |  78 +++
  .../internal/upstream/transport.go            | 132 +++++
- .../internal/upstream/transport_test.go       | 117 +++++
- service/taplineinspector/service.go           | 115 +++++
- 139 files changed, 4714 insertions(+), 39 deletions(-)
+ .../internal/upstream/transport_test.go       | 117 ++++
+ service/taplineinspector/service.go           | 115 ++++
+ 139 files changed, 4858 insertions(+), 39 deletions(-)
  create mode 100644 cmd/sing-box/tapline_helper.go
  create mode 100644 common/ja3/parser_test.go
  create mode 100644 include/registry_tapline.go
@@ -185,7 +185,7 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  create mode 100644 service/taplineinspector/service.go
 
 diff --git a/adapter/inbound.go b/adapter/inbound.go
-index ae1067d9a2d5958b171bbfff03af02a5ef1ee6fb..8551464a734fe797fbca5f80d64ca53a7998ca40 100644
+index ae1067d9a..8551464a7 100644
 --- a/adapter/inbound.go
 +++ b/adapter/inbound.go
 @@ -63,6 +63,7 @@ type InboundContext struct {
@@ -197,7 +197,7 @@ index ae1067d9a2d5958b171bbfff03af02a5ef1ee6fb..8551464a734fe797fbca5f80d64ca53a
  	SniffContext any
  	SnifferNames []string
 diff --git a/cmd/sing-box/cmd_api.go b/cmd/sing-box/cmd_api.go
-index dea0073dda5bb29383a914fc43a0d3fc694e9995..5441fbb4dddb7e4d9a780dae319ef3d4f81fdfff 100644
+index dea0073dd..5441fbb4d 100644
 --- a/cmd/sing-box/cmd_api.go
 +++ b/cmd/sing-box/cmd_api.go
 @@ -1,3 +1,5 @@
@@ -207,7 +207,7 @@ index dea0073dda5bb29383a914fc43a0d3fc694e9995..5441fbb4dddb7e4d9a780dae319ef3d4
  
  import (
 diff --git a/cmd/sing-box/cmd_api_connection.go b/cmd/sing-box/cmd_api_connection.go
-index 80b1f7d478bfd39d7b60b1f5323a340a75d0125d..a3f8791de1a5c15b120dfdb34d97cc98248d5de0 100644
+index 80b1f7d47..a3f8791de 100644
 --- a/cmd/sing-box/cmd_api_connection.go
 +++ b/cmd/sing-box/cmd_api_connection.go
 @@ -1,3 +1,5 @@
@@ -217,7 +217,7 @@ index 80b1f7d478bfd39d7b60b1f5323a340a75d0125d..a3f8791de1a5c15b120dfdb34d97cc98
  
  import (
 diff --git a/cmd/sing-box/cmd_api_connection_close.go b/cmd/sing-box/cmd_api_connection_close.go
-index 892a0550843c58f2e802a5920d259b5d1c2e9ebe..4f7d4eac7225c23bbc93b80b5578d3eea1c4bea3 100644
+index 892a05508..4f7d4eac7 100644
 --- a/cmd/sing-box/cmd_api_connection_close.go
 +++ b/cmd/sing-box/cmd_api_connection_close.go
 @@ -1,3 +1,5 @@
@@ -227,7 +227,7 @@ index 892a0550843c58f2e802a5920d259b5d1c2e9ebe..4f7d4eac7225c23bbc93b80b5578d3ee
  
  import (
 diff --git a/cmd/sing-box/cmd_api_connection_list.go b/cmd/sing-box/cmd_api_connection_list.go
-index 28595701c128ae86b5e9293b0ed31987ab753e05..2683962a6244a333f0d42d471606560c0b467eb6 100644
+index 28595701c..2683962a6 100644
 --- a/cmd/sing-box/cmd_api_connection_list.go
 +++ b/cmd/sing-box/cmd_api_connection_list.go
 @@ -1,3 +1,5 @@
@@ -237,7 +237,7 @@ index 28595701c128ae86b5e9293b0ed31987ab753e05..2683962a6244a333f0d42d471606560c
  
  import (
 diff --git a/cmd/sing-box/cmd_api_connection_show.go b/cmd/sing-box/cmd_api_connection_show.go
-index 1bffe3d4fc710a9579977ff710e3f29ab3f209c7..c504d3c70ea3213f2c81c13bb5a322864c204f59 100644
+index 1bffe3d4f..c504d3c70 100644
 --- a/cmd/sing-box/cmd_api_connection_show.go
 +++ b/cmd/sing-box/cmd_api_connection_show.go
 @@ -1,3 +1,5 @@
@@ -247,7 +247,7 @@ index 1bffe3d4fc710a9579977ff710e3f29ab3f209c7..c504d3c70ea3213f2c81c13bb5a32286
  
  import (
 diff --git a/cmd/sing-box/cmd_api_group.go b/cmd/sing-box/cmd_api_group.go
-index 6e0b63f28ca76e45e5169783fae11b994d7f7680..445d44b7c1b83a47f44f439ed6b64cba4b5ffcd4 100644
+index 6e0b63f28..445d44b7c 100644
 --- a/cmd/sing-box/cmd_api_group.go
 +++ b/cmd/sing-box/cmd_api_group.go
 @@ -1,3 +1,5 @@
@@ -257,7 +257,7 @@ index 6e0b63f28ca76e45e5169783fae11b994d7f7680..445d44b7c1b83a47f44f439ed6b64cba
  
  import (
 diff --git a/cmd/sing-box/cmd_api_group_list.go b/cmd/sing-box/cmd_api_group_list.go
-index 2366623e939b990c7433357ee611c79d774707b3..f345be1efa600287639ba59d8d0aaa578ee6c5f4 100644
+index 2366623e9..f345be1ef 100644
 --- a/cmd/sing-box/cmd_api_group_list.go
 +++ b/cmd/sing-box/cmd_api_group_list.go
 @@ -1,3 +1,5 @@
@@ -267,7 +267,7 @@ index 2366623e939b990c7433357ee611c79d774707b3..f345be1efa600287639ba59d8d0aaa57
  
  import (
 diff --git a/cmd/sing-box/cmd_api_group_select.go b/cmd/sing-box/cmd_api_group_select.go
-index 7ea725c8caece75178d4de738510d2ea08ba3df6..be6ce70db0d5d76f97ec448ce42add3f7d66ad94 100644
+index 7ea725c8c..be6ce70db 100644
 --- a/cmd/sing-box/cmd_api_group_select.go
 +++ b/cmd/sing-box/cmd_api_group_select.go
 @@ -1,3 +1,5 @@
@@ -277,7 +277,7 @@ index 7ea725c8caece75178d4de738510d2ea08ba3df6..be6ce70db0d5d76f97ec448ce42add3f
  
  import (
 diff --git a/cmd/sing-box/cmd_api_group_show.go b/cmd/sing-box/cmd_api_group_show.go
-index 86de1fea37dfe5b6053e4afad1c679a257ce5b10..d73f6b41824f45725b6908a3849ebbe8964fa5b8 100644
+index 86de1fea3..d73f6b418 100644
 --- a/cmd/sing-box/cmd_api_group_show.go
 +++ b/cmd/sing-box/cmd_api_group_show.go
 @@ -1,3 +1,5 @@
@@ -287,7 +287,7 @@ index 86de1fea37dfe5b6053e4afad1c679a257ce5b10..d73f6b41824f45725b6908a3849ebbe8
  
  import (
 diff --git a/cmd/sing-box/cmd_api_group_urltest.go b/cmd/sing-box/cmd_api_group_urltest.go
-index 2dbc59fbcdd043a17338327954f6ca5ebf034841..96bb899a0c4ab809bacad7986e663ef882b48676 100644
+index 2dbc59fbc..96bb899a0 100644
 --- a/cmd/sing-box/cmd_api_group_urltest.go
 +++ b/cmd/sing-box/cmd_api_group_urltest.go
 @@ -1,3 +1,5 @@
@@ -297,7 +297,7 @@ index 2dbc59fbcdd043a17338327954f6ca5ebf034841..96bb899a0c4ab809bacad7986e663ef8
  
  import (
 diff --git a/cmd/sing-box/cmd_api_logs.go b/cmd/sing-box/cmd_api_logs.go
-index 5e196c90bbf7df590e3a30c7db1ae2130c85b23b..a238dbbd832d203b94afdab4aa019986dd0717ec 100644
+index 5e196c90b..a238dbbd8 100644
 --- a/cmd/sing-box/cmd_api_logs.go
 +++ b/cmd/sing-box/cmd_api_logs.go
 @@ -1,3 +1,5 @@
@@ -307,7 +307,7 @@ index 5e196c90bbf7df590e3a30c7db1ae2130c85b23b..a238dbbd832d203b94afdab4aa019986
  
  import (
 diff --git a/cmd/sing-box/cmd_api_mode.go b/cmd/sing-box/cmd_api_mode.go
-index e8b4da638d8170ba3ce9f3888707b976ec95a6dd..c251c5a1761e12a4e5605a368cbad93ba235b54d 100644
+index e8b4da638..c251c5a17 100644
 --- a/cmd/sing-box/cmd_api_mode.go
 +++ b/cmd/sing-box/cmd_api_mode.go
 @@ -1,3 +1,5 @@
@@ -317,7 +317,7 @@ index e8b4da638d8170ba3ce9f3888707b976ec95a6dd..c251c5a1761e12a4e5605a368cbad93b
  
  import (
 diff --git a/cmd/sing-box/cmd_api_mode_list.go b/cmd/sing-box/cmd_api_mode_list.go
-index 17badee439b1bbd490c0773cfd140ef5737b870c..a3957235cec3c3c92151b875b681431004eb8531 100644
+index 17badee43..a3957235c 100644
 --- a/cmd/sing-box/cmd_api_mode_list.go
 +++ b/cmd/sing-box/cmd_api_mode_list.go
 @@ -1,3 +1,5 @@
@@ -327,7 +327,7 @@ index 17badee439b1bbd490c0773cfd140ef5737b870c..a3957235cec3c3c92151b875b6814310
  
  import (
 diff --git a/cmd/sing-box/cmd_api_mode_set.go b/cmd/sing-box/cmd_api_mode_set.go
-index 025e3b31f28f4f004be87e93b95f3d0a590bd1aa..58deb1547689aaee670f62ed72d067fd9cecd3e6 100644
+index 025e3b31f..58deb1547 100644
 --- a/cmd/sing-box/cmd_api_mode_set.go
 +++ b/cmd/sing-box/cmd_api_mode_set.go
 @@ -1,3 +1,5 @@
@@ -337,7 +337,7 @@ index 025e3b31f28f4f004be87e93b95f3d0a590bd1aa..58deb1547689aaee670f62ed72d067fd
  
  import (
 diff --git a/cmd/sing-box/cmd_api_networkquality.go b/cmd/sing-box/cmd_api_networkquality.go
-index f0b69bb2eb6f48707aba5e1725c158437c55d290..9c5cf5ff98444c156e9f2aeb1f89c55daecfcf63 100644
+index f0b69bb2e..9c5cf5ff9 100644
 --- a/cmd/sing-box/cmd_api_networkquality.go
 +++ b/cmd/sing-box/cmd_api_networkquality.go
 @@ -1,3 +1,5 @@
@@ -347,7 +347,7 @@ index f0b69bb2eb6f48707aba5e1725c158437c55d290..9c5cf5ff98444c156e9f2aeb1f89c55d
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect.go b/cmd/sing-box/cmd_api_openconnect.go
-index 041b5faf8119ec0bb803df6c0569d40bccfed2c4..04204d0a6c54d0e2f72635146d86da161a5b3796 100644
+index 041b5faf8..04204d0a6 100644
 --- a/cmd/sing-box/cmd_api_openconnect.go
 +++ b/cmd/sing-box/cmd_api_openconnect.go
 @@ -1,3 +1,5 @@
@@ -357,7 +357,7 @@ index 041b5faf8119ec0bb803df6c0569d40bccfed2c4..04204d0a6c54d0e2f72635146d86da16
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect_auth.go b/cmd/sing-box/cmd_api_openconnect_auth.go
-index 12c67a5aea36a4710e44774cb9eaa7ba1f619c92..7e2e2d356f836d8f49cb79e69256c1d1b2068d02 100644
+index 12c67a5ae..7e2e2d356 100644
 --- a/cmd/sing-box/cmd_api_openconnect_auth.go
 +++ b/cmd/sing-box/cmd_api_openconnect_auth.go
 @@ -1,3 +1,5 @@
@@ -367,7 +367,7 @@ index 12c67a5aea36a4710e44774cb9eaa7ba1f619c92..7e2e2d356f836d8f49cb79e69256c1d1
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect_auth_browser.go b/cmd/sing-box/cmd_api_openconnect_auth_browser.go
-index 67a52049a6a94cb5bf39c5fc722d689d246d266f..6eeb3383f25fda2dcce575643a35699e7d2767b5 100644
+index 67a52049a..6eeb3383f 100644
 --- a/cmd/sing-box/cmd_api_openconnect_auth_browser.go
 +++ b/cmd/sing-box/cmd_api_openconnect_auth_browser.go
 @@ -1,3 +1,5 @@
@@ -377,7 +377,7 @@ index 67a52049a6a94cb5bf39c5fc722d689d246d266f..6eeb3383f25fda2dcce575643a35699e
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect_cancel.go b/cmd/sing-box/cmd_api_openconnect_cancel.go
-index a09b3769a089c85224a4c4d058089da92a51a4fb..fc93349f05a85352ca07d5a44c89dfe027da3d71 100644
+index a09b3769a..fc93349f0 100644
 --- a/cmd/sing-box/cmd_api_openconnect_cancel.go
 +++ b/cmd/sing-box/cmd_api_openconnect_cancel.go
 @@ -1,3 +1,5 @@
@@ -387,7 +387,7 @@ index a09b3769a089c85224a4c4d058089da92a51a4fb..fc93349f05a85352ca07d5a44c89dfe0
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect_openvpn.go b/cmd/sing-box/cmd_api_openconnect_openvpn.go
-index 260b98b2f5e5033f11e5672aa29e2015b618335e..b1cca27bc2667445f690b398ddff4b0bc6611a7c 100644
+index 260b98b2f..b1cca27bc 100644
 --- a/cmd/sing-box/cmd_api_openconnect_openvpn.go
 +++ b/cmd/sing-box/cmd_api_openconnect_openvpn.go
 @@ -1,3 +1,5 @@
@@ -397,7 +397,7 @@ index 260b98b2f5e5033f11e5672aa29e2015b618335e..b1cca27bc2667445f690b398ddff4b0b
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openconnect_status.go b/cmd/sing-box/cmd_api_openconnect_status.go
-index 912c97184a098a6ddb05ebb6d384388b3f2bb5e0..733689988f5f2dc91101df7f7dc22e9f536b9040 100644
+index 912c97184..733689988 100644
 --- a/cmd/sing-box/cmd_api_openconnect_status.go
 +++ b/cmd/sing-box/cmd_api_openconnect_status.go
 @@ -1,3 +1,5 @@
@@ -407,7 +407,7 @@ index 912c97184a098a6ddb05ebb6d384388b3f2bb5e0..733689988f5f2dc91101df7f7dc22e9f
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openvpn.go b/cmd/sing-box/cmd_api_openvpn.go
-index e9fc2036919fc24a91f1f2a487dae7776700abf4..4540f851d2e8b29ca817be9f0bf235bf73a428e0 100644
+index e9fc20369..4540f851d 100644
 --- a/cmd/sing-box/cmd_api_openvpn.go
 +++ b/cmd/sing-box/cmd_api_openvpn.go
 @@ -1,3 +1,5 @@
@@ -417,7 +417,7 @@ index e9fc2036919fc24a91f1f2a487dae7776700abf4..4540f851d2e8b29ca817be9f0bf235bf
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openvpn_auth.go b/cmd/sing-box/cmd_api_openvpn_auth.go
-index f9755511848a71d651445bd3d819a1d5fba721f4..01426d0e30f8e6c6dfe171171d9009648a7da5b2 100644
+index f97555118..01426d0e3 100644
 --- a/cmd/sing-box/cmd_api_openvpn_auth.go
 +++ b/cmd/sing-box/cmd_api_openvpn_auth.go
 @@ -1,3 +1,5 @@
@@ -427,7 +427,7 @@ index f9755511848a71d651445bd3d819a1d5fba721f4..01426d0e30f8e6c6dfe171171d900964
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openvpn_cancel.go b/cmd/sing-box/cmd_api_openvpn_cancel.go
-index db0ab08141e0d25599625ecda1671700071cd0a7..5d8dc352f71ee5cb5a680207238c09fc588aad36 100644
+index db0ab0814..5d8dc352f 100644
 --- a/cmd/sing-box/cmd_api_openvpn_cancel.go
 +++ b/cmd/sing-box/cmd_api_openvpn_cancel.go
 @@ -1,3 +1,5 @@
@@ -437,7 +437,7 @@ index db0ab08141e0d25599625ecda1671700071cd0a7..5d8dc352f71ee5cb5a680207238c09fc
  
  import (
 diff --git a/cmd/sing-box/cmd_api_openvpn_status.go b/cmd/sing-box/cmd_api_openvpn_status.go
-index 735aa047ecf8fea5c3e43e0c82627897244fa2a6..3f0ba712e70eda746972fe70a3ed8c3dffb7b828 100644
+index 735aa047e..3f0ba712e 100644
 --- a/cmd/sing-box/cmd_api_openvpn_status.go
 +++ b/cmd/sing-box/cmd_api_openvpn_status.go
 @@ -1,3 +1,5 @@
@@ -447,7 +447,7 @@ index 735aa047ecf8fea5c3e43e0c82627897244fa2a6..3f0ba712e70eda746972fe70a3ed8c3d
  
  import (
 diff --git a/cmd/sing-box/cmd_api_outbounds.go b/cmd/sing-box/cmd_api_outbounds.go
-index b8840fdc31c58547e5f00d3133d3a5caf5e7143a..b4986bddc0e9ae0ebf1d29d8b9330f905db89d10 100644
+index b8840fdc3..b4986bddc 100644
 --- a/cmd/sing-box/cmd_api_outbounds.go
 +++ b/cmd/sing-box/cmd_api_outbounds.go
 @@ -1,3 +1,5 @@
@@ -457,7 +457,7 @@ index b8840fdc31c58547e5f00d3133d3a5caf5e7143a..b4986bddc0e9ae0ebf1d29d8b9330f90
  
  import (
 diff --git a/cmd/sing-box/cmd_api_output.go b/cmd/sing-box/cmd_api_output.go
-index f56dca30d5a17ff49b98ec8d0ed1569dbc2d1d32..1f6e8ba78e17d3cd768b0d26f44fe7366303738e 100644
+index f56dca30d..1f6e8ba78 100644
 --- a/cmd/sing-box/cmd_api_output.go
 +++ b/cmd/sing-box/cmd_api_output.go
 @@ -1,3 +1,5 @@
@@ -467,7 +467,7 @@ index f56dca30d5a17ff49b98ec8d0ed1569dbc2d1d32..1f6e8ba78e17d3cd768b0d26f44fe736
  
  import (
 diff --git a/cmd/sing-box/cmd_api_status.go b/cmd/sing-box/cmd_api_status.go
-index 2ac0c0d5547387b6895895439d7e350fd0610302..0d6fa78c11b65f43d3feea7c3a128fd0c940613f 100644
+index 2ac0c0d55..0d6fa78c1 100644
 --- a/cmd/sing-box/cmd_api_status.go
 +++ b/cmd/sing-box/cmd_api_status.go
 @@ -1,3 +1,5 @@
@@ -477,7 +477,7 @@ index 2ac0c0d5547387b6895895439d7e350fd0610302..0d6fa78c11b65f43d3feea7c3a128fd0
  
  import (
 diff --git a/cmd/sing-box/cmd_api_stun.go b/cmd/sing-box/cmd_api_stun.go
-index 0fd54bddeb56dda138ba0ce7caf7044c5618a240..0fa2a733b22584c04d5113877f31e098a51c0b5a 100644
+index 0fd54bdde..0fa2a733b 100644
 --- a/cmd/sing-box/cmd_api_stun.go
 +++ b/cmd/sing-box/cmd_api_stun.go
 @@ -1,3 +1,5 @@
@@ -487,7 +487,7 @@ index 0fd54bddeb56dda138ba0ce7caf7044c5618a240..0fa2a733b22584c04d5113877f31e098
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale.go b/cmd/sing-box/cmd_api_tailscale.go
-index 2511c28314a03c2eb169a0e6f19ab38317423ad9..2dbc92a8fecd194e10218f00b1be837739a0ab15 100644
+index 2511c2831..2dbc92a8f 100644
 --- a/cmd/sing-box/cmd_api_tailscale.go
 +++ b/cmd/sing-box/cmd_api_tailscale.go
 @@ -1,3 +1,5 @@
@@ -497,7 +497,7 @@ index 2511c28314a03c2eb169a0e6f19ab38317423ad9..2dbc92a8fecd194e10218f00b1be8377
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_certificate.go b/cmd/sing-box/cmd_api_tailscale_certificate.go
-index 7fda2ae895e0e4a841be0919fda7c63494227798..076cae5c209c98e7448c3e771a4d0f7bc51011db 100644
+index 7fda2ae89..076cae5c2 100644
 --- a/cmd/sing-box/cmd_api_tailscale_certificate.go
 +++ b/cmd/sing-box/cmd_api_tailscale_certificate.go
 @@ -1,3 +1,5 @@
@@ -507,7 +507,7 @@ index 7fda2ae895e0e4a841be0919fda7c63494227798..076cae5c209c98e7448c3e771a4d0f7b
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_certificate_export.go b/cmd/sing-box/cmd_api_tailscale_certificate_export.go
-index 57369b9fba90e9b7249538f5ef4f4061ca7ba47f..b7c44ce8467b5c60611047f284dbcf93898678a5 100644
+index 57369b9fb..b7c44ce84 100644
 --- a/cmd/sing-box/cmd_api_tailscale_certificate_export.go
 +++ b/cmd/sing-box/cmd_api_tailscale_certificate_export.go
 @@ -1,3 +1,5 @@
@@ -517,7 +517,7 @@ index 57369b9fba90e9b7249538f5ef4f4061ca7ba47f..b7c44ce8467b5c60611047f284dbcf93
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_certificate_list.go b/cmd/sing-box/cmd_api_tailscale_certificate_list.go
-index b9e507e76f006839a579e26f48d40409dee4a6b1..03a783ec64c1fad9872406709ef87bd586a5b176 100644
+index b9e507e76..03a783ec6 100644
 --- a/cmd/sing-box/cmd_api_tailscale_certificate_list.go
 +++ b/cmd/sing-box/cmd_api_tailscale_certificate_list.go
 @@ -1,3 +1,5 @@
@@ -527,7 +527,7 @@ index b9e507e76f006839a579e26f48d40409dee4a6b1..03a783ec64c1fad9872406709ef87bd5
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node.go b/cmd/sing-box/cmd_api_tailscale_exit_node.go
-index d056a64882f02bf3915817f0b902d7a4ce410f5f..a0ad7ef3d1d3f8e7c001d16c611e7c51753d9425 100644
+index d056a6488..a0ad7ef3d 100644
 --- a/cmd/sing-box/cmd_api_tailscale_exit_node.go
 +++ b/cmd/sing-box/cmd_api_tailscale_exit_node.go
 @@ -1,3 +1,5 @@
@@ -537,7 +537,7 @@ index d056a64882f02bf3915817f0b902d7a4ce410f5f..a0ad7ef3d1d3f8e7c001d16c611e7c51
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go b/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
-index 276a76dc446788e95c1471d771ae36e15edcf31e..2608d0f03011b43a5319d70077346999072d1a96 100644
+index 276a76dc4..2608d0f03 100644
 --- a/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
 +++ b/cmd/sing-box/cmd_api_tailscale_exit_node_clear.go
 @@ -1,3 +1,5 @@
@@ -547,7 +547,7 @@ index 276a76dc446788e95c1471d771ae36e15edcf31e..2608d0f03011b43a5319d70077346999
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_list.go b/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
-index 6c1b219810c07d12af959dd2c894c9e103cfb0b4..654ccebcb3830adc4b83897d44e9e6cc5d00615a 100644
+index 6c1b21981..654ccebcb 100644
 --- a/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
 +++ b/cmd/sing-box/cmd_api_tailscale_exit_node_list.go
 @@ -1,3 +1,5 @@
@@ -557,7 +557,7 @@ index 6c1b219810c07d12af959dd2c894c9e103cfb0b4..654ccebcb3830adc4b83897d44e9e6cc
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_exit_node_set.go b/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
-index 29d4c74b05b3ec856a488f1e039a1a6036c9bd00..701ca58ed776f2eb4e1b2f5f4c7fc10232fbbc85 100644
+index 29d4c74b0..701ca58ed 100644
 --- a/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
 +++ b/cmd/sing-box/cmd_api_tailscale_exit_node_set.go
 @@ -1,3 +1,5 @@
@@ -567,7 +567,7 @@ index 29d4c74b05b3ec856a488f1e039a1a6036c9bd00..701ca58ed776f2eb4e1b2f5f4c7fc102
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_logout.go b/cmd/sing-box/cmd_api_tailscale_logout.go
-index cfab0a4aee18b44654585ef6226e770f8151c645..9647b099f40f8145a1747a695d6eab63bcf9bd64 100644
+index cfab0a4ae..9647b099f 100644
 --- a/cmd/sing-box/cmd_api_tailscale_logout.go
 +++ b/cmd/sing-box/cmd_api_tailscale_logout.go
 @@ -1,3 +1,5 @@
@@ -577,7 +577,7 @@ index cfab0a4aee18b44654585ef6226e770f8151c645..9647b099f40f8145a1747a695d6eab63
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_peer.go b/cmd/sing-box/cmd_api_tailscale_peer.go
-index 43cc0c1dfdbf128d24f054bfb98e1ebd7664de23..29f74195aea7d2490f2f3d0be101e6834e6d9c27 100644
+index 43cc0c1df..29f74195a 100644
 --- a/cmd/sing-box/cmd_api_tailscale_peer.go
 +++ b/cmd/sing-box/cmd_api_tailscale_peer.go
 @@ -1,3 +1,5 @@
@@ -587,7 +587,7 @@ index 43cc0c1dfdbf128d24f054bfb98e1ebd7664de23..29f74195aea7d2490f2f3d0be101e683
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_peer_list.go b/cmd/sing-box/cmd_api_tailscale_peer_list.go
-index eadbeb5b9c2655c5cddf1e048080a47dea3e4888..90d94865d0a008b85099f6049b9fba8e427193c7 100644
+index eadbeb5b9..90d94865d 100644
 --- a/cmd/sing-box/cmd_api_tailscale_peer_list.go
 +++ b/cmd/sing-box/cmd_api_tailscale_peer_list.go
 @@ -1,3 +1,5 @@
@@ -597,7 +597,7 @@ index eadbeb5b9c2655c5cddf1e048080a47dea3e4888..90d94865d0a008b85099f6049b9fba8e
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_peer_show.go b/cmd/sing-box/cmd_api_tailscale_peer_show.go
-index 4aefa6a9955fe2ef2b4ae3f64461f04af85d6663..d094977fb7b41cd54910fc63e1f0bce3bb8e39a1 100644
+index 4aefa6a99..d094977fb 100644
 --- a/cmd/sing-box/cmd_api_tailscale_peer_show.go
 +++ b/cmd/sing-box/cmd_api_tailscale_peer_show.go
 @@ -1,3 +1,5 @@
@@ -607,7 +607,7 @@ index 4aefa6a9955fe2ef2b4ae3f64461f04af85d6663..d094977fb7b41cd54910fc63e1f0bce3
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_ping.go b/cmd/sing-box/cmd_api_tailscale_ping.go
-index be717d7bad8731436a1a4fdb2147f42131a1bcc8..9de02ab5e66c02402d94ac0ff29ec65b37e3d278 100644
+index be717d7ba..9de02ab5e 100644
 --- a/cmd/sing-box/cmd_api_tailscale_ping.go
 +++ b/cmd/sing-box/cmd_api_tailscale_ping.go
 @@ -1,3 +1,5 @@
@@ -617,7 +617,7 @@ index be717d7bad8731436a1a4fdb2147f42131a1bcc8..9de02ab5e66c02402d94ac0ff29ec65b
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_ssh.go b/cmd/sing-box/cmd_api_tailscale_ssh.go
-index f6bbcc460fde0303ba0a07bd719dddf6e5fa23bf..364f57b4000ec8e102215e7986e930909b3c7e68 100644
+index f6bbcc460..364f57b40 100644
 --- a/cmd/sing-box/cmd_api_tailscale_ssh.go
 +++ b/cmd/sing-box/cmd_api_tailscale_ssh.go
 @@ -1,3 +1,5 @@
@@ -627,7 +627,7 @@ index f6bbcc460fde0303ba0a07bd719dddf6e5fa23bf..364f57b4000ec8e102215e7986e93090
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_ssh_unix.go b/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
-index 509d49b7e0bc46fa962453b67f861d47ffe45b3a..9037cec674ebf8c2e347b8191dbc4023402ef206 100644
+index 509d49b7e..9037cec67 100644
 --- a/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
 +++ b/cmd/sing-box/cmd_api_tailscale_ssh_unix.go
 @@ -1,4 +1,4 @@
@@ -637,7 +637,7 @@ index 509d49b7e0bc46fa962453b67f861d47ffe45b3a..9037cec674ebf8c2e347b8191dbc4023
  package main
  
 diff --git a/cmd/sing-box/cmd_api_tailscale_ssh_windows.go b/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
-index d7e24e6868a8cb44a9be5adbbb11a8feacedf137..d96b714eff717c9a3bf65e24c6b9fc0b253666e6 100644
+index d7e24e686..d96b714ef 100644
 --- a/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
 +++ b/cmd/sing-box/cmd_api_tailscale_ssh_windows.go
 @@ -1,3 +1,5 @@
@@ -647,7 +647,7 @@ index d7e24e6868a8cb44a9be5adbbb11a8feacedf137..d96b714eff717c9a3bf65e24c6b9fc0b
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_status.go b/cmd/sing-box/cmd_api_tailscale_status.go
-index 6199048449e2397a13f9d3d6ddee8a4ded4250b5..c1a4d5760aa948633b1a3785c2a30ad328535c9f 100644
+index 619904844..c1a4d5760 100644
 --- a/cmd/sing-box/cmd_api_tailscale_status.go
 +++ b/cmd/sing-box/cmd_api_tailscale_status.go
 @@ -1,3 +1,5 @@
@@ -657,7 +657,7 @@ index 6199048449e2397a13f9d3d6ddee8a4ded4250b5..c1a4d5760aa948633b1a3785c2a30ad3
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop.go b/cmd/sing-box/cmd_api_tailscale_taildrop.go
-index a3f794b3aee77d49a441c01b910af85af1eb6490..f6253f285ee1e2fc43c72fa9eb0ed2b61d56a4be 100644
+index a3f794b3a..f6253f285 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop.go
 @@ -1,3 +1,5 @@
@@ -667,7 +667,7 @@ index a3f794b3aee77d49a441c01b910af85af1eb6490..f6253f285ee1e2fc43c72fa9eb0ed2b6
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go b/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
-index 4c51c1dd184fd303bcf0964d6e8fea1c8248ff04..b67dc3ff0ec50c155dba2ca4d12e9a2ce372779c 100644
+index 4c51c1dd1..b67dc3ff0 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop_delete.go
 @@ -1,3 +1,5 @@
@@ -677,7 +677,7 @@ index 4c51c1dd184fd303bcf0964d6e8fea1c8248ff04..b67dc3ff0ec50c155dba2ca4d12e9a2c
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_get.go b/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
-index 88aa2f04b2c3b4307f6aed30368d265117595e07..ca07d88a3e7d8e6bbac259e0b6545f0225bed92f 100644
+index 88aa2f04b..ca07d88a3 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop_get.go
 @@ -1,3 +1,5 @@
@@ -687,7 +687,7 @@ index 88aa2f04b2c3b4307f6aed30368d265117595e07..ca07d88a3e7d8e6bbac259e0b6545f02
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_list.go b/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
-index e51d66f4ef16773d200831efd9cf4ff738aedd0f..d02b03d4f23a653d01de5e3c1feec32a29341fb7 100644
+index e51d66f4e..d02b03d4f 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop_list.go
 @@ -1,3 +1,5 @@
@@ -697,7 +697,7 @@ index e51d66f4ef16773d200831efd9cf4ff738aedd0f..d02b03d4f23a653d01de5e3c1feec32a
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_send.go b/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
-index 022833d25ee6f02b440eff31cdabacc0fe76d1e5..02f6a8a04d1446e8ef68154798e95695dfc0e2cc 100644
+index 022833d25..02f6a8a04 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop_send.go
 @@ -1,3 +1,5 @@
@@ -707,7 +707,7 @@ index 022833d25ee6f02b440eff31cdabacc0fe76d1e5..02f6a8a04d1446e8ef68154798e95695
  
  import (
 diff --git a/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go b/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
-index 4014470fc47a54e41fa7c5d5a32687ce1bd9f0f4..d6363605deea02007094c3f01d55489d7d8f8725 100644
+index 4014470fc..d6363605d 100644
 --- a/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
 +++ b/cmd/sing-box/cmd_api_tailscale_taildrop_targets.go
 @@ -1,3 +1,5 @@
@@ -717,7 +717,7 @@ index 4014470fc47a54e41fa7c5d5a32687ce1bd9f0f4..d6363605deea02007094c3f01d55489d
  
  import (
 diff --git a/cmd/sing-box/cmd_api_usbip.go b/cmd/sing-box/cmd_api_usbip.go
-index 1deab7f3c0e9de35ae6efaed0a78de889d7724ab..9a751ce74b09487364b69a9bd2e762897fa061f5 100644
+index 1deab7f3c..9a751ce74 100644
 --- a/cmd/sing-box/cmd_api_usbip.go
 +++ b/cmd/sing-box/cmd_api_usbip.go
 @@ -1,3 +1,5 @@
@@ -727,7 +727,7 @@ index 1deab7f3c0e9de35ae6efaed0a78de889d7724ab..9a751ce74b09487364b69a9bd2e76289
  
  import (
 diff --git a/cmd/sing-box/cmd_api_usbip_local.go b/cmd/sing-box/cmd_api_usbip_local.go
-index 1fd884bb6e18d04c87e6c6798601912f91701394..54723b932d2f5dce299c3a0018357d9e5ce1e0a5 100644
+index 1fd884bb6..54723b932 100644
 --- a/cmd/sing-box/cmd_api_usbip_local.go
 +++ b/cmd/sing-box/cmd_api_usbip_local.go
 @@ -1,4 +1,4 @@
@@ -737,7 +737,7 @@ index 1fd884bb6e18d04c87e6c6798601912f91701394..54723b932d2f5dce299c3a0018357d9e
  package main
  
 diff --git a/cmd/sing-box/cmd_api_usbip_share.go b/cmd/sing-box/cmd_api_usbip_share.go
-index 23b9c115ff72b1ce9cdcc8cc04971d9ad1190e59..89377e7ca2eda5a14cc0d7ddae6dd8e53646a798 100644
+index 23b9c115f..89377e7ca 100644
 --- a/cmd/sing-box/cmd_api_usbip_share.go
 +++ b/cmd/sing-box/cmd_api_usbip_share.go
 @@ -1,4 +1,4 @@
@@ -747,7 +747,7 @@ index 23b9c115ff72b1ce9cdcc8cc04971d9ad1190e59..89377e7ca2eda5a14cc0d7ddae6dd8e5
  package main
  
 diff --git a/cmd/sing-box/cmd_api_usbip_status.go b/cmd/sing-box/cmd_api_usbip_status.go
-index 9ba93f55ec61a0a3ac415d2bb14e47b3c4026618..00bb683b1e465210e8537794b5ba312affe3d9e1 100644
+index 9ba93f55e..00bb683b1 100644
 --- a/cmd/sing-box/cmd_api_usbip_status.go
 +++ b/cmd/sing-box/cmd_api_usbip_status.go
 @@ -1,3 +1,5 @@
@@ -757,7 +757,7 @@ index 9ba93f55ec61a0a3ac415d2bb14e47b3c4026618..00bb683b1e465210e8537794b5ba312a
  
  import (
 diff --git a/cmd/sing-box/cmd_api_usbip_stub.go b/cmd/sing-box/cmd_api_usbip_stub.go
-index 32f61760f2f4b0ab105b3527844ddee744897f44..7f0d2bcb9f152a0af4370624d2ecee2d59ac1d1c 100644
+index 32f61760f..7f0d2bcb9 100644
 --- a/cmd/sing-box/cmd_api_usbip_stub.go
 +++ b/cmd/sing-box/cmd_api_usbip_stub.go
 @@ -1,4 +1,4 @@
@@ -767,7 +767,7 @@ index 32f61760f2f4b0ab105b3527844ddee744897f44..7f0d2bcb9f152a0af4370624d2ecee2d
  package main
  
 diff --git a/cmd/sing-box/cmd_api_version.go b/cmd/sing-box/cmd_api_version.go
-index 4615435a5beea43770efcc7e88cf9ebfa2f3356c..adf797059a9941cd6a6f8a3f318c31a7f185bca0 100644
+index 4615435a5..adf797059 100644
 --- a/cmd/sing-box/cmd_api_version.go
 +++ b/cmd/sing-box/cmd_api_version.go
 @@ -1,3 +1,5 @@
@@ -777,7 +777,7 @@ index 4615435a5beea43770efcc7e88cf9ebfa2f3356c..adf797059a9941cd6a6f8a3f318c31a7
  
  import (
 diff --git a/cmd/sing-box/cmd_generate_wireguard.go b/cmd/sing-box/cmd_generate_wireguard.go
-index 087e74b271a0355fa4c62c5d1a9240c221320187..ed70e6d3f9e98e32f7402ba25abeae49451d8760 100644
+index 087e74b27..ed70e6d3f 100644
 --- a/cmd/sing-box/cmd_generate_wireguard.go
 +++ b/cmd/sing-box/cmd_generate_wireguard.go
 @@ -1,3 +1,5 @@
@@ -787,7 +787,7 @@ index 087e74b271a0355fa4c62c5d1a9240c221320187..ed70e6d3f9e98e32f7402ba25abeae49
  
  import (
 diff --git a/cmd/sing-box/cmd_run.go b/cmd/sing-box/cmd_run.go
-index 2037a9797e31e88d68b32b5e0098ea855a5fb85e..3261119cabbc7c3d982517ef7116274c5c7934cd 100644
+index 2037a9797..3261119ca 100644
 --- a/cmd/sing-box/cmd_run.go
 +++ b/cmd/sing-box/cmd_run.go
 @@ -2,11 +2,13 @@ package main
@@ -901,7 +901,7 @@ index 2037a9797e31e88d68b32b5e0098ea855a5fb85e..3261119cabbc7c3d982517ef7116274c
  					log.Error(E.Cause(err, "reload service"))
 diff --git a/cmd/sing-box/tapline_helper.go b/cmd/sing-box/tapline_helper.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..13932df81a09e33ca120429162108c041da03cc8
+index 000000000..13932df81
 --- /dev/null
 +++ b/cmd/sing-box/tapline_helper.go
 @@ -0,0 +1,46 @@
@@ -952,7 +952,7 @@ index 0000000000000000000000000000000000000000..13932df81a09e33ca120429162108c04
 +	}
 +}
 diff --git a/common/ja3/ja3.go b/common/ja3/ja3.go
-index 608819fe1edceffee120855ef6804c98a29f2845..f367d2a05b2df41fa67149f1c36cbd0c4ea61976 100644
+index 608819fe1..f367d2a05 100644
 --- a/common/ja3/ja3.go
 +++ b/common/ja3/ja3.go
 @@ -22,6 +22,7 @@ type ClientHello struct {
@@ -964,7 +964,7 @@ index 608819fe1edceffee120855ef6804c98a29f2845..f367d2a05b2df41fa67149f1c36cbd0c
  	ja3Hash             string
  }
 diff --git a/common/ja3/parser.go b/common/ja3/parser.go
-index a4bd71239124c117db963d84c33a3b16457e74c8..5782f3b6e57d5c8165aba71b1d8e938c3f64488e 100644
+index a4bd71239..5782f3b6e 100644
 --- a/common/ja3/parser.go
 +++ b/common/ja3/parser.go
 @@ -195,6 +195,18 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
@@ -988,7 +988,7 @@ index a4bd71239124c117db963d84c33a3b16457e74c8..5782f3b6e57d5c8165aba71b1d8e938c
  			// Check if we can decode the next fields
 diff --git a/common/ja3/parser_test.go b/common/ja3/parser_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..154fcaa02ef4571d9345e77aa103605e0c727194
+index 000000000..154fcaa02
 --- /dev/null
 +++ b/common/ja3/parser_test.go
 @@ -0,0 +1,39 @@
@@ -1032,7 +1032,7 @@ index 0000000000000000000000000000000000000000..154fcaa02ef4571d9345e77aa103605e
 +	}
 +}
 diff --git a/common/sniff/quic.go b/common/sniff/quic.go
-index 049bd2c14e76081abd1dff33baf9d62a0885f9c0..f4f0345443091d5d65522fd6491b0ef50397ddd8 100644
+index 049bd2c14..f4f034544 100644
 --- a/common/sniff/quic.go
 +++ b/common/sniff/quic.go
 @@ -307,6 +307,7 @@ find:
@@ -1044,7 +1044,7 @@ index 049bd2c14e76081abd1dff33baf9d62a0885f9c0..f4f0345443091d5d65522fd6491b0ef5
  		if len(frameTypeList) == 1 {
  			metadata.Client = C.ClientFirefox
 diff --git a/go.mod b/go.mod
-index c3e941d54ab3a886f7dc9ebb980e11e41363d1be..fe1b77a14a97d4ecc1561395d0ca9cad13d179c3 100644
+index c3e941d54..fe1b77a14 100644
 --- a/go.mod
 +++ b/go.mod
 @@ -13,8 +13,10 @@ require (
@@ -1059,7 +1059,7 @@ index c3e941d54ab3a886f7dc9ebb980e11e41363d1be..fe1b77a14a97d4ecc1561395d0ca9cad
  	github.com/gofrs/uuid/v5 v5.5.1
  	github.com/insomniacslk/dhcp v0.0.0-20260220084031-5adc3eb26f91
 diff --git a/go.sum b/go.sum
-index b6de9499b7624d680e360b767d37dcd26c6791e5..1624c521c659237184732e704f3902d71dc522e8 100644
+index b6de9499b..1624c521c 100644
 --- a/go.sum
 +++ b/go.sum
 @@ -78,6 +78,8 @@ github.com/dnaeon/go-vcr v1.2.0 h1:zHCHvJYTMh1N7xnV7zf1m1GPBF9Ad0Jk/whtQ1663qI=
@@ -1081,7 +1081,7 @@ index b6de9499b7624d680e360b767d37dcd26c6791e5..1624c521c659237184732e704f3902d7
  github.com/godbus/dbus/v5 v5.2.2/go.mod h1:3AAv2+hPq5rdnr5txxxRwiGjPXamgoIHgz9FPBfOp3c=
  github.com/gofrs/uuid/v5 v5.5.1 h1:z1Ce19/JwNidXpy3tOQc3241lnJLKdKyq/xlNvlD4Ng=
 diff --git a/include/acme.go b/include/acme.go
-index 093fd50823f290cd7a28ef4db72e8e2fe2dbb03c..daa4d3bd16717add5af4569494a75e4997db4218 100644
+index 093fd5082..daa4d3bd1 100644
 --- a/include/acme.go
 +++ b/include/acme.go
 @@ -1,4 +1,4 @@
@@ -1091,7 +1091,7 @@ index 093fd50823f290cd7a28ef4db72e8e2fe2dbb03c..daa4d3bd16717add5af4569494a75e49
  package include
  
 diff --git a/include/acme_stub.go b/include/acme_stub.go
-index bceab3d731a6a86655ada3b979cfd2be461643c6..055fa4b0bac220cf5629f8114e27ed6abf3b5c40 100644
+index bceab3d73..055fa4b0b 100644
 --- a/include/acme_stub.go
 +++ b/include/acme_stub.go
 @@ -1,4 +1,4 @@
@@ -1101,7 +1101,7 @@ index bceab3d731a6a86655ada3b979cfd2be461643c6..055fa4b0bac220cf5629f8114e27ed6a
  package include
  
 diff --git a/include/ccm.go b/include/ccm.go
-index a75201485034b2391e8ecac7fdf248e886e7422e..da099af921d7052d168f21bff2b4c3d499c70ba0 100644
+index a75201485..da099af92 100644
 --- a/include/ccm.go
 +++ b/include/ccm.go
 @@ -1,4 +1,4 @@
@@ -1111,7 +1111,7 @@ index a75201485034b2391e8ecac7fdf248e886e7422e..da099af921d7052d168f21bff2b4c3d4
  package include
  
 diff --git a/include/ccm_stub.go b/include/ccm_stub.go
-index eac29eebdd225b3a000d3e0dc37824f08e146239..6ded2bf13296851adc0504825efccaaa3588dd57 100644
+index eac29eebd..6ded2bf13 100644
 --- a/include/ccm_stub.go
 +++ b/include/ccm_stub.go
 @@ -1,4 +1,4 @@
@@ -1121,7 +1121,7 @@ index eac29eebdd225b3a000d3e0dc37824f08e146239..6ded2bf13296851adc0504825efccaaa
  package include
  
 diff --git a/include/ccm_stub_darwin.go b/include/ccm_stub_darwin.go
-index f2ad738168aa8cd02098e2fc93af9db1b01cd22c..8fcfc04bafa9615843ffff59777c0f8c1a50156f 100644
+index f2ad73816..8fcfc04ba 100644
 --- a/include/ccm_stub_darwin.go
 +++ b/include/ccm_stub_darwin.go
 @@ -1,4 +1,4 @@
@@ -1131,7 +1131,7 @@ index f2ad738168aa8cd02098e2fc93af9db1b01cd22c..8fcfc04bafa9615843ffff59777c0f8c
  package include
  
 diff --git a/include/clashapi.go b/include/clashapi.go
-index 550a5db61838bdcbecd50eb9a5e8c6db722e2721..9850024d0dd953368f86e866d27eba9879049c38 100644
+index 550a5db61..9850024d0 100644
 --- a/include/clashapi.go
 +++ b/include/clashapi.go
 @@ -1,4 +1,4 @@
@@ -1141,7 +1141,7 @@ index 550a5db61838bdcbecd50eb9a5e8c6db722e2721..9850024d0dd953368f86e866d27eba98
  package include
  
 diff --git a/include/clashapi_stub.go b/include/clashapi_stub.go
-index e7d5304fa16def460bd15a7f3d21132a71418595..80e0e62dabf8382963ee9e3d9b4c03f7a847d24a 100644
+index e7d5304fa..80e0e62da 100644
 --- a/include/clashapi_stub.go
 +++ b/include/clashapi_stub.go
 @@ -1,4 +1,4 @@
@@ -1151,7 +1151,7 @@ index e7d5304fa16def460bd15a7f3d21132a71418595..80e0e62dabf8382963ee9e3d9b4c03f7
  package include
  
 diff --git a/include/cloudflared.go b/include/cloudflared.go
-index 6320010825cd1f2fe14dc5bdedc30549d94bdb2a..0861cddde3534a75aaeb453a35d37934d0e99e01 100644
+index 632001082..0861cddde 100644
 --- a/include/cloudflared.go
 +++ b/include/cloudflared.go
 @@ -1,4 +1,4 @@
@@ -1161,7 +1161,7 @@ index 6320010825cd1f2fe14dc5bdedc30549d94bdb2a..0861cddde3534a75aaeb453a35d37934
  package include
  
 diff --git a/include/cloudflared_stub.go b/include/cloudflared_stub.go
-index 8f49aecc690f660ab0c47cc92a47d9c829e0f8a7..bef5a14899abec90d93b86915500f650cae6bd1a 100644
+index 8f49aecc6..bef5a1489 100644
 --- a/include/cloudflared_stub.go
 +++ b/include/cloudflared_stub.go
 @@ -1,4 +1,4 @@
@@ -1171,7 +1171,7 @@ index 8f49aecc690f660ab0c47cc92a47d9c829e0f8a7..bef5a14899abec90d93b86915500f650
  package include
  
 diff --git a/include/dhcp.go b/include/dhcp.go
-index 8cf074becd786681a79a12b0758cd056567013e0..bc31e988bce1da8f437fad16da593bc8fbc3d7f5 100644
+index 8cf074bec..bc31e988b 100644
 --- a/include/dhcp.go
 +++ b/include/dhcp.go
 @@ -1,4 +1,4 @@
@@ -1181,7 +1181,7 @@ index 8cf074becd786681a79a12b0758cd056567013e0..bc31e988bce1da8f437fad16da593bc8
  package include
  
 diff --git a/include/dhcp_stub.go b/include/dhcp_stub.go
-index 272f313aaf4071ad63616e935bc9d01172ce51ab..ec1e6b13aade7dfacba4dc2932d126ee53a74d58 100644
+index 272f313aa..ec1e6b13a 100644
 --- a/include/dhcp_stub.go
 +++ b/include/dhcp_stub.go
 @@ -1,4 +1,4 @@
@@ -1191,7 +1191,7 @@ index 272f313aaf4071ad63616e935bc9d01172ce51ab..ec1e6b13aade7dfacba4dc2932d126ee
  package include
  
 diff --git a/include/naive_outbound.go b/include/naive_outbound.go
-index d15d0450c6eb3247f3fbbd5092efd7bd720eeaab..9f2dd514f174a732a0c8d5ecd852555869401b1b 100644
+index d15d0450c..9f2dd514f 100644
 --- a/include/naive_outbound.go
 +++ b/include/naive_outbound.go
 @@ -1,4 +1,4 @@
@@ -1201,7 +1201,7 @@ index d15d0450c6eb3247f3fbbd5092efd7bd720eeaab..9f2dd514f174a732a0c8d5ecd8525558
  package include
  
 diff --git a/include/naive_outbound_stub.go b/include/naive_outbound_stub.go
-index cf892091d63e941b09b4b440e0eda0bf91ea3f94..d57f1f2fac1b1396388640133ddb2879d48efb4f 100644
+index cf892091d..d57f1f2fa 100644
 --- a/include/naive_outbound_stub.go
 +++ b/include/naive_outbound_stub.go
 @@ -1,4 +1,4 @@
@@ -1211,7 +1211,7 @@ index cf892091d63e941b09b4b440e0eda0bf91ea3f94..d57f1f2fac1b1396388640133ddb2879
  package include
  
 diff --git a/include/ocm.go b/include/ocm.go
-index cdea9eeaeacebecdbaed04541c7d971e900b5aa4..bc075383da836ad03e2f9c66e09495de9e209a6e 100644
+index cdea9eeae..bc075383d 100644
 --- a/include/ocm.go
 +++ b/include/ocm.go
 @@ -1,4 +1,4 @@
@@ -1221,7 +1221,7 @@ index cdea9eeaeacebecdbaed04541c7d971e900b5aa4..bc075383da836ad03e2f9c66e09495de
  package include
  
 diff --git a/include/ocm_stub.go b/include/ocm_stub.go
-index d5a94fcba9f203ee0f311995a45dfbf7e6c0e115..f07392df441d16e28ba822c6a3bef2a2cd7d6baa 100644
+index d5a94fcba..f07392df4 100644
 --- a/include/ocm_stub.go
 +++ b/include/ocm_stub.go
 @@ -1,4 +1,4 @@
@@ -1231,7 +1231,7 @@ index d5a94fcba9f203ee0f311995a45dfbf7e6c0e115..f07392df441d16e28ba822c6a3bef2a2
  package include
  
 diff --git a/include/oom_killer.go b/include/oom_killer.go
-index 3f70d9d0e1d3a7bf3b21cdbca074830735f98ed3..39617d91eaf950faa5a9bc214d9bd4724bb420aa 100644
+index 3f70d9d0e..39617d91e 100644
 --- a/include/oom_killer.go
 +++ b/include/oom_killer.go
 @@ -1,3 +1,5 @@
@@ -1241,7 +1241,7 @@ index 3f70d9d0e1d3a7bf3b21cdbca074830735f98ed3..39617d91eaf950faa5a9bc214d9bd472
  
  import (
 diff --git a/include/openconnect.go b/include/openconnect.go
-index 259340c9d22ad9d7d871a4edeb977a6eda5c2873..b8670cc567683ea83a4215c187afdfa4e05cf68f 100644
+index 259340c9d..b8670cc56 100644
 --- a/include/openconnect.go
 +++ b/include/openconnect.go
 @@ -1,4 +1,4 @@
@@ -1251,7 +1251,7 @@ index 259340c9d22ad9d7d871a4edeb977a6eda5c2873..b8670cc567683ea83a4215c187afdfa4
  package include
  
 diff --git a/include/openconnect_stub.go b/include/openconnect_stub.go
-index 360ed8d9b91e78960c9ae3eeec0aac71c0fcc6b8..3543e942488e5e6c40ac3b1d248b6c7de33292fe 100644
+index 360ed8d9b..3543e9424 100644
 --- a/include/openconnect_stub.go
 +++ b/include/openconnect_stub.go
 @@ -1,4 +1,4 @@
@@ -1261,7 +1261,7 @@ index 360ed8d9b91e78960c9ae3eeec0aac71c0fcc6b8..3543e942488e5e6c40ac3b1d248b6c7d
  package include
  
 diff --git a/include/openvpn.go b/include/openvpn.go
-index 58d03c709433f7ccb9aefce8979a8f6803b9acc4..0f60843051558e549f0d97d28765a5ff6f010a1d 100644
+index 58d03c709..0f6084305 100644
 --- a/include/openvpn.go
 +++ b/include/openvpn.go
 @@ -1,4 +1,4 @@
@@ -1271,7 +1271,7 @@ index 58d03c709433f7ccb9aefce8979a8f6803b9acc4..0f60843051558e549f0d97d28765a5ff
  package include
  
 diff --git a/include/openvpn_stub.go b/include/openvpn_stub.go
-index a1e24c8e780a4ec0735fa8ca16095d8477133494..eeaf5d269cf642c8bdd5e924a464ab1132de5312 100644
+index a1e24c8e7..eeaf5d269 100644
 --- a/include/openvpn_stub.go
 +++ b/include/openvpn_stub.go
 @@ -1,4 +1,4 @@
@@ -1281,7 +1281,7 @@ index a1e24c8e780a4ec0735fa8ca16095d8477133494..eeaf5d269cf642c8bdd5e924a464ab11
  package include
  
 diff --git a/include/quic.go b/include/quic.go
-index 42182c299d89422b4f0d4ac6e450b4383a130452..4821cccabf97c471a112ea513c2641b77003ea8d 100644
+index 42182c299..4821cccab 100644
 --- a/include/quic.go
 +++ b/include/quic.go
 @@ -1,4 +1,4 @@
@@ -1291,7 +1291,7 @@ index 42182c299d89422b4f0d4ac6e450b4383a130452..4821cccabf97c471a112ea513c2641b7
  package include
  
 diff --git a/include/quic_stub.go b/include/quic_stub.go
-index b603cf48d094557b653dca73977bf8b49690c747..d93d0f013cfa720357864b863ef63726943d619b 100644
+index b603cf48d..d93d0f013 100644
 --- a/include/quic_stub.go
 +++ b/include/quic_stub.go
 @@ -1,4 +1,4 @@
@@ -1301,7 +1301,7 @@ index b603cf48d094557b653dca73977bf8b49690c747..d93d0f013cfa720357864b863ef63726
  package include
  
 diff --git a/include/registry.go b/include/registry.go
-index 9bb9220c183cd0f2f59762d7b0dc5320e2dd8cca..4b4a4dacd93886c356e48881e18fc041a2dc75ed 100644
+index 9bb9220c1..4b4a4dacd 100644
 --- a/include/registry.go
 +++ b/include/registry.go
 @@ -1,3 +1,5 @@
@@ -1344,7 +1344,7 @@ index 9bb9220c183cd0f2f59762d7b0dc5320e2dd8cca..4b4a4dacd93886c356e48881e18fc041
  	resolved.RegisterService(registry)
 diff --git a/include/registry_tapline.go b/include/registry_tapline.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..d35600ca468206e3a6da282988ca71c3a42361b3
+index 000000000..d35600ca4
 --- /dev/null
 +++ b/include/registry_tapline.go
 @@ -0,0 +1,62 @@
@@ -1412,7 +1412,7 @@ index 0000000000000000000000000000000000000000..d35600ca468206e3a6da282988ca71c3
 +func CertificateProviderRegistry() *certificate.Registry { return certificate.NewRegistry() }
 diff --git a/include/registry_tapline_test.go b/include/registry_tapline_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..361b60a4f5e96eedb6a7021e8eaa2b190b0cdda4
+index 000000000..361b60a4f
 --- /dev/null
 +++ b/include/registry_tapline_test.go
 @@ -0,0 +1,60 @@
@@ -1477,7 +1477,7 @@ index 0000000000000000000000000000000000000000..361b60a4f5e96eedb6a7021e8eaa2b19
 +	}
 +}
 diff --git a/include/tailscale.go b/include/tailscale.go
-index 6f85aaac140e73ac37e1a764a869604a252d0781..e61e4b3873b069234f0de6d4ef25040ed2ccdba4 100644
+index 6f85aaac1..e61e4b387 100644
 --- a/include/tailscale.go
 +++ b/include/tailscale.go
 @@ -1,4 +1,4 @@
@@ -1487,7 +1487,7 @@ index 6f85aaac140e73ac37e1a764a869604a252d0781..e61e4b3873b069234f0de6d4ef25040e
  package include
  
 diff --git a/include/tailscale_stub.go b/include/tailscale_stub.go
-index e6f97f1eabf605f16032393c2734a19f852aa762..2842472f7e8fdd13a59ec0f3ebe6464631b5ec4a 100644
+index e6f97f1ea..2842472f7 100644
 --- a/include/tailscale_stub.go
 +++ b/include/tailscale_stub.go
 @@ -1,4 +1,4 @@
@@ -1498,7 +1498,7 @@ index e6f97f1eabf605f16032393c2734a19f852aa762..2842472f7e8fdd13a59ec0f3ebe64646
  
 diff --git a/include/tapline_inspect.go b/include/tapline_inspect.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..c95c4485080573f8eef714f66cdb279e08fd3ad3
+index 000000000..c95c44850
 --- /dev/null
 +++ b/include/tapline_inspect.go
 @@ -0,0 +1,157 @@
@@ -1661,7 +1661,7 @@ index 0000000000000000000000000000000000000000..c95c4485080573f8eef714f66cdb279e
 +}
 diff --git a/include/tapline_inspect_test.go b/include/tapline_inspect_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..6336b747e0c4c2fcfe862774bbae08734e6f7235
+index 000000000..6336b747e
 --- /dev/null
 +++ b/include/tapline_inspect_test.go
 @@ -0,0 +1,72 @@
@@ -1739,7 +1739,7 @@ index 0000000000000000000000000000000000000000..6336b747e0c4c2fcfe862774bbae0873
 +}
 diff --git a/include/tapline_proxy_inbound.go b/include/tapline_proxy_inbound.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..7900d85070fd2b6b32c15870ab7d6725bd872265
+index 000000000..7900d8507
 --- /dev/null
 +++ b/include/tapline_proxy_inbound.go
 @@ -0,0 +1,105 @@
@@ -1850,7 +1850,7 @@ index 0000000000000000000000000000000000000000..7900d85070fd2b6b32c15870ab7d6725
 +func (h *proxyInbound) ListenPort() int { return h.listener.TCPListener().Addr().(*net.TCPAddr).Port }
 diff --git a/include/tapline_registry_test.go b/include/tapline_registry_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..caa4f49e3481a5e79955070d5094701f3969b509
+index 000000000..caa4f49e3
 --- /dev/null
 +++ b/include/tapline_registry_test.go
 @@ -0,0 +1,48 @@
@@ -1903,7 +1903,7 @@ index 0000000000000000000000000000000000000000..caa4f49e3481a5e79955070d5094701f
 +	}
 +}
 diff --git a/include/tz_android.go b/include/tz_android.go
-index 7be1c2da98f491fae7171f35941615f4c34eba2c..20fa6c759e10775683ebbd1f8022879fc40c4d23 100644
+index 7be1c2da9..20fa6c759 100644
 --- a/include/tz_android.go
 +++ b/include/tz_android.go
 @@ -1,3 +1,5 @@
@@ -1913,7 +1913,7 @@ index 7be1c2da98f491fae7171f35941615f4c34eba2c..20fa6c759e10775683ebbd1f8022879f
  // Use of this source code is governed by a BSD-style
  // license that can be found in the LICENSE file.
 diff --git a/include/tz_ios.go b/include/tz_ios.go
-index fc30479c61ff210d20e8f760f011013e937758f9..6c97da1fddaa01fb41c3ee9afa8ac630088cddad 100644
+index fc30479c6..6c97da1fd 100644
 --- a/include/tz_ios.go
 +++ b/include/tz_ios.go
 @@ -1,3 +1,5 @@
@@ -1923,7 +1923,7 @@ index fc30479c61ff210d20e8f760f011013e937758f9..6c97da1fddaa01fb41c3ee9afa8ac630
  
  /*
 diff --git a/include/usbip.go b/include/usbip.go
-index c6b7b203246f964c9739067505d9b5225cc54d3b..a16b62db9d4b587c6d24b3fd12d848c8ed4c19bf 100644
+index c6b7b2032..a16b62db9 100644
 --- a/include/usbip.go
 +++ b/include/usbip.go
 @@ -1,4 +1,4 @@
@@ -1933,7 +1933,7 @@ index c6b7b203246f964c9739067505d9b5225cc54d3b..a16b62db9d4b587c6d24b3fd12d848c8
  package include
  
 diff --git a/include/usbip_stub.go b/include/usbip_stub.go
-index 75874857501aa6264aed6d640da6173bbee5d9e6..7ea8417464d1ddc41ff8a375349ccb6ec6b6d83d 100644
+index 758748575..7ea841746 100644
 --- a/include/usbip_stub.go
 +++ b/include/usbip_stub.go
 @@ -1,4 +1,4 @@
@@ -1943,7 +1943,7 @@ index 75874857501aa6264aed6d640da6173bbee5d9e6..7ea8417464d1ddc41ff8a375349ccb6e
  package include
  
 diff --git a/include/v2rayapi.go b/include/v2rayapi.go
-index acd3e9a84ecef54523fda7ab5deab59097d083b1..66f8adf465af6ec65e3841782d633ecf1aadc4fa 100644
+index acd3e9a84..66f8adf46 100644
 --- a/include/v2rayapi.go
 +++ b/include/v2rayapi.go
 @@ -1,4 +1,4 @@
@@ -1953,7 +1953,7 @@ index acd3e9a84ecef54523fda7ab5deab59097d083b1..66f8adf465af6ec65e3841782d633ecf
  package include
  
 diff --git a/include/v2rayapi_stub.go b/include/v2rayapi_stub.go
-index 7f1f6b9ecb30cdf5e6981c15d9ba148ed3e30aaf..6f0193f4c999c3cbc32ef60bd1b9e7d4dfebb213 100644
+index 7f1f6b9ec..6f0193f4c 100644
 --- a/include/v2rayapi_stub.go
 +++ b/include/v2rayapi_stub.go
 @@ -1,4 +1,4 @@
@@ -1963,7 +1963,7 @@ index 7f1f6b9ecb30cdf5e6981c15d9ba148ed3e30aaf..6f0193f4c999c3cbc32ef60bd1b9e7d4
  package include
  
 diff --git a/include/wireguard.go b/include/wireguard.go
-index fa7cfe6fd85f57e12ba41645a6a680ed9cc9bf7f..48f1d6d221a3c108b1700ce98ce9b1dcaa153125 100644
+index fa7cfe6fd..48f1d6d22 100644
 --- a/include/wireguard.go
 +++ b/include/wireguard.go
 @@ -1,4 +1,4 @@
@@ -1973,7 +1973,7 @@ index fa7cfe6fd85f57e12ba41645a6a680ed9cc9bf7f..48f1d6d221a3c108b1700ce98ce9b1dc
  package include
  
 diff --git a/include/wireguard_stub.go b/include/wireguard_stub.go
-index e03a9d9c0a8f344389dc89dca9adec7d22964135..c9d0a194a664d4825d5a1cf20feeb6c876f9ce7e 100644
+index e03a9d9c0..c9d0a194a 100644
 --- a/include/wireguard_stub.go
 +++ b/include/wireguard_stub.go
 @@ -1,4 +1,4 @@
@@ -1983,7 +1983,7 @@ index e03a9d9c0a8f344389dc89dca9adec7d22964135..c9d0a194a664d4825d5a1cf20feeb6c8
  package include
  
 diff --git a/release/DEFAULT_BUILD_TAGS_OTHERS b/release/DEFAULT_BUILD_TAGS_OTHERS
-index 60b1be3ebe7b006d46a1784e0b7f0c4d1cd0c622..8bdd783b1f0910ca6c91c2eb6d3ec7dd736d2618 100644
+index 60b1be3eb..8bdd783b1 100644
 --- a/release/DEFAULT_BUILD_TAGS_OTHERS
 +++ b/release/DEFAULT_BUILD_TAGS_OTHERS
 @@ -1 +1 @@
@@ -1991,7 +1991,7 @@ index 60b1be3ebe7b006d46a1784e0b7f0c4d1cd0c622..8bdd783b1f0910ca6c91c2eb6d3ec7dd
 +with_gvisor,with_tapline
 diff --git a/service/taplineinspector/LICENSE b/service/taplineinspector/LICENSE
 new file mode 100644
-index 0000000000000000000000000000000000000000..9a16f14de6db2c21c5a7f995563fb52ea1ec2471
+index 000000000..9a16f14de
 --- /dev/null
 +++ b/service/taplineinspector/LICENSE
 @@ -0,0 +1,21 @@
@@ -2018,7 +2018,7 @@ index 0000000000000000000000000000000000000000..9a16f14de6db2c21c5a7f995563fb52e
 +SOFTWARE.
 diff --git a/service/taplineinspector/README.md b/service/taplineinspector/README.md
 new file mode 100644
-index 0000000000000000000000000000000000000000..fd7c2cd2ce38ddeaf571d39aac4765bf625ce014
+index 000000000..fd7c2cd2c
 --- /dev/null
 +++ b/service/taplineinspector/README.md
 @@ -0,0 +1,71 @@
@@ -2095,7 +2095,7 @@ index 0000000000000000000000000000000000000000..fd7c2cd2ce38ddeaf571d39aac4765bf
 +```
 diff --git a/service/taplineinspector/inbound_control.go b/service/taplineinspector/inbound_control.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..4eef9088181ff2bfd42b10a8b1ece194242ab9b6
+index 000000000..4eef90881
 --- /dev/null
 +++ b/service/taplineinspector/inbound_control.go
 @@ -0,0 +1,43 @@
@@ -2144,7 +2144,7 @@ index 0000000000000000000000000000000000000000..4eef9088181ff2bfd42b10a8b1ece194
 +}
 diff --git a/service/taplineinspector/internal/ipc/body.go b/service/taplineinspector/internal/ipc/body.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..ad94965eb0183f0199f8dfc435123f97a0875a81
+index 000000000..ad94965eb
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/body.go
 @@ -0,0 +1,118 @@
@@ -2268,7 +2268,7 @@ index 0000000000000000000000000000000000000000..ad94965eb0183f0199f8dfc435123f97
 +func (r *BodyReader) EOF() bool { return r.eof }
 diff --git a/service/taplineinspector/internal/ipc/close.go b/service/taplineinspector/internal/ipc/close.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..c938bf890dc1661b8360121b477c9ba7bce17788
+index 000000000..c938bf890
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/close.go
 @@ -0,0 +1,17 @@
@@ -2291,7 +2291,7 @@ index 0000000000000000000000000000000000000000..c938bf890dc1661b8360121b477c9ba7
 +}
 diff --git a/service/taplineinspector/internal/ipc/headers.go b/service/taplineinspector/internal/ipc/headers.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..0fd51dbed9de26c88cc46fee453d7a3a40c65be4
+index 000000000..0fd51dbed
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/headers.go
 @@ -0,0 +1,40 @@
@@ -2337,7 +2337,7 @@ index 0000000000000000000000000000000000000000..0fd51dbed9de26c88cc46fee453d7a3a
 +}
 diff --git a/service/taplineinspector/internal/ipc/peer.go b/service/taplineinspector/internal/ipc/peer.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..e14a97770d7f16bb9ffe17d9b4fb4ac3ad964579
+index 000000000..e14a97770
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/peer.go
 @@ -0,0 +1,132 @@
@@ -2475,7 +2475,7 @@ index 0000000000000000000000000000000000000000..e14a97770d7f16bb9ffe17d9b4fb4ac3
 +func (p *Peer) Fail() { p.fatal() }
 diff --git a/service/taplineinspector/internal/ipc/wire.go b/service/taplineinspector/internal/ipc/wire.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..8581b2c4ff85a5f2a4609637b7db736b10e32e3c
+index 000000000..8581b2c4f
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/wire.go
 @@ -0,0 +1,93 @@
@@ -2574,7 +2574,7 @@ index 0000000000000000000000000000000000000000..8581b2c4ff85a5f2a4609637b7db736b
 +}
 diff --git a/service/taplineinspector/internal/ipc/wire_test.go b/service/taplineinspector/internal/ipc/wire_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..34b92bc8e9e583da40643dffdbcbc751464a7de7
+index 000000000..34b92bc8e
 --- /dev/null
 +++ b/service/taplineinspector/internal/ipc/wire_test.go
 @@ -0,0 +1,108 @@
@@ -2688,7 +2688,7 @@ index 0000000000000000000000000000000000000000..34b92bc8e9e583da40643dffdbcbc751
 +}
 diff --git a/service/taplineinspector/internal/proxy/engine.go b/service/taplineinspector/internal/proxy/engine.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..59dafdbcec12ae594fa600a855e90cc5cf68fad8
+index 000000000..59dafdbce
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/engine.go
 @@ -0,0 +1,191 @@
@@ -2885,10 +2885,10 @@ index 0000000000000000000000000000000000000000..59dafdbcec12ae594fa600a855e90cc5
 +}
 diff --git a/service/taplineinspector/internal/proxy/engine_test.go b/service/taplineinspector/internal/proxy/engine_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847fb3caeb17
+index 000000000..98fb7ecd7
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/engine_test.go
-@@ -0,0 +1,224 @@
+@@ -0,0 +1,231 @@
 +package proxy
 +
 +import (
@@ -2904,7 +2904,6 @@ index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847f
 +	"encoding/json"
 +	"encoding/pem"
 +	"errors"
-+	"fmt"
 +	"io"
 +	"math/big"
 +	"net"
@@ -2956,8 +2955,16 @@ index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847f
 +}
 +
 +func TestEngineHTTPAndHTTPSOverMemory(t *testing.T) {
-+	for _, encrypted := range []bool{false, true} {
-+		t.Run(fmt.Sprint("tls=", encrypted), func(t *testing.T) {
++	for _, test := range []struct {
++		name, destination, serverName string
++	}{
++		{"http", "example.com:443", ""},
++		{"tls-domain", "example.com:443", "example.com"},
++		{"tls-ip-with-sni", "127.0.0.1:443", "example.com"},
++		{"tls-ip-without-sni", "127.0.0.1:443", "127.0.0.1"},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			encrypted := test.serverName != ""
 +			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 +			defer cancel()
 +			in, writer := io.Pipe()
@@ -3009,7 +3016,7 @@ index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847f
 +				}
 +			}()
 +			source := netip.MustParseAddrPort("127.0.0.1:32123")
-+			conn, err := engine.DialContext(ctx, source, "example.com:443", !encrypted)
++			conn, err := engine.DialContext(ctx, source, test.destination, !encrypted)
 +			if err != nil {
 +				t.Fatal(err)
 +			}
@@ -3020,7 +3027,7 @@ index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847f
 +			if encrypted {
 +				roots := x509.NewCertPool()
 +				roots.AppendCertsFromPEM([]byte(identity.Certificate))
-+				client := tls.Client(conn, &tls.Config{RootCAs: roots, ServerName: "example.com", MinVersion: tls.VersionTLS12})
++				client := tls.Client(conn, &tls.Config{RootCAs: roots, ServerName: test.serverName, MinVersion: tls.VersionTLS12})
 +				if err = client.HandshakeContext(ctx); err != nil {
 +					t.Fatal(err)
 +				}
@@ -3115,7 +3122,7 @@ index 0000000000000000000000000000000000000000..815801352faebdfd09a2c3f1becd847f
 +}
 diff --git a/service/taplineinspector/internal/proxy/http3.go b/service/taplineinspector/internal/proxy/http3.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..f82bf1c3f5c96c362e3efb92bfbd850d02e32ae2
+index 000000000..f82bf1c3f
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/http3.go
 @@ -0,0 +1,209 @@
@@ -3330,7 +3337,7 @@ index 0000000000000000000000000000000000000000..f82bf1c3f5c96c362e3efb92bfbd850d
 +}
 diff --git a/service/taplineinspector/internal/proxy/http3_test.go b/service/taplineinspector/internal/proxy/http3_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..a092aa97776b35b05c60f68001a0e7fea150ab46
+index 000000000..a092aa977
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/http3_test.go
 @@ -0,0 +1,251 @@
@@ -3587,7 +3594,7 @@ index 0000000000000000000000000000000000000000..a092aa97776b35b05c60f68001a0e7fe
 +}
 diff --git a/service/taplineinspector/internal/proxy/inbound_control.go b/service/taplineinspector/internal/proxy/inbound_control.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..dba53da8d9fdf0a3edfede548ec6bd8e0735a780
+index 000000000..dba53da8d
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/inbound_control.go
 @@ -0,0 +1,12 @@
@@ -3605,7 +3612,7 @@ index 0000000000000000000000000000000000000000..dba53da8d9fdf0a3edfede548ec6bd8e
 +}
 diff --git a/service/taplineinspector/internal/proxy/listener.go b/service/taplineinspector/internal/proxy/listener.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..be7a8eafd6973ef8025fd82d4d87fbf5d0540109
+index 000000000..be7a8eafd
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/listener.go
 @@ -0,0 +1,201 @@
@@ -3812,7 +3819,7 @@ index 0000000000000000000000000000000000000000..be7a8eafd6973ef8025fd82d4d87fbf5
 +func (c *bufferedConn) Read(data []byte) (int, error) { return c.reader.Read(data) }
 diff --git a/service/taplineinspector/internal/proxy/listener_test.go b/service/taplineinspector/internal/proxy/listener_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..1cd1a27b647880e5ecab95f006bf19c9a8ae7650
+index 000000000..1cd1a27b6
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/listener_test.go
 @@ -0,0 +1,174 @@
@@ -3992,10 +3999,10 @@ index 0000000000000000000000000000000000000000..1cd1a27b647880e5ecab95f006bf19c9
 +}
 diff --git a/service/taplineinspector/internal/proxy/proxy.go b/service/taplineinspector/internal/proxy/proxy.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..68313232253107c1aa5265e633a48311e30f17bb
+index 000000000..91fc46f10
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/proxy.go
-@@ -0,0 +1,484 @@
+@@ -0,0 +1,523 @@
 +package proxy
 +
 +import (
@@ -4075,6 +4082,29 @@ index 0000000000000000000000000000000000000000..68313232253107c1aa5265e633a48311
 +		},
 +	}
 +	r.tlsConfig = mitm.TLSConfig
++	mitm.TLSConfig = func(host string, pc *goproxy.ProxyCtx) (*tls.Config, error) {
++		name, port, err := net.SplitHostPort(host)
++		if err != nil || net.ParseIP(name) == nil {
++			return r.tlsConfig(host, pc)
++		}
++		// SOCKS clients may resolve the destination locally. Wait for SNI before
++		// choosing its certificate; an IP-only client still gets an IP certificate.
++		// GetCertificate preserves the ALPN configuration added by goproxy.
++		return &tls.Config{
++			MinVersion: tls.VersionTLS12,
++			GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
++				certificateHost := host
++				if hello.ServerName != "" {
++					certificateHost = net.JoinHostPort(hello.ServerName, port)
++				}
++				config, err := r.tlsConfig(certificateHost, pc)
++				if err != nil {
++					return nil, err
++				}
++				return &config.Certificates[0], nil
++			},
++		}, nil
++	}
 +	proxy.OnRequest().HandleConnectFunc(func(host string, pc *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
 +		if !r.hasIngress(pc.Req) {
 +			return goproxy.RejectConnect, host
@@ -4214,7 +4244,23 @@ index 0000000000000000000000000000000000000000..68313232253107c1aa5265e633a48311
 +	})
 +}
 +
-+func (r *runtime) onResponse(resp *http.Response, pc *goproxy.ProxyCtx) *http.Response {
++func (r *runtime) onResponse(resp *http.Response, pc *goproxy.ProxyCtx) (clientResult *http.Response) {
++	defer func() {
++		if clientResult == nil || pc.Req.ProtoMajor < 2 {
++			return
++		}
++		// Keep captured upstream headers intact, but do not forward HTTP/1
++		// connection-specific fields to an HTTP/2 client (including local replies).
++		clientResult.Header = clientResult.Header.Clone()
++		for _, value := range clientResult.Header.Values("Connection") {
++			for _, name := range strings.Split(value, ",") {
++				clientResult.Header.Del(strings.TrimSpace(name))
++			}
++		}
++		for _, name := range []string{"Connection", "Keep-Alive", "Proxy-Connection", "Transfer-Encoding", "Upgrade"} {
++			clientResult.Header.Del(name)
++		}
++	}()
 +	ex, ok := pc.UserData.(*exchange)
 +	if !ok || ex.session.local {
 +		return resp
@@ -4482,7 +4528,7 @@ index 0000000000000000000000000000000000000000..68313232253107c1aa5265e633a48311
 +}
 diff --git a/service/taplineinspector/internal/proxy/runtime.go b/service/taplineinspector/internal/proxy/runtime.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..a95b95e524da6df2bdabbd82345192b3007ab750
+index 000000000..a95b95e52
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/runtime.go
 @@ -0,0 +1,141 @@
@@ -4629,7 +4675,7 @@ index 0000000000000000000000000000000000000000..a95b95e524da6df2bdabbd82345192b3
 +}
 diff --git a/service/taplineinspector/internal/proxy/session.go b/service/taplineinspector/internal/proxy/session.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..342a2d3984430fa0c8ad85fa473b50b6014a44ee
+index 000000000..342a2d398
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/session.go
 @@ -0,0 +1,104 @@
@@ -4739,7 +4785,7 @@ index 0000000000000000000000000000000000000000..342a2d3984430fa0c8ad85fa473b50b6
 +}
 diff --git a/service/taplineinspector/internal/proxy/tunnel_close_test.go b/service/taplineinspector/internal/proxy/tunnel_close_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..0662f225f95349a5efb2e7c4ded6d2ce2a12a559
+index 000000000..0662f225f
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/tunnel_close_test.go
 @@ -0,0 +1,60 @@
@@ -4805,10 +4851,10 @@ index 0000000000000000000000000000000000000000..0662f225f95349a5efb2e7c4ded6d2ce
 +}
 diff --git a/service/taplineinspector/internal/proxy/websocket.go b/service/taplineinspector/internal/proxy/websocket.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e9c3e6e00e691aa9ec9730c3e2eb867dbc0c80f
+index 000000000..2b40fe5b4
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/websocket.go
-@@ -0,0 +1,331 @@
+@@ -0,0 +1,341 @@
 +package proxy
 +
 +import (
@@ -4817,6 +4863,7 @@ index 0000000000000000000000000000000000000000..9e9c3e6e00e691aa9ec9730c3e2eb867
 +	"errors"
 +	"fmt"
 +	"io"
++	"net"
 +	"net/http"
 +	"strings"
 +	"sync"
@@ -4874,6 +4921,12 @@ index 0000000000000000000000000000000000000000..9e9c3e6e00e691aa9ec9730c3e2eb867
 +	if !ok {
 +		return failedResponse(pc.Req, ex.session, errors.New("upstream is not a WebSocket connection"))
 +	}
++	if err := r.peer.Send(map[string]any{
++		"type": "upstream-connected", "id": ex.session.id, "address": ex.address(),
++	}); err != nil {
++		closeQuietly(upstream)
++		return failedResponse(pc.Req, ex.session, err)
++	}
 +	wsBody := newWebSocketBody(pc.Req.Context(), upstream, ex.session)
 +	body.body = wsBody
 +	return resp
@@ -4912,7 +4965,10 @@ index 0000000000000000000000000000000000000000..9e9c3e6e00e691aa9ec9730c3e2eb867
 +	session.workers.Go(func() { <-session.done; cancel() })
 +	transfer := func(source io.Reader, target io.Writer, fromServer bool) {
 +		err := relayWebSocket(ctx, source, target, session, fromServer)
-+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
++		// Closing either relay also interrupts the other socket reader. That local
++		// cleanup must not win the race to mark a completed close as a failure.
++		closed := b.closing.Load() && errors.Is(err, net.ErrClosed)
++		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) && !closed {
 +			session.finish(false, err)
 +		}
 +		closeQuietly(b)
@@ -5142,15 +5198,16 @@ index 0000000000000000000000000000000000000000..9e9c3e6e00e691aa9ec9730c3e2eb867
 +}
 diff --git a/service/taplineinspector/internal/proxy/websocket_send_test.go b/service/taplineinspector/internal/proxy/websocket_send_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..b21324fab4511021a3f4cc1e6916fea96817f30e
+index 000000000..e98ff3d0c
 --- /dev/null
 +++ b/service/taplineinspector/internal/proxy/websocket_send_test.go
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,208 @@
 +package proxy
 +
 +import (
 +	"bytes"
 +	"context"
++	"errors"
 +	"io"
 +	"net"
 +	"strings"
@@ -5161,6 +5218,93 @@ index 0000000000000000000000000000000000000000..b21324fab4511021a3f4cc1e6916fea9
 +	"github.com/gobwas/ws"
 +	"github.com/sagernet/sing-box/service/taplineinspector/internal/ipc"
 +)
++
++// Model a TCP/TLS reader interrupted by socket cleanup, rather than pipe EOF.
++type websocketReadErrorConn struct {
++	net.Conn
++	err error
++}
++
++func (c websocketReadErrorConn) Read(p []byte) (int, error) {
++	n, err := c.Conn.Read(p)
++	if errors.Is(err, io.EOF) {
++		err = c.err
++	}
++	return n, err
++}
++
++func (c websocketReadErrorConn) Write(p []byte) (int, error) {
++	if len(p) == 0 {
++		return 0, nil
++	}
++	return c.Conn.Write(p)
++}
++
++func TestWebSocketCloseReadError(t *testing.T) {
++	for _, test := range []struct {
++		name        string
++		closeFrame  bool
++		err         error
++		wantFailure bool
++	}{
++		{"closing socket", true, &net.OpError{Op: "read", Net: "tcp", Err: net.ErrClosed}, false},
++		{"unexpected closed socket", false, net.ErrClosed, true},
++		{"truncated frame during close", true, io.ErrUnexpectedEOF, true},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			var output bytes.Buffer
++			r := &runtime{peer: ipc.NewPeer(&output, func() {})}
++			ctx, session := r.session(context.Background())
++			upstream, remote := net.Pipe()
++			defer remote.Close()
++			body := newWebSocketBody(ctx, websocketReadErrorConn{upstream, test.err}, session)
++			defer body.Close()
++			if test.closeFrame {
++				written := make(chan error, 1)
++				var encoded bytes.Buffer
++				if err := ws.WriteFrame(&encoded, ws.MaskFrame(ws.NewCloseFrame(nil))); err != nil {
++					t.Fatal(err)
++				}
++				go func() { _, err := body.Write(encoded.Bytes()); written <- err }()
++				_ = remote.SetReadDeadline(time.Now().Add(time.Second))
++				frame, err := ws.ReadFrame(remote)
++				if err != nil || frame.Header.OpCode != ws.OpClose {
++					t.Fatalf("close not forwarded: %+v, %v", frame, err)
++				}
++				if err := <-written; err != nil {
++					t.Fatal(err)
++				}
++			}
++			remote.Close()
++			done := make(chan struct{})
++			go func() { session.workers.Wait(); close(done) }()
++			select {
++			case <-done:
++			case <-time.After(2 * time.Second):
++				t.Fatal("WebSocket workers did not stop")
++			}
++			failed, closed := false, false
++			for output.Len() > 0 {
++				msg, err := readControl(&output)
++				if err != nil {
++					t.Fatal(err)
++				}
++				if msg["type"] == "failure" {
++					failed = true
++				}
++				if msg["type"] == "closed" {
++					closed = true
++					if msg["aborted"] != test.wantFailure {
++						t.Fatalf("close: %v", msg)
++					}
++				}
++			}
++			if !closed || failed != test.wantFailure {
++				t.Fatalf("closed=%v failed=%v", closed, failed)
++			}
++		})
++	}
++}
 +
 +func TestWebSocketWriterSerializesMessages(t *testing.T) {
 +	var output bytes.Buffer
@@ -5268,7 +5412,7 @@ index 0000000000000000000000000000000000000000..b21324fab4511021a3f4cc1e6916fea9
 +}
 diff --git a/service/taplineinspector/internal/upstream/close.go b/service/taplineinspector/internal/upstream/close.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..fff5f4232ad91e84e0844768847194edd1078e65
+index 000000000..fff5f4232
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/close.go
 @@ -0,0 +1,17 @@
@@ -5291,7 +5435,7 @@ index 0000000000000000000000000000000000000000..fff5f4232ad91e84e0844768847194ed
 +}
 diff --git a/service/taplineinspector/internal/upstream/connect.go b/service/taplineinspector/internal/upstream/connect.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..69f9ed7aab8aee1758795466f6a231f3b54a7c30
+index 000000000..69f9ed7aa
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/connect.go
 @@ -0,0 +1,84 @@
@@ -5381,7 +5525,7 @@ index 0000000000000000000000000000000000000000..69f9ed7aab8aee1758795466f6a231f3
 +}
 diff --git a/service/taplineinspector/internal/upstream/http3.go b/service/taplineinspector/internal/upstream/http3.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..b155001e40a42b401d0784e3b67699061cd32a5d
+index 000000000..b155001e4
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/http3.go
 @@ -0,0 +1,53 @@
@@ -5440,7 +5584,7 @@ index 0000000000000000000000000000000000000000..b155001e40a42b401d0784e3b6769906
 +}
 diff --git a/service/taplineinspector/internal/upstream/proxy_tls_test.go b/service/taplineinspector/internal/upstream/proxy_tls_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..cb62ed881ab228678a398470b5c2b726d8d10b84
+index 000000000..cb62ed881
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/proxy_tls_test.go
 @@ -0,0 +1,85 @@
@@ -5531,7 +5675,7 @@ index 0000000000000000000000000000000000000000..cb62ed881ab228678a398470b5c2b726
 +}
 diff --git a/service/taplineinspector/internal/upstream/timing.go b/service/taplineinspector/internal/upstream/timing.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..4642e5b3d459e68a8a19d4c12d6239356f2a0296
+index 000000000..4642e5b3d
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/timing.go
 @@ -0,0 +1,71 @@
@@ -5608,7 +5752,7 @@ index 0000000000000000000000000000000000000000..4642e5b3d459e68a8a19d4c12d623935
 +}
 diff --git a/service/taplineinspector/internal/upstream/tls.go b/service/taplineinspector/internal/upstream/tls.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a59104db309b19af96c852ab8d1632a6ce47d53
+index 000000000..8a59104db
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/tls.go
 @@ -0,0 +1,78 @@
@@ -5692,7 +5836,7 @@ index 0000000000000000000000000000000000000000..8a59104db309b19af96c852ab8d1632a
 +}
 diff --git a/service/taplineinspector/internal/upstream/transport.go b/service/taplineinspector/internal/upstream/transport.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..adbddb8bc486df21005b61c4a666594dc8aeea35
+index 000000000..adbddb8bc
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/transport.go
 @@ -0,0 +1,132 @@
@@ -5830,7 +5974,7 @@ index 0000000000000000000000000000000000000000..adbddb8bc486df21005b61c4a666594d
 +}
 diff --git a/service/taplineinspector/internal/upstream/transport_test.go b/service/taplineinspector/internal/upstream/transport_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..f66c6e889951ae12da317625b94eebf4cf86348e
+index 000000000..f66c6e889
 --- /dev/null
 +++ b/service/taplineinspector/internal/upstream/transport_test.go
 @@ -0,0 +1,117 @@
@@ -5953,7 +6097,7 @@ index 0000000000000000000000000000000000000000..f66c6e889951ae12da317625b94eebf4
 +}
 diff --git a/service/taplineinspector/service.go b/service/taplineinspector/service.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..43cde20b021abcce24f26a05612033ca8f701151
+index 000000000..43cde20b0
 --- /dev/null
 +++ b/service/taplineinspector/service.go
 @@ -0,0 +1,115 @@

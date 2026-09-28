@@ -1,7 +1,3 @@
 0001-tapline-core.patch
 0002-network-startup-race.patch
 0003-socks-udp-race.patch
-0004-socks-tls-sni.patch
-0005-http2-response-headers.patch
-0006-websocket-close-race.patch
-0007-websocket-upstream-address.patch
