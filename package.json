@@ -615,8 +615,8 @@
         "watch": "node esbuild.mjs --watch",
         "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/webview/tsconfig.json",
         "test": "vitest run",
-        "format": "prettier --write src scripts/*.mjs esbuild.mjs package.json",
-        "format:check": "prettier --check src scripts/*.mjs esbuild.mjs package.json",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
         "package": "node scripts/package.mjs",
         "package:all": "node scripts/package.mjs --all",
         "test:e2e": "node scripts/e2e.mjs"

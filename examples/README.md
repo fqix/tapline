@@ -27,7 +27,8 @@ cd examples/go
 go run .
 ```
 
-*Custom endpoint (optional):*
+_Custom endpoint (optional):_
+
 ```bash
 HTTPBIN=http://httpbin.org go run -C examples/go .
 ```
@@ -42,7 +43,8 @@ Uses Python 3 standard library `urllib.request` (zero pip dependencies required)
 python3 examples/python/main.py
 ```
 
-*Custom endpoint (optional):*
+_Custom endpoint (optional):_
+
 ```bash
 HTTPBIN=http://httpbin.org python3 examples/python/main.py
 ```
@@ -64,7 +66,8 @@ npx tsx examples/ts/main.ts
 cd examples/ts && npm install && npm start
 ```
 
-*Custom endpoint (optional):*
+_Custom endpoint (optional):_
+
 ```bash
 HTTPBIN=http://httpbin.org node --experimental-strip-types examples/ts/main.ts
 ```
@@ -81,7 +84,8 @@ Supports Java single-file execution:
 java examples/java/Main.java
 ```
 
-*Custom endpoint (optional):*
+_Custom endpoint (optional):_
+
 ```bash
 HTTPBIN=http://httpbin.org java examples/java/Main.java
 ```

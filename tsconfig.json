@@ -7,21 +7,9 @@
         "noEmit": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "lib": [
-            "ES2022"
-        ],
-        "types": [
-            "node",
-            "vscode",
-            "mocha"
-        ]
+        "lib": ["ES2022"],
+        "types": ["node", "vscode", "mocha"]
     },
-    "include": [
-        "src",
-        "esbuild.mjs",
-        "vitest.config.mts"
-    ],
-    "exclude": [
-        "src/webview"
-    ]
+    "include": ["src", "esbuild.mjs", "vitest.config.mts"],
+    "exclude": ["src/webview"]
 }
