@@ -5,6 +5,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.4]
+
 ### Security
 
 - `-d @file` in an imported curl command is read only from inside the open workspace
