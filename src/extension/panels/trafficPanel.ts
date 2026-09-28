@@ -1,8 +1,8 @@
 import { preferences } from '../preferences'
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { readFile, realpath } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { importCurl } from '../../utils/curl'
 import type { AgentClient } from '../client'
 import type { BreakpointEdit, ComposeRequest, Rule, Transaction } from '../../shared/model'
@@ -15,13 +15,29 @@ import {
     type PanelMessage
 } from '../../webview/types/messages'
 
-/** `-d @file` in an imported curl command: relative to the workspace folders. */
-async function readWorkspaceFile(name: string): Promise<Buffer | undefined> {
-    const roots = isAbsolute(name)
-        ? [name]
-        : (vscode.workspace.workspaceFolders ?? []).map((f) => join(f.uri.fsPath, name))
-    for (const path of roots) {
+/** `within` contains `path`, following symlinks so a link cannot lead out of it. */
+async function contains(within: string, path: string): Promise<boolean> {
+    const [root, target] = await Promise.all([
+        realpath(within),
+        // The file may not exist; resolve the nearest existing ancestor instead.
+        realpath(path).catch(async () => resolve(await realpath(dirname(path)), basename(path)))
+    ])
+    const step = relative(root, target)
+    return step !== '' && !step.startsWith('..') && !isAbsolute(step)
+}
+
+/**
+ * `-d @file` in an imported curl command. The command is pasted text — often copied
+ * from a browser, a chat or documentation — so the file it names is untrusted input:
+ * reads are confined to the open workspace folders, and an absolute path is accepted
+ * only when it points inside one of them. Anything else is reported, never read.
+ */
+export async function readWorkspaceFile(name: string): Promise<Buffer | undefined> {
+    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath)
+    for (const folder of folders) {
+        const path = resolve(folder, name)
         try {
+            if (!(await contains(folder, path))) continue
             return await readFile(path)
         } catch {
             // Try the next folder.

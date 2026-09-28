@@ -1,13 +1,21 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
 import type * as vscode from 'vscode'
 import type { AgentClient } from '../../extension/client'
-import { TrafficPanel, type PanelActions } from '../../extension/panels/trafficPanel'
+import {
+    TrafficPanel,
+    readWorkspaceFile,
+    type PanelActions
+} from '../../extension/panels/trafficPanel'
 import type { Event, Transaction } from '../../shared/model'
 import { toRow, type PanelMessage } from '../../webview/types/messages'
 
 const ui = vi.hoisted(() => ({
     receive: undefined as undefined | ((message: PanelMessage) => void),
-    post: vi.fn()
+    post: vi.fn(),
+    folders: [] as { uri: { fsPath: string } }[]
 }))
 vi.mock('../../extension/preferences', () => ({
     preferences: { onDidChange: () => ({ dispose() {} }) }
@@ -15,6 +23,11 @@ vi.mock('../../extension/preferences', () => ({
 vi.mock('vscode', () => ({
     ViewColumn: { Active: 1 },
     env: { language: 'en' },
+    workspace: {
+        get workspaceFolders() {
+            return ui.folders
+        }
+    },
     Uri: { joinPath: () => 'asset' },
     l10n: { t: (text: string) => text },
     window: {
@@ -94,5 +107,36 @@ it('batches evictions with updates, including requests evicted before their firs
         })
     } finally {
         panel.dispose()
+    }
+})
+
+it('reads curl @file only from inside the workspace folders', async () => {
+    // A pasted curl command is untrusted text, so `-d @file` must not be able to
+    // name a path outside the folders the user opened.
+    const root = mkdtempSync(join(tmpdir(), 'tapline-curl-'))
+    const outside = mkdtempSync(join(tmpdir(), 'tapline-secret-'))
+    writeFileSync(join(root, 'body.json'), '{"in":true}')
+    mkdirSync(join(root, 'nested'))
+    writeFileSync(join(root, 'nested', 'deep.txt'), 'nested')
+    writeFileSync(join(outside, 'id_rsa'), 'PRIVATE KEY')
+    ui.folders = [{ uri: { fsPath: root } }]
+    try {
+        expect((await readWorkspaceFile('body.json'))?.toString()).toBe('{"in":true}')
+        expect((await readWorkspaceFile('nested/deep.txt'))?.toString()).toBe('nested')
+        // Traversal out of the folder, an absolute path elsewhere, and a symlink that
+        // points out of it all resolve outside the root and are refused.
+        expect(await readWorkspaceFile(join('..', basename(outside), 'id_rsa'))).toBeUndefined()
+        expect(await readWorkspaceFile(join(outside, 'id_rsa'))).toBeUndefined()
+        symlinkSync(join(outside, 'id_rsa'), join(root, 'link'))
+        expect(await readWorkspaceFile('link')).toBeUndefined()
+        // An absolute path that genuinely is inside the workspace still works.
+        expect((await readWorkspaceFile(join(root, 'body.json')))?.toString()).toBe('{"in":true}')
+        // No workspace at all: nothing is readable.
+        ui.folders = []
+        expect(await readWorkspaceFile('body.json')).toBeUndefined()
+    } finally {
+        ui.folders = []
+        rmSync(root, { recursive: true, force: true })
+        rmSync(outside, { recursive: true, force: true })
     }
 })
