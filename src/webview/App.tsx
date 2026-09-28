@@ -48,15 +48,34 @@ export function App() {
     const deferred = useDeferredValue(filters)
     const terms = useMemo(() => parseQuery(deferred.text), [deferred.text])
     const remoteText = useMemo(() => remoteQuery(terms), [terms])
-    // Body/header terms are answered by the host; ask again when the query or rows change.
+    // Body/header terms are answered by the host. Scanning means reading every retained
+    // body, so once a query is answered only the rows that arrived since are sent back.
+    const answered = remote?.query === remoteText ? remote.scanned : undefined
+    const unscanned = useMemo(
+        () =>
+            answered
+                ? [...rows.values()]
+                      // A pending request is still receiving its body, so an earlier
+                      // answer about it can go stale; completed rows never change.
+                      .filter((row) => !answered.has(row.id) || row.state === 'pending')
+                      .map((row) => row.id)
+                : undefined,
+        [rows, answered]
+    )
     useEffect(() => {
         if (!remoteText) return
+        if (unscanned && !unscanned.length) return
         const timer = setTimeout(
-            () => vscode.postMessage({ type: 'search', query: remoteText }),
-            remote?.query === remoteText ? 500 : 200
+            () =>
+                vscode.postMessage({
+                    type: 'search',
+                    query: remoteText,
+                    ...(unscanned ? { ids: unscanned } : {})
+                }),
+            unscanned ? 500 : 200
         )
         return () => clearTimeout(timer)
-    }, [remoteText, rows, remote?.query])
+    }, [remoteText, unscanned])
     const remoteIds = remoteText
         ? remote?.query === remoteText
             ? remote.ids

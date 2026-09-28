@@ -49,11 +49,20 @@ function holds(t: Transaction, term: Term): boolean {
     return term.negate ? !hit : hit
 }
 
-/** Ids of the transactions satisfying every body/header term of `query`. */
-export function searchTransactions(items: Iterable<Transaction>, query: string): string[] {
+/**
+ * Ids of the transactions satisfying every body/header term of `query`. `only` limits
+ * the scan to those ids: bodies are large and capture is live, so the panel re-asks for
+ * the rows it has not classified yet instead of paying for the whole set again.
+ */
+export function searchTransactions(
+    items: Iterable<Transaction>,
+    query: string,
+    only?: ReadonlySet<string>
+): string[] {
     const terms = parseQuery(query).filter((t) => remoteKeys.includes(t.key))
     if (!terms.length) return []
     const ids: string[] = []
-    for (const t of items) if (terms.every((term) => holds(t, term))) ids.push(t.id)
+    for (const t of items)
+        if ((!only || only.has(t.id)) && terms.every((term) => holds(t, term))) ids.push(t.id)
     return ids
 }

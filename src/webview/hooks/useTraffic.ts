@@ -22,8 +22,16 @@ export function useTraffic() {
     const [focus, setFocus] = useState<{ id: string; tick: number }>()
     const pendingFocus = useRef<string | undefined>(undefined)
     const [rules, setRulesState] = useState<Rule[]>([])
-    /** Ids the host found for the body/header part of the filter, keyed by that query. */
-    const [remote, setRemote] = useState<{ query: string; ids: Set<string> }>()
+    /**
+     * Ids the host found for the body/header part of the filter, keyed by that query.
+     * `scanned` is every id the host has already classified for it, so a live capture
+     * only ever asks about rows that arrived since.
+     */
+    const [remote, setRemote] = useState<{
+        query: string
+        ids: Set<string>
+        scanned: Set<string>
+    }>()
     const [pane, setPaneState] = useState<Pane>(() => {
         const saved = state().pane
         return saved && ['inspector', 'stats', 'rules', 'composer'].includes(saved)
@@ -102,7 +110,19 @@ export function useTraffic() {
                     if (!saveTimer.current) setRulesState(message.rules)
                     return
                 case 'search':
-                    setRemote({ query: message.query, ids: new Set(message.ids) })
+                    setRemote((previous) =>
+                        message.scanned && previous?.query === message.query
+                            ? {
+                                  query: message.query,
+                                  ids: new Set([...previous.ids, ...message.ids]),
+                                  scanned: new Set([...previous.scanned, ...message.scanned])
+                              }
+                            : {
+                                  query: message.query,
+                                  ids: new Set(message.ids),
+                                  scanned: new Set(message.scanned ?? [])
+                              }
+                    )
                     return
                 case 'pane':
                     if (message.draft) setDraft(message.draft)

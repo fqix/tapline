@@ -293,13 +293,20 @@ export class TrafficPanel implements vscode.Disposable {
                     return this.actions.resume(message.id, message.edit)
                 case 'abort':
                     return this.actions.abort(message.id)
-                case 'search':
+                case 'search': {
+                    const only = message.ids && new Set(message.ids)
                     this.post({
                         type: 'search',
                         query: message.query,
-                        ids: searchTransactions(this.client.transactions.values(), message.query)
+                        ids: searchTransactions(
+                            this.client.transactions.values(),
+                            message.query,
+                            only
+                        ),
+                        ...(only ? { scanned: message.ids } : {})
                     })
                     return
+                }
                 case 'pickFile': {
                     const picked = await vscode.window.showOpenDialog({
                         canSelectMany: false,

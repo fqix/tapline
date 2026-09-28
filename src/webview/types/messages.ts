@@ -107,8 +107,11 @@ export type HostMessage =
     | { type: 'host'; host: string }
     /** The current rule set (on ready and whenever the setting changes). */
     | { type: 'rules'; rules: Rule[] }
-    /** Ids matching the host-evaluated part of a filter query (bodies, headers). */
-    | { type: 'search'; query: string; ids: string[] }
+    /**
+     * Ids matching the host-evaluated part of a filter query (bodies, headers).
+     * `scanned` lists the ids the answer covers when it is a delta.
+     */
+    | { type: 'search'; query: string; ids: string[]; scanned?: string[] }
     /** Open a side pane; `draft` prefills the composer. */
     | { type: 'pane'; pane: Pane; draft?: ComposeDraft }
     /** Result of `importCurl`: the draft to show, plus what could not be imported. */
@@ -142,8 +145,11 @@ export type PanelMessage =
     | { type: 'compose'; request: ComposeRequest }
     /** Parse a curl command on the host (curlconverter) into a composer draft. */
     | { type: 'importCurl'; text: string }
-    /** Evaluate the host-side terms of a filter query. */
-    | { type: 'search'; query: string }
+    /**
+     * Evaluate the host-side terms of a filter query; `ids` restricts the scan to the
+     * rows the panel has not had an answer for yet.
+     */
+    | { type: 'search'; query: string; ids?: string[] }
 
 export type Layout = 'stacked' | 'side'
 /** What the second split pane shows besides the inspector. */
