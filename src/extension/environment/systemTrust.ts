@@ -137,28 +137,45 @@ function windows(certificate: string, runner: Runner): TrustStore {
     }
 }
 
-/** Distribution anchor directories, in detection order. */
+/**
+ * Distribution anchor directories, in detection order. `bundles` are the files the
+ * `update` command regenerates: an anchor is only trusted once the CA reaches one.
+ */
 export const LINUX_ANCHORS = [
     {
         directory: '/usr/local/share/ca-certificates',
         file: 'tapline-root-ca.crt',
-        update: 'update-ca-certificates'
+        update: 'update-ca-certificates',
+        bundles: ['/etc/ssl/certs/ca-certificates.crt']
     },
     {
         directory: '/etc/pki/ca-trust/source/anchors',
         file: 'tapline-root-ca.pem',
-        update: 'update-ca-trust'
+        update: 'update-ca-trust',
+        bundles: ['/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem']
     },
     {
         directory: '/etc/ca-certificates/trust-source/anchors',
         file: 'tapline-root-ca.pem',
-        update: 'trust extract-compat'
+        update: 'trust extract-compat',
+        bundles: [
+            '/etc/ca-certificates/extracted/tls-ca-bundle.pem',
+            '/etc/ssl/certs/ca-certificates.crt'
+        ]
     }
 ] as const
 
+/** The base64 body of a PEM certificate, for comparing across file formatting. */
+const pemBody = (pem: string) => pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')
+
 /* Linux: a system anchor plus the distribution's bundle refresh, which needs root.
  * The command runs in a terminal so the user can answer the sudo prompt. */
-function linux(certificate: string, runner: Runner, exists: (path: string) => boolean): TrustStore {
+function linux(
+    certificate: string,
+    runner: Runner,
+    exists: (path: string) => boolean,
+    read: (path: string) => string
+): TrustStore {
     const anchor = LINUX_ANCHORS.find((a) => exists(a.directory))
     if (!anchor)
         throw new Error(
@@ -183,14 +200,25 @@ function linux(certificate: string, runner: Runner, exists: (path: string) => bo
         location: target,
         separateTrustStep: false,
         async status() {
+            let body: string
             try {
-                return readFileSync(target, 'utf8').trim() ===
-                    readFileSync(certificate, 'utf8').trim()
-                    ? 'trusted'
-                    : 'missing'
+                if (pemBody(read(target)) !== (body = pemBody(read(certificate)))) return 'missing'
             } catch {
                 return 'missing'
             }
+            // The anchor file alone proves nothing: until the distribution's bundle has
+            // been regenerated, clients still reject certificates issued by the CA.
+            const generated = anchor.bundles.filter(exists)
+            if (!generated.length) return 'trusted'
+            return generated.some((path) => {
+                try {
+                    return pemBody(read(path)).includes(body)
+                } catch {
+                    return false
+                }
+            })
+                ? 'trusted'
+                : 'installed'
         },
         install,
         trust: install,
@@ -204,7 +232,8 @@ export function systemTrustStore(
     certificate: string,
     runner: Runner,
     home = homedir(),
-    exists: (path: string) => boolean = existsSync
+    exists: (path: string) => boolean = existsSync,
+    read: (path: string) => string = (path) => readFileSync(path, 'utf8')
 ): TrustStore {
     switch (runner.platform) {
         case 'darwin':
@@ -212,7 +241,7 @@ export function systemTrustStore(
         case 'win32':
             return windows(certificate, runner)
         case 'linux':
-            return linux(certificate, runner, exists)
+            return linux(certificate, runner, exists, read)
         default:
             throw new Error(`Certificate installation is not supported on ${runner.platform}`)
     }

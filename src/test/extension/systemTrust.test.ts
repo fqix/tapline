@@ -170,6 +170,37 @@ describe('system trust store', () => {
             await store.uninstall()
             expect(shells[1].args[2]).toMatch(/^rm -f /)
         })
+        it('reports installed until the distribution bundle carries the CA', async () => {
+            const { runner } = fake('linux')
+            const anchor = '/usr/local/share/ca-certificates/tapline-root-ca.crt'
+            const bundle = '/etc/ssl/certs/ca-certificates.crt'
+            const files: Record<string, string> = { [certificate]: identity.cert }
+            const store = systemTrustStore(
+                certificate,
+                runner,
+                undefined,
+                (path) => path === '/usr/local/share/ca-certificates' || path in files,
+                (path) => {
+                    if (!(path in files)) throw new Error('ENOENT')
+                    return files[path]
+                }
+            )
+            // No anchor file yet.
+            expect(await store.status()).toBe('missing')
+            // Anchor in place, but `update-ca-certificates` has not run.
+            files[anchor] = identity.cert
+            files[bundle] = 'some other root\n'
+            expect(await store.status()).toBe('installed')
+            // The refreshed bundle carries the CA, so clients finally accept it.
+            files[bundle] = `other\n${identity.cert}`
+            expect(await store.status()).toBe('trusted')
+            // Formatting differences in the anchor copy must not read as a mismatch.
+            files[anchor] = identity.cert.replace(/\n/g, '\r\n')
+            expect(await store.status()).toBe('trusted')
+            // A different certificate at the anchor is not ours.
+            files[anchor] = selfSigned().cert
+            expect(await store.status()).toBe('missing')
+        })
         it('skips sudo for root and fails on a non-zero exit', async () => {
             const { runner, shells } = fake('linux', { shell: { code: 1 } }, 0)
             const store = systemTrustStore(
