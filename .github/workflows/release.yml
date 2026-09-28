@@ -53,19 +53,23 @@ jobs:
       # Azure DevOps retires global PATs on 2026-12-01; the Marketplace accepts a
       # managed identity through workload identity federation instead (no secret).
       - name: Sign in to Azure
-        uses: azure/login@v3
+        # Third-party action in the job holding the publishing identity: pinned to a
+        # commit so a moved tag cannot publish as us. (v3)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
+      # Exact versions: `npx` resolves at publish time, so a floating major would run
+      # code published after this workflow was reviewed, with credentials in scope.
       - name: Publish to VS Code Marketplace
-        run: npx --yes @vscode/vsce@3 publish --azure-credential --packagePath dist/*.vsix
+        run: npx --yes @vscode/vsce@3.9.2 publish --azure-credential --packagePath dist/*.vsix
 
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --yes ovsx@1 publish --packagePath dist/*.vsix
+        run: npx --yes ovsx@1.2.0 publish --packagePath dist/*.vsix
 
       - name: Attach VSIX packages to the release
         env:

@@ -70,14 +70,15 @@ jobs:
             third_party/patches/sing-box/**
 
       - name: Install dependencies
-        # Keep the lockfile usable when npm's bundled resolver updates optional
-        # platform packages (esbuild publishes one package per runner platform).
+        # Install strictly from the committed lockfile: regenerating it here would
+        # re-resolve semver ranges on every run, so a newly published version could
+        # reach the VSIX that release.yml publishes. The lockfile already carries
+        # every @esbuild platform package, so `npm ci` needs no help.
+        # curlconverter's native tree-sitter addons do not support every Node 24
+        # target. Build and tests use our WASM parser instead; only esbuild needs
+        # its install script for this pipeline (VSIX packaging does not sign).
         run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          # curlconverter's native tree-sitter addons do not support every Node 24
-          # target. Build and tests use our WASM parser instead; only esbuild needs
-          # its install script for this pipeline (VSIX packaging does not sign).
-          npm ci --ignore-scripts
+          npm ci --ignore-scripts --no-audit --no-fund
           npm rebuild esbuild
 
       - name: Check formatting
