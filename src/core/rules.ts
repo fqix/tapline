@@ -79,41 +79,69 @@ export function mimeForBody(body: string): string {
     }
 }
 
-const decoders: Record<string, (bytes: Buffer) => Buffer> = {
-    gzip: (b) => zlib.gunzipSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH }),
-    'x-gzip': (b) => zlib.gunzipSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH }),
-    deflate: (b) => {
+/**
+ * Upper bound on a single decoded body. Compressed bodies come from whatever server
+ * was captured, and every decoder here is synchronous: without a cap a few hundred
+ * kilobytes of crafted gzip (≈1000:1) or brotli expand to gigabytes and take the
+ * shared agent — and with it every window's capture — down with them. Bodies larger
+ * than this are left encoded, which `decodeBody` already reports as "not decoded".
+ */
+export const MAX_DECODED_BYTES = 64 * 1024 * 1024
+
+const decoders: Record<string, (bytes: Buffer, maxOutputLength: number) => Buffer> = {
+    gzip: (b, maxOutputLength) =>
+        zlib.gunzipSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH, maxOutputLength }),
+    'x-gzip': (b, maxOutputLength) =>
+        zlib.gunzipSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH, maxOutputLength }),
+    deflate: (b, maxOutputLength) => {
         try {
-            return zlib.inflateSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH })
+            return zlib.inflateSync(b, {
+                finishFlush: zlib.constants.Z_SYNC_FLUSH,
+                maxOutputLength
+            })
         } catch {
-            return zlib.inflateRawSync(b, { finishFlush: zlib.constants.Z_SYNC_FLUSH })
+            return zlib.inflateRawSync(b, {
+                finishFlush: zlib.constants.Z_SYNC_FLUSH,
+                maxOutputLength
+            })
         }
     },
-    br: (b) => zlib.brotliDecompressSync(b, { finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH }),
+    br: (b, maxOutputLength) =>
+        zlib.brotliDecompressSync(b, {
+            finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH,
+            maxOutputLength
+        }),
     ...('zstdDecompressSync' in zlib
         ? {
-              zstd: (b: Buffer) =>
-                  (zlib as unknown as { zstdDecompressSync(b: Buffer): Buffer }).zstdDecompressSync(
-                      b
-                  )
+              zstd: (b: Buffer, maxOutputLength: number) =>
+                  (
+                      zlib as unknown as {
+                          zstdDecompressSync(
+                              b: Buffer,
+                              options: { maxOutputLength: number }
+                          ): Buffer
+                      }
+                  ).zstdDecompressSync(b, { maxOutputLength })
           }
         : {})
 }
 
 /**
  * Decode a `Content-Encoding`d body. Truncated input decodes as far as it goes; anything
- * that fails (unknown scheme, corrupt data) comes back untouched with no `encoding`.
+ * that fails (unknown scheme, corrupt data, or output past `maxOutputLength`) comes back
+ * untouched with no `encoding`.
  */
 export function decodeBody(
     bytes: Buffer,
-    contentEncoding: string | undefined
+    contentEncoding: string | undefined,
+    maxOutputLength = MAX_DECODED_BYTES
 ): { bytes: Buffer; encoding?: string } {
     const encoding = contentEncoding?.split(',')[0].trim().toLowerCase()
     if (!encoding || encoding === 'identity') return { bytes }
     const decoder = decoders[encoding]
     if (!decoder || !bytes.length) return { bytes }
     try {
-        return { bytes: decoder(bytes), encoding }
+        return { bytes: decoder(bytes, maxOutputLength), encoding }
     } catch {
         return { bytes }
     }
