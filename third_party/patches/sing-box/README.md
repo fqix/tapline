@@ -1,23 +1,23 @@
 # sing-box core for Tapline
 
 Tapline uses the upstream [sing-box](https://github.com/SagerNet/sing-box) CLI at
-[pin.json](pin.json), with three patches applied in [series](series) order. The
+[pin.json](pin.json), with two patches applied in [series](series) order. The
 capture engine originated in [Fluxy](https://github.com/fqix/fluxy); it retains its
 MIT license inside the GPL-3.0 sing-box distribution. Tapline uses a VS Code
 extension, one shared Node agent and one core, with an isolated inlet per window.
 
-| Patch                           | Purpose                                                                                                                                                                                                                                                                |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0001-tapline-core.patch         | Reduced transport profile; embedded inspector; HTTP/1–3, gRPC and WebSocket capture; IPC; dynamic window inlets; TLS policy and tunnel lifecycle; SOCKS5 SNI certificate selection; HTTP/2 response header filtering; WebSocket closure and upstream address reporting |
-| 0002-network-startup-race.patch | Atomic network manager startup state                                                                                                                                                                                                                                   |
-| 0003-socks-udp-race.patch       | Bind SOCKS5 UDP reply endpoints before concurrent routing; preserve and test the wrapper chain                                                                                                                                                                         |
+| Patch                     | Purpose                                                                                                                                                                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0001-tapline-core.patch   | Reduced transport profile; embedded inspector; HTTP/1–3, gRPC and WebSocket capture; IPC; dynamic window inlets; TLS policy and tunnel lifecycle; SOCKS5 SNI certificate selection; HTTP/2 response header filtering; WebSocket closure and upstream address reporting |
+| 0002-socks-udp-race.patch | Bind SOCKS5 UDP reply endpoints before concurrent routing; preserve and test the wrapper chain                                                                                                                                                                         |
 
 One patch per concern: everything under `service/taplineinspector` and the other
 files Tapline introduces lives in the first patch, so a fix to our own code is folded
-in rather than stacked on top of it. The other two stay separate because they change
-upstream networking independently of the inspector, which keeps them droppable when
-upstream lands its own fix and sendable upstream as they are. Obsolete token-based
-inspection ingress and its tests are removed from the resulting tree.
+in rather than stacked on top of it. The second patch stays separate because it changes
+upstream networking independently of the inspector, which keeps it droppable when
+upstream lands its own fix and sendable upstream as it is (former patch 0002 for
+network manager startup race was dropped when upstream landed lifecycle synchronization).
+Obsolete token-based inspection ingress and its tests are removed from the resulting tree.
 
 Rebuild the first patch after changing Tapline's own core sources: apply the series
 to a pristine checkout of `pin.json`'s revision, commit the result, and export it

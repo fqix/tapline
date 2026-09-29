@@ -5,6 +5,11 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade bundled sing-box core from 1.14.0 to 1.14.2. Upstream merged lifecycle
+  synchronization for the network manager, allowing former patch 0002 to be dropped.
+
 ## [0.12.4]
 
 ### Security

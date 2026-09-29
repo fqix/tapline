@@ -1,16 +1,16 @@
-From fb4355630f4a504dd370d41089ec32ab7deee052 Mon Sep 17 00:00:00 2001
+From 0966793ca4d9d026841bf0ef186ede4d61eda4f2 Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
 Date: Wed, 23 Sep 2026 10:36:03 +0800
 Subject: [PATCH] fix(socks): bind UDP replies before concurrent routing
 
 ---
- protocol/socks/inbound.go      |  41 ++++++++++++
+ protocol/socks/inbound.go      |  40 +++++++++++
  protocol/socks/inbound_test.go | 119 +++++++++++++++++++++++++++++++++
- 2 files changed, 160 insertions(+)
+ 2 files changed, 159 insertions(+)
  create mode 100644 protocol/socks/inbound_test.go
 
 diff --git a/protocol/socks/inbound.go b/protocol/socks/inbound.go
-index 0f570b51f84dccc4d3a710505f035b3bb36bb1ba..c2dd30947d5c72173b418383034bc8dd76aca40d 100644
+index c498efc4ed9a0a414afcb43bc061374fb00890b4..e96cb037c26a1dcdf73523453fb9664f3ce18605 100644
 --- a/protocol/socks/inbound.go
 +++ b/protocol/socks/inbound.go
 @@ -3,6 +3,8 @@ package socks
@@ -22,7 +22,7 @@ index 0f570b51f84dccc4d3a710505f035b3bb36bb1ba..c2dd30947d5c72173b418383034bc8dd
  	"net"
  	"time"
  
-@@ -13,9 +15,13 @@ import (
+@@ -13,7 +15,10 @@ import (
  	C "github.com/sagernet/sing-box/constant"
  	"github.com/sagernet/sing-box/log"
  	"github.com/sagernet/sing-box/option"
@@ -32,19 +32,16 @@ index 0f570b51f84dccc4d3a710505f035b3bb36bb1ba..c2dd30947d5c72173b418383034bc8dd
 +	"github.com/sagernet/sing/common/canceler"
  	E "github.com/sagernet/sing/common/exceptions"
  	"github.com/sagernet/sing/common/logger"
-+	M "github.com/sagernet/sing/common/metadata"
- 	N "github.com/sagernet/sing/common/network"
- 	"github.com/sagernet/sing/protocol/socks"
- )
-@@ -97,6 +103,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
+ 	M "github.com/sagernet/sing/common/metadata"
+@@ -98,6 +103,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
  }
  
  func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 +	conn = bindPacketClient(conn)
  	metadata.Inbound = h.Tag()
  	metadata.InboundType = h.Type()
- 	user, loaded := auth.UserFromContext[string](ctx)
-@@ -117,3 +124,37 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
+ 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
+@@ -119,3 +125,37 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
  	}
  	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
  }
