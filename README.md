@@ -240,8 +240,8 @@ npm version patch && git push --follow-tags
 ```
 
 The [release workflow](.github/workflows/release.yml) rebuilds all platforms, publishes to
-the VS Code Marketplace (Azure managed identity over OIDC, no PAT) and Open VSX, and
-attaches the VSIX files to the release.
+the VS Code Marketplace (Azure managed identity over OIDC, no PAT) and Open VSX (trusted
+publishing over OIDC, no PAT), and attaches the VSIX files to the release.
 
 ## Licence
 

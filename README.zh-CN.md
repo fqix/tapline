@@ -209,8 +209,8 @@ npm version patch && git push --follow-tags
 ```
 
 [release 工作流](.github/workflows/release.yml)会重新构建所有平台，发布到 VS Code
-Marketplace（通过 OIDC 以 Azure 托管标识登录，不用 PAT）和 Open VSX，并把 VSIX 附加到
-release 上。
+Marketplace（通过 OIDC 以 Azure 托管标识登录，不用 PAT）和 Open VSX（通过 OIDC 可信发布，
+不用 PAT），并把 VSIX 附加到 release 上。
 
 ## 许可证
 

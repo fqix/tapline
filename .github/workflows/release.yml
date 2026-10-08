@@ -66,10 +66,12 @@ jobs:
       - name: Publish to VS Code Marketplace
         run: npx --yes @vscode/vsce@3.9.2 publish --azure-credential --packagePath dist/*.vsix
 
+      # Trusted publishing exchanges this job's OIDC token for a short-lived Open VSX
+      # token (no secret). The registration on open-vsx.org pins fqix/tapline,
+      # release.yml and the marketplace-publish environment. --trusted-publishing
+      # fails instead of falling back when no ID token is available.
       - name: Publish to Open VSX
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --yes ovsx@1.2.0 publish --packagePath dist/*.vsix
+        run: npx --yes ovsx@1.2.0 publish --trusted-publishing --packagePath dist/*.vsix
 
       - name: Attach VSIX packages to the release
         env:
