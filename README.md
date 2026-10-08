@@ -208,6 +208,8 @@ _Tapline: Configure MCP Server…_ gives one-click install in Cursor, the URL, a
 A Node agent drives a bundled, patched [sing-box](third_party/patches/sing-box/README.md):
 sing-box terminates TLS with leaf certificates minted from the Tapline CA and streams
 bodies through the agent, which records them, applies rules and passes them on.
+The interception engine is the separate Go module in [engine](engine/README.md); the
+patch series only adds the glue that embeds it in sing-box.
 
 ## Development
 

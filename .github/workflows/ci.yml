@@ -68,6 +68,7 @@ jobs:
           cache-dependency-path: |
             third_party/patches/sing-box/pin.json
             third_party/patches/sing-box/**
+            engine/go.sum
 
       - name: Install dependencies
         # Install strictly from the committed lockfile: regenerating it here would

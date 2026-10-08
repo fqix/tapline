@@ -5,7 +5,15 @@
 //   node scripts/build-core.mjs --test          # go test + vet of the patched packages
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, copyFileSync } from 'node:fs'
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+    copyFileSync
+} from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -14,6 +22,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PATCHES = join(ROOT, 'third_party/patches/sing-box')
 const PIN = JSON.parse(readFileSync(join(ROOT, 'third_party/patches/sing-box/pin.json'), 'utf8'))
 const SOURCE = join(ROOT, 'third_party/sing-box')
+// The inspection engine is a separate Go module that the patched core requires through a
+// `replace` directive pointing at ../../engine, so it is built from this checkout as is.
+const ENGINE = join(ROOT, 'engine')
 const GO = process.env.TAPLINE_GO || 'go'
 const GOOS = { darwin: 'darwin', linux: 'linux', win32: 'windows' }
 const GOARCH = { x64: 'amd64', arm64: 'arm64' }
@@ -44,7 +55,18 @@ const patches = readFileSync(join(PATCHES, 'series'), 'utf8')
         return { name, path, sha256: sha256(path) }
     })
 
+function engineSha256() {
+    const files = readdirSync(ENGINE, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => join(entry.parentPath, entry.name).slice(ENGINE.length + 1))
+        .sort()
+    const hash = createHash('sha256')
+    for (const file of files) hash.update(file + '\0').update(readFileSync(join(ENGINE, file)))
+    return hash.digest('hex')
+}
+
 function checkout() {
+    if (!existsSync(join(ENGINE, 'go.mod'))) throw new Error(`engine module missing at ${ENGINE}`)
     const git = (...args) => output('git', args, { cwd: SOURCE })
     if (!existsSync(join(SOURCE, '.git'))) {
         throw new Error(
@@ -143,6 +165,9 @@ if (values.test) {
         cwd: SOURCE,
         env
     })
+    // The engine builds and tests on its own, without the sing-box checkout.
+    run(GO, ['test', '-race', '-mod=readonly', './...'], { cwd: ENGINE, env })
+    run(GO, ['vet', '-mod=readonly', './...'], { cwd: ENGINE, env })
     // Scan the patched module graph, including dependencies invisible in patch text.
     run(
         GO,
@@ -195,6 +220,7 @@ for (const target of targets) {
                 target,
                 tags: tags.split(','),
                 patches: patches.map(({ name, sha256 }) => ({ name, sha256 })),
+                engine: { module: 'github.com/fqix/tapline/engine', sha256: engineSha256() },
                 modules,
                 sha256: sha256(binary)
             },
