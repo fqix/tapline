@@ -172,3 +172,37 @@ func TestTrackedConnDiscardsTimeoutAfterDeadlineReset(t *testing.T) {
 		workers.Wait()
 	})
 }
+
+func TestTrackedConnReportsPeerCloseAsEOF(t *testing.T) {
+	// A tunnel client may close right after consuming its response. The pump sees
+	// that EOF first and cancels the connection; Read must still report the EOF,
+	// not a local net.ErrClosed that would mark the tunnel as failed.
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		client, server := net.Pipe()
+		conn := &trackedConn{
+			Conn: server, ctx: ctx, cancel: cancel, connections: &sync.Map{},
+			incoming: make(chan connectionRead, 1), readWake: make(chan struct{}, 1),
+		}
+		defer closeQuietly(conn)
+		var workers sync.WaitGroup
+		workers.Go(conn.pump)
+		workers.Go(func() {
+			if _, err := client.Write([]byte("last")); err != nil {
+				t.Error(err)
+			}
+			closeQuietly(client)
+		})
+		var buffer [4]byte
+		if _, err := io.ReadFull(conn, buffer[:]); err != nil {
+			t.Fatalf("read before close: %v", err)
+		}
+		synctest.Wait()
+		if _, err := conn.Read(buffer[:]); !errors.Is(err, io.EOF) {
+			t.Errorf("read after peer close = %v, want EOF", err)
+		}
+		closeQuietly(conn)
+		workers.Wait()
+	})
+}

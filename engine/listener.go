@@ -91,6 +91,9 @@ type trackedConn struct {
 	readWake           chan struct{}
 	closeAfterResponse atomic.Bool
 	ingressSource      atomic.Pointer[net.TCPAddr]
+	// The pump's final read error. A peer close is reported as itself rather
+	// than as a locally closed connection.
+	peerErr atomic.Pointer[error]
 }
 
 type connectionRead struct {
@@ -108,6 +111,7 @@ func (c *trackedConn) pump() {
 		var networkError net.Error
 		timeout := errors.As(err, &networkError) && networkError.Timeout()
 		if err != nil && !timeout {
+			c.peerErr.Store(&err)
 			c.cancel()
 			return
 		}
@@ -142,6 +146,9 @@ func (c *trackedConn) Read(data []byte) (int, error) {
 	for len(c.buffer) == 0 && c.readErr == nil {
 		select {
 		case <-c.ctx.Done():
+			if err := c.peerErr.Load(); err != nil {
+				return 0, *err
+			}
 			return 0, net.ErrClosed
 		case result := <-c.incoming:
 			var timeout net.Error
