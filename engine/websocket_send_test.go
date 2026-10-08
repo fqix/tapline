@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gobwas/ws"
 	"github.com/fqix/tapline/engine/internal/ipc"
+	"github.com/gobwas/ws"
 )
 
 // Model a TCP/TLS reader interrupted by socket cleanup, rather than pipe EOF.

@@ -15,8 +15,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/elazarl/goproxy"
-	"github.com/gobwas/ws"
 	"github.com/fqix/tapline/engine/internal/ipc"
+	"github.com/gobwas/ws"
 )
 
 const maxWebSocketMessage = 100 * 1024 * 1024

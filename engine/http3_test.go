@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fqix/tapline/engine/internal/ipc"
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
-	"github.com/fqix/tapline/engine/internal/ipc"
 )
 
 func TestHTTP3Inspection(t *testing.T) {
