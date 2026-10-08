@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     uses: ./.github/workflows/ci.yml
+    with:
+      package: true
 
   publish:
     name: Publish

@@ -7,6 +7,11 @@ on:
   workflow_dispatch:
   # Lets release.yml reuse the build so published VSIX files come from the same pipeline.
   workflow_call:
+    inputs:
+      package:
+        description: Package and upload the VSIX files (release only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -108,10 +113,13 @@ jobs:
         if: matrix.e2e && runner.os != 'Linux'
         run: npm run test:e2e
 
+      # Only release.yml consumes the VSIX artifacts; push and PR runs skip them.
       - name: Package VSIX
+        if: inputs.package
         run: npm run package -- --target ${{ matrix.target }}
 
       - name: Upload VSIX
+        if: inputs.package
         uses: actions/upload-artifact@v7
         with:
           name: tapline-${{ matrix.target }}
