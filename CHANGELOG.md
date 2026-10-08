@@ -5,6 +5,22 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.1]
+
+### Fixed
+
+- A tunnel for a host that is not decrypted could be recorded as failed with "use of
+  closed network connection" when the client closed right after reading its response,
+  most often on Windows. It now completes normally.
+
+### Changed
+
+- The interception engine is a separate Go module in `engine/`, tested on its own. The
+  sing-box patch series now holds only the glue and the reduced protocol registry (about
+  1,300 lines instead of 6,400), and the unused `sing-box api` subcommands are no longer
+  compiled into the core.
+- Open VSX releases use trusted publishing over OIDC instead of an access token.
+
 ## [0.13.0]
 
 ### Changed
