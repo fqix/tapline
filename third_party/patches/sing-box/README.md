@@ -5,10 +5,10 @@ Tapline uses the upstream [sing-box](https://github.com/SagerNet/sing-box) CLI a
 MIT license inside the GPL-3.0 sing-box distribution. Tapline uses a VS Code
 extension, one shared Node agent and one core, with an isolated inlet per window.
 
-| Patch                     | Purpose                                                                                                                                                                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0001-tapline-core.patch   | Reduced transport profile; the glue that embeds the [inspection engine](../../../engine/README.md) (service, outbound, window inlets, IPC ownership, registry); JA3 and QUIC sniffing hooks; SOCKS5 SNI certificate selection |
-| 0002-socks-udp-race.patch | Bind SOCKS5 UDP reply endpoints before concurrent routing; preserve and test the wrapper chain                                                                                                                                |
+| Patch                     | Purpose                                                                                                                                                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0001-tapline-core.patch   | Reduced registry (`with_tapline`: tun, HTTP, SOCKS and direct only); the glue that embeds the [inspection engine](../../../engine/README.md) (service, outbound, window inlets, IPC ownership, registry); JA3 and QUIC sniffing hooks; SOCKS5 SNI certificate selection |
+| 0002-socks-udp-race.patch | Bind SOCKS5 UDP reply endpoints before concurrent routing; preserve and test the wrapper chain                                                                                                                                                                          |
 
 One patch per concern: the glue files Tapline introduces in sing-box live in the
 first patch, so a fix to them is folded in rather than stacked on top of it. The
@@ -20,6 +20,13 @@ patch export. The second patch stays separate because it changes
 upstream networking independently of the inspector, which keeps it droppable when
 upstream lands its own fix and sendable upstream as it is (former patch 0002 for
 network manager startup race was dropped when upstream landed lifecycle synchronization).
+The core builds with Tapline's own tag set in [tags](tags), not upstream's release
+tags. `with_tapline` swaps `include/registry.go` for the reduced
+`include/registry_tapline.go`; no other upstream file is tagged. After applying the
+series, `scripts/build-core.mjs` deletes `cmd/sing-box/cmd_api*.go` (the `sing-box api`
+subcommands and their gRPC daemon client, which Tapline never runs) and records the
+deleted paths under `dropped` in each `.build.json`. The compiled source is therefore
+the pinned revision plus the series minus those files.
 Obsolete token-based inspection ingress and its tests are removed from the resulting tree.
 
 Rebuild the first patch after changing the glue in sing-box: apply the series

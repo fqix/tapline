@@ -91,6 +91,16 @@ function checkout() {
         console.log(`Applying ${patch.name}`)
         run('git', ['apply', '--whitespace=nowarn', patch.path], { cwd: SOURCE })
     }
+    // The `sing-box api` subcommands pull in the gRPC daemon client (~10 MB) and Tapline
+    // only runs `sing-box run`. Nothing else references them, so drop them here rather than
+    // tagging every upstream file in the patch; new upstream api files are dropped too.
+    const commands = join(SOURCE, 'cmd/sing-box')
+    const dropped = readdirSync(commands)
+        .filter((name) => /^cmd_api.*\.go$/.test(name))
+        .sort()
+    for (const name of dropped) rmSync(join(commands, name))
+    console.log(`Dropped ${dropped.length} api command files`)
+    return dropped.map((name) => `cmd/sing-box/${name}`)
 }
 
 function environment(platform, arch) {
@@ -137,8 +147,9 @@ function notices(env, tags) {
     return { modules, text }
 }
 
-checkout()
-const tags = readFileSync(join(SOURCE, 'release/DEFAULT_BUILD_TAGS_OTHERS'), 'utf8').trim()
+const dropped = checkout()
+// Tapline's own tag set: with_tapline selects the reduced registry in the patch.
+const tags = readFileSync(join(PATCHES, 'tags'), 'utf8').trim()
 const ldflags = readFileSync(join(SOURCE, 'release/LDFLAGS'), 'utf8').trim()
 if (values.test) {
     const env = { ...environment(process.platform, process.arch), CGO_ENABLED: '1' }
@@ -221,6 +232,7 @@ for (const target of targets) {
                 tags: tags.split(','),
                 patches: patches.map(({ name, sha256 }) => ({ name, sha256 })),
                 engine: { module: 'github.com/fqix/tapline/engine', sha256: engineSha256() },
+                dropped,
                 modules,
                 sha256: sha256(binary)
             },
