@@ -1,5 +1,5 @@
 {
-    "version": "1.14.2",
-    "revision": "af6e64c3b69e6132ebaee0e1a3d24e93903f6709",
-    "toolchain": "go1.27.1"
+    "version": "1.14.3",
+    "revision": "7054cac5124465ffdb145870d7c01885566711b1",
+    "toolchain": "go1.27.2"
 }

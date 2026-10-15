@@ -56,8 +56,8 @@ Populate [../../sing-box](../../sing-box) with
 `git submodule update --init --recursive`. `scripts/build-core.mjs` verifies the
 pinned revision, applies patches with plain `git apply`, and builds
 `core/<platform>-<arch>/sing-box[.exe]`, its `.build.json` manifest and license
-notices. The build toolchain is `go1.27.1` in `pin.json` (`TAPLINE_GO` may select
-the executable). The upstream `go.mod` directive `go 1.25.5` declares its
+notices. The build toolchain is `go1.27.2` in `pin.json` (`TAPLINE_GO` may select
+the executable). The patched `go.mod` directive `go 1.26.0` declares its
 language/module compatibility minimum, not the pinned build toolchain version.
 
 `npm run core:test` runs race-enabled tests and vet for the include, CLI, JA3 parser
@@ -83,7 +83,8 @@ Review new advisories and releases when changing the pin or the engine's
 dependencies. The patched `go.mod` and `go.sum` must list the same versions as
 `engine/go.mod`: update via `go get` in the engine, mirror the change in the isolated
 source branch, retain Go-generated go.mod/go.sum ordering, and re-export the core
-patch. The engine's `quic-go` and `x/net` pins follow the sing-box pin. The bundled core manifest records compiled module
+patch. The engine's `quic-go` pin follows the sing-box pin; `x/net` may run ahead of it for
+security fixes, mirrored in the patched `go.mod`. The bundled core manifest records compiled module
 versions and license notices for auditing shipped artifacts.
 
 ## Updating the series

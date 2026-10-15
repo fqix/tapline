@@ -5,6 +5,17 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade bundled sing-box core from 1.14.2 to 1.14.3. Upstream moved component
+  lifecycles to scoped cleanup and removed runtime inbound reloading, so the inspector
+  now starts and closes per-window inlets itself.
+
+### Security
+
+- Build the core with Go 1.27.2 and `golang.org/x/net` 0.60.0, fixing reachable
+  standard library and HTTP/2 advisories reported by govulncheck.
+
 ## [0.13.1]
 
 ### Fixed

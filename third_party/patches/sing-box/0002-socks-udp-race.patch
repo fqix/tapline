@@ -1,4 +1,4 @@
-From 0966793ca4d9d026841bf0ef186ede4d61eda4f2 Mon Sep 17 00:00:00 2001
+From 883f3d8b23731231a06498ac112c172fe32d914a Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
 Date: Wed, 23 Sep 2026 10:36:03 +0800
 Subject: [PATCH] fix(socks): bind UDP replies before concurrent routing
@@ -10,7 +10,7 @@ Subject: [PATCH] fix(socks): bind UDP replies before concurrent routing
  create mode 100644 protocol/socks/inbound_test.go
 
 diff --git a/protocol/socks/inbound.go b/protocol/socks/inbound.go
-index c498efc4ed9a0a414afcb43bc061374fb00890b4..e96cb037c26a1dcdf73523453fb9664f3ce18605 100644
+index b37fa9c9f99e3bd5b48c1d3678749903b6fdbf4d..72f57c18da2c854a0986ecf8647e6320b74588f3 100644
 --- a/protocol/socks/inbound.go
 +++ b/protocol/socks/inbound.go
 @@ -3,6 +3,8 @@ package socks
@@ -33,7 +33,7 @@ index c498efc4ed9a0a414afcb43bc061374fb00890b4..e96cb037c26a1dcdf73523453fb9664f
  	E "github.com/sagernet/sing/common/exceptions"
  	"github.com/sagernet/sing/common/logger"
  	M "github.com/sagernet/sing/common/metadata"
-@@ -98,6 +103,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
+@@ -99,6 +104,7 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
  }
  
  func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -41,7 +41,7 @@ index c498efc4ed9a0a414afcb43bc061374fb00890b4..e96cb037c26a1dcdf73523453fb9664f
  	metadata.Inbound = h.Tag()
  	metadata.InboundType = h.Type()
  	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
-@@ -119,3 +125,37 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
+@@ -120,3 +126,37 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
  	}
  	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
  }

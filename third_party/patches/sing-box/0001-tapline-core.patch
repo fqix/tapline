@@ -1,4 +1,4 @@
-From cbd4814bb20fec9db12f6e91c49a3467c553b3da Mon Sep 17 00:00:00 2001
+From 9e5bdd0ddcc32203c1d2038767b420f7cf14c96a Mon Sep 17 00:00:00 2001
 From: fengqi <fengqi0508@gmail.com>
 Date: Thu, 8 Oct 2026 10:52:59 +0800
 Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
@@ -11,18 +11,18 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  common/ja3/parser.go                        |  12 ++
  common/ja3/parser_test.go                   |  39 +++++
  common/sniff/quic.go                        |   1 +
- go.mod                                      |   5 +
- go.sum                                      |   4 +
+ go.mod                                      |  23 +--
+ go.sum                                      |  36 +++--
  include/registry.go                         |   6 +
  include/registry_tapline.go                 |  62 ++++++++
  include/registry_tapline_test.go            |  60 ++++++++
- include/tapline_inspect.go                  | 157 ++++++++++++++++++++
+ include/tapline_inspect.go                  | 156 ++++++++++++++++++++
  include/tapline_inspect_test.go             |  72 +++++++++
- include/tapline_proxy_inbound.go            | 105 +++++++++++++
+ include/tapline_proxy_inbound.go            | 109 ++++++++++++++
  include/tapline_registry_test.go            |  48 ++++++
- service/taplineinspector/inbound_control.go |  43 ++++++
- service/taplineinspector/service.go         | 122 +++++++++++++++
- 18 files changed, 835 insertions(+), 5 deletions(-)
+ service/taplineinspector/inbound_control.go |  83 +++++++++++
+ service/taplineinspector/service.go         | 127 ++++++++++++++++
+ 18 files changed, 908 insertions(+), 30 deletions(-)
  create mode 100644 cmd/sing-box/tapline_helper.go
  create mode 100644 common/ja3/parser_test.go
  create mode 100644 include/registry_tapline.go
@@ -35,10 +35,10 @@ Subject: [PATCH] feat(tapline): embed the shared capture and inspection core
  create mode 100644 service/taplineinspector/service.go
 
 diff --git a/adapter/inbound.go b/adapter/inbound.go
-index ae1067d9a2d5958b171bbfff03af02a5ef1ee6fb..8551464a734fe797fbca5f80d64ca53a7998ca40 100644
+index b081ddc943e6665d034c1ef72fb8d9196c93e28e..5afee402e8de69c76194a700223defb02c75f5b0 100644
 --- a/adapter/inbound.go
 +++ b/adapter/inbound.go
-@@ -63,6 +63,7 @@ type InboundContext struct {
+@@ -62,6 +62,7 @@ type InboundContext struct {
  
  	Protocol     string
  	Domain       string
@@ -224,7 +224,7 @@ index 608819fe1edceffee120855ef6804c98a29f2845..f367d2a05b2df41fa67149f1c36cbd0c
  	ja3Hash             string
  }
 diff --git a/common/ja3/parser.go b/common/ja3/parser.go
-index a4bd71239124c117db963d84c33a3b16457e74c8..5782f3b6e57d5c8165aba71b1d8e938c3f64488e 100644
+index 421e51c2bdb8c91e5b8ad9f0b88cdfae87a6bdc0..2c2dae4722616968b4b72d0eea0bebb0318fca4b 100644
 --- a/common/ja3/parser.go
 +++ b/common/ja3/parser.go
 @@ -195,6 +195,18 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
@@ -292,10 +292,10 @@ index 0000000000000000000000000000000000000000..154fcaa02ef4571d9345e77aa103605e
 +	}
 +}
 diff --git a/common/sniff/quic.go b/common/sniff/quic.go
-index 049bd2c14e76081abd1dff33baf9d62a0885f9c0..f4f0345443091d5d65522fd6491b0ef50397ddd8 100644
+index 4f6dcf06713d33770ad2193295754ae67fcb58f1..eae7ccc225e0272c2cba3d370e213c55773f8834 100644
 --- a/common/sniff/quic.go
 +++ b/common/sniff/quic.go
-@@ -307,6 +307,7 @@ find:
+@@ -310,6 +310,7 @@ find:
  		return E.Cause1(ErrNeedMoreData, err)
  	}
  	metadata.Domain = fingerprint.ServerName
@@ -304,21 +304,72 @@ index 049bd2c14e76081abd1dff33baf9d62a0885f9c0..f4f0345443091d5d65522fd6491b0ef5
  		if len(frameTypeList) == 1 {
  			metadata.Client = C.ClientFirefox
 diff --git a/go.mod b/go.mod
-index b2ab87cab313e2ebac8a5f7daf2cd053580dc80e..402ac82d1247104a5defc2f575d5c1d59ee3da11 100644
+index 53b8a1cae5cb32ad5f362310c6570f37c47bda0a..c23c562c58f0975836b0d87cd5fe58aeb8f78d4e 100644
 --- a/go.mod
 +++ b/go.mod
-@@ -13,8 +13,11 @@ require (
+@@ -1,6 +1,6 @@
+ module github.com/sagernet/sing-box
+ 
+-go 1.25.5
++go 1.26.0
+ 
+ require (
+ 	filippo.io/age v1.3.1
+@@ -13,6 +13,7 @@ require (
  	github.com/cretz/bine v0.2.0
  	github.com/database64128/tfo-go/v2 v2.3.2
  	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa
-+	github.com/elazarl/goproxy v1.9.1
 +	github.com/fqix/tapline/engine v0.0.0
  	github.com/go-chi/chi/v5 v5.2.5
  	github.com/go-chi/render v1.0.3
-+	github.com/gobwas/ws v1.4.0
  	github.com/godbus/dbus/v5 v5.2.2
- 	github.com/gofrs/uuid/v5 v5.5.1
- 	github.com/insomniacslk/dhcp v0.0.0-20260220084031-5adc3eb26f91
+@@ -68,14 +69,14 @@ require (
+ 	github.com/vishvananda/netns v0.0.5
+ 	go.uber.org/zap v1.27.1
+ 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
+-	golang.org/x/crypto v0.54.0
++	golang.org/x/crypto v0.57.0
+ 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+-	golang.org/x/mod v0.37.0
+-	golang.org/x/net v0.57.0
+-	golang.org/x/sync v0.22.0
+-	golang.org/x/sys v0.47.0
+-	golang.org/x/term v0.45.0
+-	golang.org/x/text v0.40.0
++	golang.org/x/mod v0.41.0
++	golang.org/x/net v0.60.0
++	golang.org/x/sync v0.23.0
++	golang.org/x/sys v0.48.0
++	golang.org/x/term v0.46.0
++	golang.org/x/text v0.42.0
+ 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
+ 	google.golang.org/grpc v1.79.1
+ 	google.golang.org/protobuf v1.36.11
+@@ -102,6 +103,7 @@ require (
+ 	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d // indirect
+ 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
+ 	github.com/ebitengine/purego v0.10.0 // indirect
++	github.com/elazarl/goproxy v1.9.1 // indirect
+ 	github.com/florianl/go-nfqueue/v2 v2.1.0 // indirect
+ 	github.com/fsnotify/fsnotify v1.9.0 // indirect
+ 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+@@ -111,6 +113,7 @@ require (
+ 	github.com/go4org/hashtriemap v0.0.0-20251130024219-545ba229f689 // indirect
+ 	github.com/gobwas/httphead v0.1.0 // indirect
+ 	github.com/gobwas/pool v0.2.1 // indirect
++	github.com/gobwas/ws v1.4.0 // indirect
+ 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+ 	github.com/google/btree v1.1.3 // indirect
+ 	github.com/google/certificate-transparency-go v1.3.2 // indirect
+@@ -190,7 +193,7 @@ require (
+ 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
+ 	golang.org/x/oauth2 v0.36.0 // indirect
+ 	golang.org/x/time v0.15.0 // indirect
+-	golang.org/x/tools v0.47.0 // indirect
++	golang.org/x/tools v0.49.0 // indirect
+ 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
+ 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
+ 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 @@ -198,3 +201,5 @@ require (
  	lukechampine.com/blake3 v1.3.0 // indirect
  	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
@@ -326,7 +377,7 @@ index b2ab87cab313e2ebac8a5f7daf2cd053580dc80e..402ac82d1247104a5defc2f575d5c1d5
 +
 +replace github.com/fqix/tapline/engine => ../../engine
 diff --git a/go.sum b/go.sum
-index 3172be80a0688016c8aa88e50c6dec77b6399c80..47016504a3c3baf2a66197020c386fbdfc116bf6 100644
+index ed70f5876f1649dff8b4702eccb51cd7a31ec2f8..ce1155d0d7bec891133a71528fa55e0577d3bb47 100644
 --- a/go.sum
 +++ b/go.sum
 @@ -78,6 +78,8 @@ github.com/dnaeon/go-vcr v1.2.0 h1:zHCHvJYTMh1N7xnV7zf1m1GPBF9Ad0Jk/whtQ1663qI=
@@ -347,6 +398,94 @@ index 3172be80a0688016c8aa88e50c6dec77b6399c80..47016504a3c3baf2a66197020c386fbd
  github.com/godbus/dbus/v5 v5.2.2 h1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=
  github.com/godbus/dbus/v5 v5.2.2/go.mod h1:3AAv2+hPq5rdnr5txxxRwiGjPXamgoIHgz9FPBfOp3c=
  github.com/gofrs/uuid/v5 v5.5.1 h1:z1Ce19/JwNidXpy3tOQc3241lnJLKdKyq/xlNvlD4Ng=
+@@ -442,8 +446,8 @@ golang.org/x/crypto v0.13.0/go.mod h1:y6Z2r+Rw4iayiXXAIxJIDAJ1zMW4yaTpebo8fPOliY
+ golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
+ golang.org/x/crypto v0.23.0/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
+ golang.org/x/crypto v0.30.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
+-golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
+-golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
++golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
++golang.org/x/crypto v0.57.0/go.mod h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA=
+ golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
+ golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f h1:W3F4c+6OLc6H2lb//N1q4WpJkhzJCK5J6kUi1NTVXfM=
+ golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f/go.mod h1:J1xhfL/vlindoeF/aINzNzt2Bket5bjo9sdOYzOsU80=
+@@ -459,8 +463,8 @@ golang.org/x/mod v0.8.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/mod v0.12.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/mod v0.15.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/mod v0.17.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/mod v0.37.0 h1:vF1DjpVEshcIqoEaauuHebaLk1O1forxjxBaVn884JQ=
+-golang.org/x/mod v0.37.0/go.mod h1:m8S8VeM9r4dzDwjrKO0a1sZP3YjeMamRRlD+fmR2Q/0=
++golang.org/x/mod v0.41.0 h1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=
++golang.org/x/mod v0.41.0/go.mod h1:Ek9pY8RKWXwsWvd3rQiHYtMqkjSUV+s1Rj7j4H5Ur6o=
+ golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+ golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+ golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+@@ -476,8 +480,8 @@ golang.org/x/net v0.10.0/go.mod h1:0qNGK6F8kojg2nk9dLZ2mShWaEBan6FAoqfSigmmuDg=
+ golang.org/x/net v0.15.0/go.mod h1:idbUs1IY1+zTqbi8yxTbhexhEEk5ur9LInksu6HrEpk=
+ golang.org/x/net v0.21.0/go.mod h1:bIjVDfnllIU7BJ2DNgfnXvpSvtn8VRwhlsaeUTyUS44=
+ golang.org/x/net v0.25.0/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
+-golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
+-golang.org/x/net v0.57.0/go.mod h1:KpXc8iv+r3XplLAG/f7Jsf9RPszJzdR0f58q9vGOuEU=
++golang.org/x/net v0.60.0 h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU=
++golang.org/x/net v0.60.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg=
+ golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
+ golang.org/x/oauth2 v0.36.0 h1:peZ/1z27fi9hUOFCAZaHyrpWG5lwe0RJEEEeH0ThlIs=
+ golang.org/x/oauth2 v0.36.0/go.mod h1:YDBUJMTkDnJS+A4BP4eZBjCqtokkg1hODuPjwiGPO7Q=
+@@ -491,8 +495,8 @@ golang.org/x/sync v0.3.0/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sync v0.10.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
+-golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
++golang.org/x/sync v0.23.0 h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=
++golang.org/x/sync v0.23.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
+ golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+@@ -512,8 +516,8 @@ golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
+-golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
++golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
++golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
+ golang.org/x/telemetry v0.0.0-20240228155512-f48c80bd79b2/go.mod h1:TeRTkGYfJXctD9OcfyVLyj2J3IxLnKwHJR8f4D8a3YE=
+ golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+@@ -523,8 +527,8 @@ golang.org/x/term v0.12.0/go.mod h1:owVbMEjm3cBLCHdkQu9b1opXd4ETQWc3BhuQGKgXgvU=
+ golang.org/x/term v0.17.0/go.mod h1:lLRBjIVuehSbZlaOtGMbcMncT+aqLLLmKrsjNrUguwk=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/term v0.27.0/go.mod h1:iMsnZpn0cago0GOrHO2+Y7u7JPn5AylBrcoWkElMTSM=
+-golang.org/x/term v0.45.0 h1:NwWyBmoJCbfTHpxrWoZ9C6/VxOf7ic219I8xZZFdrf0=
+-golang.org/x/term v0.45.0/go.mod h1:9aqxs0blBcrm/n0L9QW0aRVD+ktan8ssZromtqJC43w=
++golang.org/x/term v0.46.0 h1:3+OXuTbaKDgwk8jTi3aSLHRlmWqHEUDUtxnbFigO4YE=
++golang.org/x/term v0.46.0/go.mod h1:+K02xbkittuwc0Am4abfA3Fc+XRGXkvBXNO88NCXPoc=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+@@ -535,8 +539,8 @@ golang.org/x/text v0.13.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+ golang.org/x/text v0.15.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+ golang.org/x/text v0.21.0/go.mod h1:4IBbMaMmOPCJ8SecivzSH54+73PCFmPWxNTLm+vZkEQ=
+-golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
+-golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=
++golang.org/x/text v0.42.0 h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=
++golang.org/x/text v0.42.0/go.mod h1:ojzP1Z+2QtioaF8DTtO8K5q7JWVVYwZKenzujK0Zd0E=
+ golang.org/x/time v0.15.0 h1:bbrp8t3bGUeFOx08pvsMYRTCVSMk89u4tKbNOZbp88U=
+ golang.org/x/time v0.15.0/go.mod h1:Y4YMaQmXwGQZoFaVFk4YpCt4FLQMYKZe9oeV/f4MSno=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+@@ -550,8 +554,8 @@ golang.org/x/tools v0.1.12/go.mod h1:hNGJHUnrk76NpqgfD5Aqm5Crs+Hm0VOH/i9J2+nxYbc
+ golang.org/x/tools v0.6.0/go.mod h1:Xwgl3UAJ/d3gWutnCtw505GrjyAbvKui8lOU390QaIU=
+ golang.org/x/tools v0.13.0/go.mod h1:HvlwmtVNQAhOuCjW7xxvovg8wbNq7LwfXh/k7wXUl58=
+ golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d/go.mod h1:aiJjzUbINMkxbQROHiO6hDPo2LHcIPhhQsa9DLh0yGk=
+-golang.org/x/tools v0.47.0 h1:7Kn5x/d1svx/PzryTsqeoZN4TZwqeH5pGWjefhLi/1Q=
+-golang.org/x/tools v0.47.0/go.mod h1:dFHnyTvFWY212G+h7ZY4Vsp/K3U4/7W9TyVaAul8uCA=
++golang.org/x/tools v0.49.0 h1:3NI7VXzL9+1WZD52Dx2ttoPwD5DWrFGpl9mFZDlmisI=
++golang.org/x/tools v0.49.0/go.mod h1:SJNXV9DBKT0UbdttsQjbfJlAE/q+y36++zo3uL3N0Oo=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 diff --git a/include/registry.go b/include/registry.go
 index 9bb9220c183cd0f2f59762d7b0dc5320e2dd8cca..b911863a828e369ee25045144a192963f89478a6 100644
 --- a/include/registry.go
@@ -525,10 +664,10 @@ index 0000000000000000000000000000000000000000..361b60a4f5e96eedb6a7021e8eaa2b19
 +}
 diff --git a/include/tapline_inspect.go b/include/tapline_inspect.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..c95c4485080573f8eef714f66cdb279e08fd3ad3
+index 0000000000000000000000000000000000000000..b30be0d06c65078b5503ba2d4c02c3f87d74271b
 --- /dev/null
 +++ b/include/tapline_inspect.go
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,156 @@
 +package include
 +
 +import (
@@ -596,7 +735,7 @@ index 0000000000000000000000000000000000000000..c95c4485080573f8eef714f66cdb279e
 +	}, nil
 +}
 +
-+func (h *inspectOutbound) Start(stage adapter.StartStage) error {
++func (h *inspectOutbound) Start(stage adapter.StartStage, _ *adapter.Scope) error {
 +	if stage != adapter.StartStateInitialize || h.inspectorTag == "" {
 +		return nil
 +	}
@@ -611,7 +750,6 @@ index 0000000000000000000000000000000000000000..c95c4485080573f8eef714f66cdb279e
 +	h.inspector = inspector
 +	return nil
 +}
-+func (h *inspectOutbound) Close() error { return nil }
 +
 +func (h *inspectOutbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 +	if network != N.NetworkTCP {
@@ -766,10 +904,10 @@ index 0000000000000000000000000000000000000000..6336b747e0c4c2fcfe862774bbae0873
 +}
 diff --git a/include/tapline_proxy_inbound.go b/include/tapline_proxy_inbound.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..7900d85070fd2b6b32c15870ab7d6725bd872265
+index 0000000000000000000000000000000000000000..af5e0181ef4bac45cfa985d28f6a87bbef2714a2
 --- /dev/null
 +++ b/include/tapline_proxy_inbound.go
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,109 @@
 +package include
 +
 +import (
@@ -785,7 +923,6 @@ index 0000000000000000000000000000000000000000..7900d85070fd2b6b32c15870ab7d6725
 +	"github.com/sagernet/sing-box/log"
 +	"github.com/sagernet/sing-box/option"
 +	"github.com/sagernet/sing-box/protocol/socks"
-+	"github.com/sagernet/sing/common"
 +	"github.com/sagernet/sing/common/buf"
 +	"github.com/sagernet/sing/common/bufio"
 +	M "github.com/sagernet/sing/common/metadata"
@@ -826,14 +963,19 @@ index 0000000000000000000000000000000000000000..7900d85070fd2b6b32c15870ab7d6725
 +	return h, nil
 +}
 +
-+func (h *proxyInbound) Start(stage adapter.StartStage) error {
-+	if stage == adapter.StartStateStart {
-+		return h.listener.Start()
++func (h *proxyInbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
++	if stage != adapter.StartStateStart {
++		return nil
 +	}
++	// Cancelling the inlet context also closes its accepted connections.
++	scope.Add(func() error { h.cancel(); return nil })
++	err := h.listener.Start()
++	if err != nil {
++		return err
++	}
++	scope.Add(h.listener.Close)
 +	return nil
 +}
-+
-+func (h *proxyInbound) Close() error { h.cancel(); return common.Close(h.listener, h.socks) }
 +
 +func (h *proxyInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 +	// Accepted sockets, including incomplete HTTP/SOCKS handshakes, belong to the inlet.
@@ -931,59 +1073,99 @@ index 0000000000000000000000000000000000000000..caa4f49e3481a5e79955070d5094701f
 +}
 diff --git a/service/taplineinspector/inbound_control.go b/service/taplineinspector/inbound_control.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..4eef9088181ff2bfd42b10a8b1ece194242ab9b6
+index 0000000000000000000000000000000000000000..7ee33f774e491d20ab8f1e2ad4cbc8b5f9c1eec6
 --- /dev/null
 +++ b/service/taplineinspector/inbound_control.go
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,83 @@
 +package taplineinspector
 +
 +import (
 +	"errors"
++	"net/netip"
++	"strings"
++
 +	"github.com/sagernet/sing-box/adapter"
 +	"github.com/sagernet/sing-box/option"
 +	"github.com/sagernet/sing/common/json/badoption"
 +	"github.com/sagernet/sing/service"
-+	"net/netip"
-+	"strings"
 +)
 +
++// Window inlets are created after the box has started. The inbound manager no
++// longer starts or removes inbounds at runtime, so the inspector owns their
++// lifecycle: each inlet runs in its own scope beneath the service's scope.
 +func (s *Service) controlInbound(action, tag string, port int) (int, error) {
 +	if !strings.HasPrefix(tag, "tapline-") || len(tag) > 128 || port < 0 || port > 65535 {
 +		return 0, errors.New("invalid window inlet")
 +	}
-+	manager := service.FromContext[adapter.InboundManager](s.ctx)
-+	if manager == nil {
-+		return 0, errors.New("missing inbound manager")
-+	}
 +	if action == "inbound-remove" {
-+		return 0, manager.Remove(tag)
++		return 0, s.removeInlet(tag)
++	}
++	registry := service.FromContext[adapter.InboundRegistry](s.ctx)
++	manager := service.FromContext[adapter.InboundManager](s.ctx)
++	if registry == nil || manager == nil {
++		return 0, errors.New("missing inbound registry")
 +	}
 +	if _, exists := manager.Get(tag); exists {
 +		return 0, errors.New("window inlet already exists")
 +	}
++	s.inletAccess.Lock()
++	defer s.inletAccess.Unlock()
++	if s.inlets == nil {
++		return 0, errors.New("tapline-inspector is closed")
++	}
++	if _, exists := s.inlets[tag]; exists {
++		return 0, errors.New("window inlet already exists")
++	}
 +	address := badoption.Addr(netip.MustParseAddr("127.0.0.1"))
 +	options := &option.SocksInboundOptions{ListenOptions: option.ListenOptions{Listen: &address, ListenPort: uint16(port)}}
-+	err := manager.Create(s.ctx, service.FromContext[adapter.Router](s.ctx), s.logger, tag, "tapline-mixed", options)
++	inlet, err := registry.Create(s.ctx, service.FromContext[adapter.Router](s.ctx), s.logger, tag, "tapline-mixed", options)
 +	if err != nil {
 +		return 0, err
 +	}
-+	inlet, ok := manager.Get(tag)
-+	if !ok {
-+		return 0, errors.New("window inlet missing after creation")
-+	}
 +	bound, ok := inlet.(interface{ ListenPort() int })
 +	if !ok {
-+		_ = manager.Remove(tag)
 +		return 0, errors.New("window inlet cannot report its port")
 +	}
++	scope := adapter.NewScope(s.scope.Context(), s.logger)
++	name := "inbound/" + inlet.Type() + "[" + tag + "]"
++	for _, stage := range adapter.ListStartStages {
++		err = scope.Start(name, inlet, stage)
++		if err != nil {
++			return 0, errors.Join(err, scope.Close())
++		}
++	}
++	s.inlets[tag] = scope
 +	return bound.ListenPort(), nil
++}
++
++func (s *Service) removeInlet(tag string) error {
++	s.inletAccess.Lock()
++	scope, found := s.inlets[tag]
++	delete(s.inlets, tag)
++	s.inletAccess.Unlock()
++	if !found {
++		return errors.New("unknown window inlet")
++	}
++	return scope.Close()
++}
++
++func (s *Service) closeInlets() error {
++	s.inletAccess.Lock()
++	inlets := s.inlets
++	s.inlets = nil
++	s.inletAccess.Unlock()
++	var err error
++	for _, scope := range inlets {
++		err = errors.Join(err, scope.Close())
++	}
++	return err
 +}
 diff --git a/service/taplineinspector/service.go b/service/taplineinspector/service.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..a64e6de3b92f907e3a8892e463d02c3e26a29ae1
+index 0000000000000000000000000000000000000000..3615230a7b11f10e219a1d7e730569d7c48741e3
 --- /dev/null
 +++ b/service/taplineinspector/service.go
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,127 @@
 +// Package taplineinspector adapts Tapline's HTTP inspection engine (github.com/fqix/tapline/engine) to sing-box.
 +package taplineinspector
 +
@@ -993,6 +1175,7 @@ index 0000000000000000000000000000000000000000..a64e6de3b92f907e3a8892e463d02c3e
 +	"io"
 +	"net"
 +	"net/netip"
++	"sync"
 +	"sync/atomic"
 +
 +	"github.com/fqix/tapline/engine"
@@ -1034,13 +1217,16 @@ index 0000000000000000000000000000000000000000..a64e6de3b92f907e3a8892e463d02c3e
 +	engine       *engine.Engine
 +	done         chan struct{}
 +	packetEgress string
++	scope        *adapter.Scope
++	inletAccess  sync.Mutex
++	inlets       map[string]*adapter.Scope
 +}
 +
 +func New(ctx context.Context, logger log.ContextLogger, tag string, options Options) (adapter.Service, error) {
 +	return &Service{Adapter: boxService.NewAdapter(Type, tag), ctx: ctx, logger: logger, packetEgress: options.PacketEgress}, nil
 +}
 +
-+func (s *Service) Start(stage adapter.StartStage) error {
++func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 +	if stage != adapter.StartStateInitialize {
 +		return nil
 +	}
@@ -1065,6 +1251,8 @@ index 0000000000000000000000000000000000000000..a64e6de3b92f907e3a8892e463d02c3e
 +			return egress.DialContext(ctx, N.NetworkUDP, M.ParseSocksaddr(destination))
 +		}
 +	}
++	s.scope = scope
++	s.inlets = make(map[string]*adapter.Scope)
 +	s.engine = engine.NewEngine(engine.WithInboundTag(engine.WithInboundControl(s.ctx, s.controlInbound), inboundTag), c.input, c.output, packetDialer)
 +	s.done = make(chan struct{})
 +	go func() {
@@ -1074,14 +1262,13 @@ index 0000000000000000000000000000000000000000..a64e6de3b92f907e3a8892e463d02c3e
 +		}
 +		c.shutdown()
 +	}()
++	scope.Add(s.close)
 +	return nil
 +}
 +
-+func (s *Service) Close() error {
-+	if s.engine == nil {
-+		return nil
-+	}
-+	err := s.engine.Close()
++func (s *Service) close() error {
++	err := s.closeInlets()
++	err = errors.Join(err, s.engine.Close())
 +	<-s.done
 +	return err
 +}
