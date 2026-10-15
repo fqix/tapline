@@ -5,6 +5,8 @@ All notable changes to Tapline are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.2]
+
 ### Changed
 
 - Upgrade bundled sing-box core from 1.14.2 to 1.14.3. Upstream moved component
