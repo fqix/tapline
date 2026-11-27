@@ -135,6 +135,7 @@ suite('Tapline end to end', function () {
             'tapline.stop',
             'tapline.openSequence',
             'tapline.compose',
+            'tapline.sendToFuzzer',
             'tapline.rules',
             'tapline.settings',
             'tapline.stats',

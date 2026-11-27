@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import { readFile, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { importCurl } from '../../utils/curl'
+import { loadWordlist, startFuzz, type FuzzRun, type Wordlist } from '../fuzzing'
 import type { AgentClient } from '../client'
 import type { BreakpointEdit, ComposeRequest, Rule, Transaction } from '../../shared/model'
 import { searchTransactions } from '../../utils/search'
@@ -55,6 +56,8 @@ export interface PanelActions {
     copyCurl(ids: string[]): Promise<void>
     replay(id: string): Promise<Transaction>
     compose(request: ComposeRequest): Promise<Transaction>
+    /** Fuzzed requests are sent without a progress notification per payload. */
+    fuzz(request: ComposeRequest): Promise<Transaction>
     openText(id: string): Promise<void>
     openBody(id: string, side: 'request' | 'response'): Promise<void>
     delete(ids: string[]): Promise<void>
@@ -79,6 +82,9 @@ export class TrafficPanel implements vscode.Disposable {
     private disposables: vscode.Disposable[] = []
     /** Transactions already revealed for a breakpoint, so updates do not steal focus twice. */
     private revealed = new Set<string>()
+    /** Wordlists loaded for the fuzzer, keyed by absolute path. */
+    private fuzzLists = new Map<string, Wordlist>()
+    private fuzzRun?: FuzzRun
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -119,6 +125,14 @@ export class TrafficPanel implements vscode.Disposable {
     showPane(pane: Pane, draft?: ComposeDraft, column = vscode.ViewColumn.Active) {
         this.ensure(column)
         this.post({ type: 'pane', pane, draft })
+    }
+
+    /** Open (Re)Play with a captured request prefilled as the fuzz base. */
+    showFuzzer(draft?: ComposeDraft) {
+        this.ensure()
+        if (!this.fuzzRun)
+            this.post({ type: 'fuzzStatus', running: false, done: 0, total: 0, reset: true })
+        this.post({ type: 'pane', pane: 'composer', draft })
     }
 
     private postRules() {
@@ -185,7 +199,7 @@ export class TrafficPanel implements vscode.Disposable {
         void this.panel.webview.postMessage(message)
     }
 
-    private ensure(column: vscode.ViewColumn, reveal = false) {
+    private ensure(column: vscode.ViewColumn = vscode.ViewColumn.Active, reveal = false) {
         if (this.panel) {
             this.panel.reveal(column, !reveal)
             return
@@ -269,6 +283,50 @@ export class TrafficPanel implements vscode.Disposable {
                     this.focus(sent.id)
                     return
                 }
+                case 'pickFuzzFiles': {
+                    const picked = await vscode.window.showOpenDialog({
+                        canSelectMany: true,
+                        defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
+                        title: vscode.l10n.t('Choose wordlist files'),
+                        filters: { Wordlists: ['txt', 'lst', 'csv', 'json'] }
+                    })
+                    if (!picked?.length) return
+                    const lists = await Promise.all(picked.map((uri) => loadWordlist(uri.fsPath)))
+                    for (const list of lists) this.fuzzLists.set(list.path, list)
+                    this.post({
+                        type: 'fuzzFiles',
+                        files: lists.map(({ path, lines, error }) => ({ path, lines, error }))
+                    })
+                    return
+                }
+                case 'startFuzz': {
+                    if (this.fuzzRun) throw new Error(vscode.l10n.t('Fuzzing is already running'))
+                    const lists = await Promise.all(
+                        message.start.files.map(async (path) => {
+                            let list = this.fuzzLists.get(path)
+                            if (!list) {
+                                list = await loadWordlist(path)
+                                this.fuzzLists.set(path, list)
+                            }
+                            return list
+                        })
+                    )
+                    const run = startFuzz({
+                        lists,
+                        targets: message.start.targets,
+                        request: message.start.request,
+                        send: (request) => this.actions.fuzz(request),
+                        report: (status) => this.post({ type: 'fuzzStatus', ...status })
+                    })
+                    this.fuzzRun = run
+                    void run.finished.finally(() => {
+                        if (this.fuzzRun === run) this.fuzzRun = undefined
+                    })
+                    return
+                }
+                case 'stopFuzz':
+                    this.fuzzRun?.stop()
+                    return
                 case 'importCurl': {
                     try {
                         const { warnings, ...draft } = await importCurl(
@@ -367,6 +425,7 @@ export class TrafficPanel implements vscode.Disposable {
     }
 
     dispose() {
+        this.fuzzRun?.stop()
         clearTimeout(this.rowsTimer)
         this.panel?.dispose()
         for (const d of this.disposables) d.dispose()
@@ -545,7 +604,7 @@ function panelStrings(): Record<string, string> {
         continue: vscode.l10n.t('Continue'),
         abort: vscode.l10n.t('Abort'),
         binaryNotEditable: vscode.l10n.t('binary body is forwarded unchanged'),
-        composer: vscode.l10n.t('Compose Request'),
+        composer: vscode.l10n.t('(Re)Play'),
         composeClear: vscode.l10n.t('Clear'),
         composeInvalidUrl: vscode.l10n.t('Enter an http:// or https:// URL'),
         send: vscode.l10n.t('Send'),
@@ -593,6 +652,31 @@ function panelStrings(): Record<string, string> {
         sendHint: vscode.l10n.t(
             'Cmd/Ctrl+Enter sends through the proxy; the reply appears in the table'
         ),
+        suspiciousParams: vscode.l10n.t('Interesting parameters'),
+        fuzzMarkers: vscode.l10n.t('Marked values'),
+        fuzzLocation: vscode.l10n.t('Location'),
+        fuzzElement: vscode.l10n.t('Element'),
+        fuzzNoMarkers: vscode.l10n.t('No $FUZZ$ markers yet — select text and press Set Fuzz'),
+        fuzzer: vscode.l10n.t('Fuzzer'),
+        fuzz: vscode.l10n.t('Fuzz'),
+        fuzzWordlists: vscode.l10n.t('Wordlists'),
+        fuzzAddFiles: vscode.l10n.t('Add files…'),
+        fuzzNoFiles: vscode.l10n.t('No wordlists added yet'),
+        fuzzLines: vscode.l10n.t('payloads'),
+        fuzzInsertion: vscode.l10n.t('Insertion points'),
+        fuzzMarker: vscode.l10n.t('Marker'),
+        setFuzz: vscode.l10n.t('Set Fuzz'),
+        setFuzzHint: vscode.l10n.t(
+            'Select URL, header or body text, then insert the $FUZZ$ marker'
+        ),
+        fuzzNoTargets: vscode.l10n.t('No fuzzable values found in this request'),
+        fuzzStart: vscode.l10n.t('Start fuzzing'),
+        fuzzStop: vscode.l10n.t('Stop'),
+        fuzzProgress: vscode.l10n.t('{0} / {1} requests sent'),
+        fuzzResults: vscode.l10n.t('Results'),
+        fuzzNoResults: vscode.l10n.t('No payloads sent yet'),
+        fuzzInvalidUrl: vscode.l10n.t('Enter an http:// or https:// URL'),
+        fuzzMissing: vscode.l10n.t('Add a wordlist and insert $FUZZ$ in the request'),
         stats: vscode.l10n.t('Statistics'),
         statsScope: vscode.l10n.t('{0} requests shown (filters apply)'),
         byHost: vscode.l10n.t('By host'),
@@ -660,7 +744,7 @@ function panelStrings(): Record<string, string> {
         ),
         filterHelp: vscode.l10n.t('Filter syntax'),
         filterHelpText: vscode.l10n.t(
-            'Words match the URL, method or status. Use key:value terms to narrow down; prefix - to negate. body:, header:, req: and res: search headers and bodies.'
+            'Words match the URL, method or status. Use key:value terms to narrow down; prefix - to negate. body:, header:, req: and res: search headers and bodies; param:ssrf finds requests with those parameter names.'
         ),
         selectedCount: vscode.l10n.t('{0} selected'),
         clearSelection: vscode.l10n.t('Clear selection'),

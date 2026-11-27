@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Composer, emptyDraft } from './components/Composer'
+import { emptyFuzzDraft } from './components/Fuzzer'
 import { HostOverview } from './components/Overview'
 import { Inspector } from './components/Inspector'
 import { Rules } from './components/Rules'
@@ -37,6 +38,10 @@ export function App() {
         setPane,
         draft,
         setDraft,
+        fuzzDraft,
+        setFuzzDraft,
+        fuzzFiles,
+        fuzzStatus,
         curlImport,
         setCurlImport
     } = useTraffic()
@@ -149,9 +154,9 @@ export function App() {
         },
         [rows, onSelect, setPane]
     )
-    const compose = useCallback(
-        (next: ComposeDraft) => {
-            setDraft(next)
+    const openRequest = useCallback(
+        (request: ComposeDraft) => {
+            setDraft(request)
             setPane('composer')
         },
         [setDraft, setPane]
@@ -179,11 +184,16 @@ export function App() {
                     setCurlImport(undefined)
                     vscode.postMessage({ type: 'importCurl', text })
                 }}
+                fuzzDraft={fuzzDraft ?? emptyFuzzDraft()}
+                onFuzzDraft={setFuzzDraft}
+                fuzzFiles={fuzzFiles}
+                fuzzStatus={fuzzStatus}
+                onPickFiles={() => vscode.postMessage({ type: 'pickFuzzFiles' })}
             />
         ) : pane === 'stats' ? (
             <Stats rows={visible} onSelect={focusRow} onHost={showHost} onClose={closePane} />
         ) : detail ? (
-            <Inspector x={detail} onFocus={focusRow} onCompose={compose} />
+            <Inspector x={detail} onFocus={focusRow} onCompose={openRequest} onFuzz={openRequest} />
         ) : selected && rows.has(selected) ? (
             <div className="empty">…</div>
         ) : filters.host ? (

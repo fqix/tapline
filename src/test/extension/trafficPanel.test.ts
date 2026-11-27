@@ -140,3 +140,41 @@ it('reads curl @file only from inside the workspace folders', async () => {
         rmSync(outside, { recursive: true, force: true })
     }
 })
+
+it('opens the fuzzer with a captured request prefilled', () => {
+    const client = {
+        transactions: new Map(),
+        rules: () => [],
+        onEvent: () => ({ dispose() {} })
+    }
+    const panel = new TrafficPanel(
+        {} as vscode.ExtensionContext,
+        client as unknown as AgentClient,
+        {} as PanelActions
+    )
+    const draft = {
+        method: 'POST',
+        url: 'https://example.test/login',
+        headers: 'Content-Type: application/json',
+        body: '{"user":"admin"}',
+        replayOf: 't1'
+    }
+    try {
+        panel.showFuzzer(draft)
+        ui.receive!({ type: 'ready' })
+        expect(ui.post).toHaveBeenCalledWith({
+            type: 'fuzzStatus',
+            running: false,
+            done: 0,
+            total: 0,
+            reset: true
+        })
+        expect(ui.post).toHaveBeenCalledWith({
+            type: 'pane',
+            pane: 'composer',
+            draft
+        })
+    } finally {
+        panel.dispose()
+    }
+})

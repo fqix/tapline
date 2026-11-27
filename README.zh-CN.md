@@ -33,15 +33,19 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   `.proto` 解出字段名，没有 schema 时按字段编号解码；`grpc-status` 决定行的颜色。
 - **过滤语法** — 支持 `status:5xx`、`method:post`、`host:api.*`、`path:/v1`、
   `type:json`、`type:js`、`proto:h2`、`size>10k`、`dur>500`、`ip:10.0.`、`body:"not found"`、
-  `header:x-id=1`、`rule:any` 以及 `-status:2xx` 这样的取反；普通词匹配 URL、方法或
+  `header:x-id=1`、`rule:any`、`param:ssrf` 以及 `-status:2xx` 这样的取反；普通词匹配 URL、方法或
   状态码。快捷标签支持一键过滤状态码（2xx/3xx/4xx/5xx/errors）、媒体类型（JSON、JS、HTML）及 WebSocket。_统计_ 按主机汇总当前过滤出的请求。
 - **规则** — 断点、改写、映射到本地、映射到远程、拦截和限速（[见下文](#规则)）。
-- **原生右键菜单、编写与对比** — 右键点击请求支持重放、_编辑并重发_、复制为 cURL、以文本打开、对比、星标、备注与删除；支持从零编写请求或粘贴 curl 命令；任选两行或重发记录与原请求在原生差异编辑器中对比。
+- **模糊测试** — （重）放面板的第一个标签页：选择本地字典文件，在请求任意位置插入 `$FUZZ$`，逐条发送；结果显示在流量表格中。
+- **可疑参数** — 命中内置 SSRF、SQLi、XSS、LFI、OpenRedirect、RCE 参数名的请求会在序列表格中标记，详情里对应参数名高亮（[见下文](#可疑参数)）。
+- **原生右键菜单、（重）放与对比** — 右键点击请求支持重放、_发送到模糊测试_、_编辑并重发_、复制为 cURL、以文本打开、对比、星标、备注与删除；支持从零编写请求或粘贴 curl 命令；任选两行或重发记录与原请求在原生差异编辑器中对比。
 - **自动抓包** — 新终端和调试会话（`node`、`python`、`go`、`java`……按调试类型自动选择）自动获得
   `HTTP(S)_PROXY` 和常见工具的 CA 变量（`SSL_CERT_FILE`、`NODE_EXTRA_CA_CERTS`、
   `REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`GIT_SSL_CAINFO`、`JAVA_TOOL_OPTIONS`……）。
   其他程序用 _复制代理环境变量_：一行 `https_proxy`、`http_proxy` 和 `all_proxy`
   （SOCKS5），并按所选 shell 转义。
+- **抓包浏览器** — _打开抓包浏览器_ 会以独立配置启动 Chrome、Firefox、Edge、Brave 或
+  Chromium，其代理默认为 Tapline。
 - **根证书** — 在 macOS、Windows、Linux 的系统证书存储中一键安装、信任和卸载 CA
   （[见下文](#根证书)）。
 - **每个窗口独立抓包** — 每个 VS Code 窗口拥有独立的流量、控制和代理端口
@@ -51,9 +55,9 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   和发送抓到的请求（[见下文](#mcp-服务器)）。
 - 原生右键菜单、复制为 cURL、导出 HAR、状态栏控制、中英文界面。
 
-## 编写请求
+## （重）放请求
 
-打开 _Tapline: 新建请求…_，将 cURL 命令粘贴到编辑器，或使用顶部的 _cURL_ 导入按钮。
+打开 _Tapline: （重）放请求…_，将 cURL 命令粘贴到编辑器，或使用顶部的 _cURL_ 导入按钮。点击序列表格中的任意请求，会把方法、URL、请求头和正文填入这里；模糊测试设置就在同一面板的第一个标签页。
 解析使用 curlconverter，支持多行命令和 UTF-8 数据文件，例如
 `curl -d @data.json https://example.com/api`。发送前请查看导入警告：文件缺失、multipart
 文件引用及无法映射的传输选项都会提示；上传二进制文件请在 Body 中选择文件。
@@ -66,9 +70,21 @@ _安装并信任 CA，抓取 httpbin 请求，编辑并重发，与原请求 Dif
   `GraphQL`。multipart 支持文本和文件字段；URL 编码表单支持勾选、描述和批量编辑；
   binary 按原始字节发送所选文件。GraphQL 提供 Query、Variables 和 Operation Name，
   并校验变量 JSON。
-- 按 **⌘↩ / Ctrl+↩** 发送，然后查看捕获结果或与原请求对比。
+- 按 **⌘↩ / Ctrl+↩** 发送，然后查看捕获结果或与原请求对比。_Fuzz_ 标签页使用同一份请求。
 
 [ReqBin 测试覆盖报告](docs/reqbin-curl-coverage.md)列出了已验证的示例和导入限制。
+
+## 模糊测试
+
+模糊测试是（重）放面板的第一个标签页。从工具栏打开（重）放，或点击抓到请求的 _Fuzz_ 按钮；也可以在序列表格或结构树中右键请求，选择 _发送到模糊测试_，直接填入该请求。点击序列表格中的请求也会填入同一份编辑器。选好本地字典（每行一个载荷，每个文件最多 5 MB / 20,000 行）、勾选要使用的文件后即可开始；不再需要勾选插入点，请求中每一处 `$FUZZ$` 都会用同一条载荷填充。每个载荷经抓包代理依次发送，作为独立请求出现在序列表格；_Fuzz_ 标签页实时显示状态码和错误。停止会在当前请求完成后停下。
+
+要指定任意位置，可在任意请求字段中选中一段文本——URL、参数名或值、请求头名或值、授权凭据、正文——点击 _设置模糊点_：选中的文本会变成 `$FUZZ$`，逐条用载荷原样替换，适用于 JSON 字符串内部、URL 路径或请求头 token 等局部内容。请求中的多个标记会用同一条载荷同时填充。_Fuzz_ 标签页会用“位置 / 元素”表格列出所有已标记的值，开始之前即可确认要模糊测试的内容。
+
+## 可疑参数
+
+查询字符串或 URL 编码表单体中，名称命中内置列表的请求会在序列表格中显示盾牌图标和警告色；详情的 Query/Form 表格里对应参数名也会高亮。列表覆盖 SSRF、SQLi、XSS、LFI、OpenRedirect 和 RCE，并包含西班牙语、法语、德语、中文、日语、韩语和阿拉伯语的名称变体。
+
+可用 `param:ssrf`、`param:sqli`、`param:xss`、`param:lfi`、`param:redirect`、`param:rce` 或 `param:any` 过滤；加 `-` 取反。只检查参数名，不检查参数值或 JSON 正文。`id`、`page`、`q` 等常见名称出现在多个列表中，因此命中只是提示，不是结论。
 
 ## 设置
 
@@ -143,8 +159,9 @@ CA 位于扩展的全局存储目录（_Tapline: 复制根证书路径_）。只
 | Windows | 当前用户受信任的根证书，通过 `certutil`（确认对话框） |
 | Linux   | 发行版锚点目录 + 更新命令，在终端中以 `sudo` 执行     |
 
-Firefox 和 snap/flatpak 浏览器使用自己的证书存储，需要手动导入。将
-`tapline.ssl.hosts` 设为 `[]` 可在不解密、不安装证书的情况下抓包。
+_打开抓包浏览器_ 会让 Firefox 信任系统证书存储（Windows/macOS 使用企业根证书，Linux 加载
+p11-kit trust 模块），因此已安装的 Tapline CA 可用于 HTTPS；snap/flatpak 浏览器仍需手动导入。
+将 `tapline.ssl.hosts` 设为 `[]` 可在不解密、不安装证书的情况下抓包。
 
 TLS 解密按域名启用和排除。与 Charles 默认不解密不同，Tapline 保留
 `tapline.ssl.hosts = ["*"]`，默认解密全部主机。设为 `[]` 或排除指定域名后，
@@ -155,7 +172,7 @@ TLS 解密按域名启用和排除。与 Charles 默认不解密不同，Tapline
 在 `tapline.ssl.hosts` 添加域名或通配符即可解密，`*` 表示全部主机；
 `tapline.ssl.noHosts` 和 `!` 模式用于排除，且排除规则优先。已有保存的配置保持不变。
 配置修改只影响新连接，需重新连接或重启抓包才能替换已有隧道。
-Composer/重放是主动发出的检查请求，仅解密自身连接，不改变其他客户端的域名策略。
+（重）放是主动发出的检查请求，仅解密自身连接，不改变其他客户端的域名策略。
 
 主动开启解密后遇到 TLS 错误，不自动重试或改为透传。请提前排除有 pinning 的域名。
 Tapline 使用 Go TLS，无法保证与 Charles 对异常证书的接受范围完全相同；
@@ -199,18 +216,35 @@ npm run package        # 当前平台的 VSIX（package:all 构建全部六个�
 按 F5 启动扩展开发宿主。CI 在每次 push 时构建、测试并打包所有平台，并在每个操作系统的
 一台 runner 上运行端到端测试。
 
+### 排错
+
+**`Tapline could not start capture: ENOENT ... core/<platform>-<arch>/sing-box.build.json`** -
+缺少打包的 sing-box 核心。源码开发时，为当前平台构建核心后重载：
+
+```sh
+npm run core:build
+```
+
+打包/安装 VSIX 时，使用打包脚本把对应平台核心放入 VSIX：
+
+```sh
+node scripts/package.mjs --target linux-x64
+code --install-extension tapline-linux-x64-*.vsix --force
+```
+
+把 `linux-x64` 换成你的目标平台（`darwin-arm64`、`darwin-x64`、`linux-arm64`、
+`win32-x64`、`win32-arm64`）。直接 `npx @vscode/vsce package` 不会放入核心。
+
 ## 发版
 
-Push/PR CI 只构建和测试。在 [CHANGELOG.md](CHANGELOG.md) 中加入新版本，升级版本号、推送 tag，然后
-在 GitHub 上发布 release：
+Push/PR CI 只构建和测试。在 [CHANGELOG.md](CHANGELOG.md) 中加入新版本，升级版本号并推送 tag：
 
 ```sh
 npm version patch && git push --follow-tags
 ```
 
-[release 工作流](.github/workflows/release.yml)会重新构建所有平台，发布到 VS Code
-Marketplace（通过 OIDC 以 Azure 托管标识登录，不用 PAT）和 Open VSX（通过 OIDC 可信发布，
-不用 PAT），并把 VSIX 附加到 release 上。
+[release 工作流](.github/workflows/release.yml)会重新构建所有平台，创建 GitHub release 并把
+VSIX 附加到该 release 上；不会发布到任何扩展市场，因此 fork 无需市场凭据也能得到可安装的包。
 
 ## 许可证
 

@@ -59,7 +59,7 @@ export const defaultSort: Sort = { column: 'timestamp', ascending: true }
 // ---- query language --------------------------------------------------------
 //
 //   status:5xx method:post host:*.example.com path:/v1 type:json proto:grpc
-//   size>10k dur>500 body:"not found" header:authorization header:x-id=42 -status:2xx
+//   size>10k dur>500 param:ssrf body:"not found" header:authorization header:x-id=42 -status:2xx
 //
 // Words without a key match the URL, method, status or error text. `body`, `header`,
 // `req` and `res` need headers and bodies, which rows do not carry: those terms are
@@ -77,6 +77,7 @@ export type Key =
     | 'size'
     | 'dur'
     | 'rule'
+    | 'param'
     | 'body'
     | 'header'
     | 'req'
@@ -114,6 +115,8 @@ const aliases: Record<string, Key> = {
     duration: 'dur',
     time: 'dur',
     rule: 'rule',
+    param: 'param',
+    params: 'param',
     body: 'body',
     header: 'header',
     req: 'req',
@@ -329,6 +332,27 @@ export function termMatches(row: Row, term: Term): boolean {
             hit =
                 lower === 'none' || lower === 'false' || lower === '0' ? !row.rules : row.rules > 0
             break
+        case 'param': {
+            const aliases: Record<string, string> = {
+                sql: 'sqli',
+                sqli: 'sqli',
+                ssrf: 'ssrf',
+                xss: 'xss',
+                lfi: 'lfi',
+                or: 'openredirect',
+                redirect: 'openredirect',
+                openredirect: 'openredirect',
+                rce: 'rce'
+            }
+            const wanted = aliases[lower] ?? lower
+            hit =
+                lower === 'any' || lower === 'all'
+                    ? !!row.paramHits?.length
+                    : !!row.paramHits?.some(
+                          (category) => category.toLowerCase().replace(/\s+/g, '') === wanted
+                      )
+            break
+        }
         default:
             // Remote terms are evaluated together by the host; see `matches`.
             return true

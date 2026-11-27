@@ -1,11 +1,26 @@
 import { useState } from 'react'
+import type { ComposeRequest } from '../../shared/model'
 import { t } from '../lib/i18n'
 import { vscode } from '../lib/vscode'
-import type { ComposeDraft } from '../types/messages'
+import type { ComposeDraft, FuzzDraft, FuzzFile } from '../types/messages'
 import { Editor, textToHeaders } from './Editor'
+import { FuzzConfig, type FuzzStatus } from './Fuzzer'
 import { IconButton } from './IconButton'
 
 export const emptyDraft: ComposeDraft = { method: 'GET', url: '', headers: '', body: '' }
+
+export const validComposeUrl = (url: string) => /^https?:\/\/\S+$/i.test(url.trim())
+
+export function composeRequest(draft: ComposeDraft): ComposeRequest {
+    return {
+        url: draft.url.trim(),
+        method: draft.method,
+        headers: textToHeaders(draft.headers),
+        body: draft.body,
+        bodyEncoding: draft.bodyEncoding,
+        replayOf: draft.replayOf
+    }
+}
 
 /** Compose and send a request through the proxy; the reply appears in the table. */
 export function Composer({
@@ -13,7 +28,12 @@ export function Composer({
     onChange,
     onClose,
     curlImport,
-    onImportCurl
+    onImportCurl,
+    fuzzDraft,
+    onFuzzDraft,
+    fuzzFiles,
+    fuzzStatus,
+    onPickFiles
 }: {
     draft: ComposeDraft
     onChange(next: ComposeDraft): void
@@ -21,11 +41,16 @@ export function Composer({
     /** Outcome of the last curl import from the host. */
     curlImport?: { warnings: string[]; error?: string }
     onImportCurl(text: string): void
+    fuzzDraft: FuzzDraft
+    onFuzzDraft(next: FuzzDraft): void
+    fuzzFiles: FuzzFile[]
+    fuzzStatus: FuzzStatus
+    onPickFiles(): void
 }) {
     const [error, setError] = useState<string>()
     const [importing, setImporting] = useState(false)
     const [command, setCommand] = useState('')
-    const valid = /^https?:\/\/\S+$/i.test(draft.url.trim())
+    const valid = validComposeUrl(draft.url)
     const send = () => {
         if (draft.bodyError) {
             setError(draft.bodyError)
@@ -36,17 +61,7 @@ export function Composer({
             return
         }
         setError(undefined)
-        vscode.postMessage({
-            type: 'compose',
-            request: {
-                url: draft.url.trim(),
-                method: draft.method,
-                headers: textToHeaders(draft.headers),
-                body: draft.body,
-                bodyEncoding: draft.bodyEncoding,
-                replayOf: draft.replayOf
-            }
-        })
+        vscode.postMessage({ type: 'compose', request: composeRequest(draft) })
     }
     /** Hand a curl command (pasted, or typed into the import box) to the host parser. */
     const importCurl = (text: string) => {
@@ -134,6 +149,16 @@ export function Composer({
                     onCurl={importCurl}
                     allowFiles
                     autoFocus={!importing}
+                    fuzzTab={
+                        <FuzzConfig
+                            request={draft}
+                            draft={fuzzDraft}
+                            onChange={onFuzzDraft}
+                            files={fuzzFiles}
+                            status={fuzzStatus}
+                            onPickFiles={onPickFiles}
+                        />
+                    }
                     action={
                         <button
                             type="button"

@@ -1,11 +1,26 @@
 import type { CaptureTarget } from '../../utils/environment'
+import { suspiciousCategories } from '../../shared/suspiciousParams'
 import type {
     BreakpointEdit,
     ComposeRequest,
+    FuzzTarget,
     Rule,
     RulePhase,
     Transaction
 } from '../../shared/model'
+
+/** Copy a captured request into an editable composer/fuzzer draft. */
+export function composeDraft(t: Transaction): ComposeDraft {
+    return {
+        method: t.method,
+        url: t.url,
+        headers: Object.entries(t.requestHeaders)
+            .map(([name, value]) => `${name}: ${value}`)
+            .join('\n'),
+        body: t.requestBinary ? '' : t.requestBody,
+        replayOf: t.id
+    }
+}
 
 /** Lightweight row for the sequence table: no headers, bodies or frames. */
 export type Row = Pick<
@@ -41,11 +56,13 @@ export type Row = Pick<
     grpcStatus: number | undefined
     /** Number of rules that acted on the transaction. */
     rules: number
+    /** Vulnerability classes of the request's query/form parameter names. */
+    paramHits: string[]
 }
 
 /** Row projection shared by the extension host and tests. */
 export function toRow(t: Transaction): Row {
-    const type = Object.entries(t.responseHeaders).find(
+    const type = Object.entries(t.responseHeaders ?? {}).find(
         ([k]) => k.toLowerCase() === 'content-type'
     )?.[1]
     return {
@@ -72,6 +89,7 @@ export function toRow(t: Transaction): Row {
         paused: t.paused,
         local: t.local,
         rules: t.rules?.length ?? 0,
+        paramHits: suspiciousCategories(t),
         contentType: (type ?? '').split(';')[0].trim().toLowerCase(),
         websocket: t.frames.length > 0 || t.status === 101 || t.scheme.startsWith('ws'),
         events: t.events?.length,
@@ -112,13 +130,25 @@ export type HostMessage =
      * `scanned` lists the ids the answer covers when it is a delta.
      */
     | { type: 'search'; query: string; ids: string[]; scanned?: string[] }
-    /** Open a side pane; `draft` prefills the composer. */
+    /** Open a side pane; `draft` prefills the (Re)Play request. */
     | { type: 'pane'; pane: Pane; draft?: ComposeDraft }
     /** Result of `importCurl`: the draft to show, plus what could not be imported. */
     | { type: 'curl'; draft?: ComposeDraft; warnings: string[]; error?: string }
     /** A file chosen for a map-local rule. */
     | { type: 'pickedFile'; ruleId: string; path: string }
     | { type: 'frameResent'; id: string; frameId: string; error?: string }
+    /** Wordlists read by the host, with the number of payloads loaded from each. */
+    | { type: 'fuzzFiles'; files: FuzzFile[] }
+    /** One message per payload, plus start and finish messages without a result. */
+    | {
+          type: 'fuzzStatus'
+          running: boolean
+          done: number
+          total: number
+          reset?: boolean
+          result?: FuzzResult
+          error?: string
+      }
 
 /** Messages from the panel to the extension host. */
 export type PanelMessage =
@@ -143,6 +173,9 @@ export type PanelMessage =
     | { type: 'resume'; id: string; edit: BreakpointEdit }
     | { type: 'abort'; id: string }
     | { type: 'compose'; request: ComposeRequest }
+    | { type: 'pickFuzzFiles' }
+    | { type: 'startFuzz'; start: FuzzStart }
+    | { type: 'stopFuzz' }
     /** Parse a curl command on the host (curlconverter) into a composer draft. */
     | { type: 'importCurl'; text: string }
     /**
@@ -151,9 +184,35 @@ export type PanelMessage =
      */
     | { type: 'search'; query: string; ids?: string[] }
 
+/** One payload sent by the fuzzer; the request itself is in the traffic table. */
+export interface FuzzResult {
+    id?: string
+    target: string
+    payload: string
+    status?: number
+    error?: string
+}
+
+export interface FuzzFile {
+    path: string
+    lines: number
+    error?: string
+}
+
+export interface FuzzStart {
+    request: ComposeRequest
+    files: string[]
+    targets: FuzzTarget[]
+}
+
 export type Layout = 'stacked' | 'side'
 /** What the second split pane shows besides the inspector. */
 export type Pane = 'inspector' | 'stats' | 'rules' | 'composer'
+
+/** Fuzz wordlists; the base request is the same draft the (Re)Play editor holds. */
+export interface FuzzDraft {
+    files: string[]
+}
 
 /** Composer contents; headers are `Name: value` lines. */
 export interface ComposeDraft {
@@ -183,6 +242,8 @@ export interface PanelState {
     columns?: Record<string, number>
     pane?: Pane
     draft?: ComposeDraft
+    fuzzDraft?: FuzzDraft
+    fuzzFiles?: FuzzFile[]
     /** Id of the rule shown in the editor. */
     rule?: string
     /** Request and response side by side, or one tab strip. */

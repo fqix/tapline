@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Headers, Transaction } from '../../shared/model'
 import { bytes } from '../../shared/model'
+import { paramCategoryLabel } from '../../shared/suspiciousParams'
 import {
     cookies,
     findJwts,
@@ -28,12 +29,14 @@ export function Pairs({
     id,
     title,
     items,
-    copyable
+    copyable,
+    highlight
 }: {
     id: string
     title: string
     items: Pair[]
     copyable?: string
+    highlight?: (name: string) => string | undefined
 }) {
     if (!items.length) return null
     return (
@@ -51,7 +54,7 @@ export function Pairs({
                 )
             }
         >
-            <PairsTable pairs={items} />
+            <PairsTable pairs={items} highlight={highlight} />
         </Section>
     )
 }
@@ -84,7 +87,12 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
                 copyable={raw}
             />
             {side === 'request' && (
-                <Pairs id="request-query" title={t('query')} items={queryParams(x)} />
+                <Pairs
+                    id="request-query"
+                    title={t('query')}
+                    items={queryParams(x)}
+                    highlight={paramCategoryLabel}
+                />
             )}
             <Pairs
                 id={`${side}-cookies`}
@@ -96,6 +104,7 @@ export function MessageView({ x, side }: { x: Transaction; side: 'request' | 're
                     id="request-form"
                     title={t('form')}
                     items={formFields(headers, x.requestBody, x.requestBinary)}
+                    highlight={paramCategoryLabel}
                 />
             )}
             {side === 'response' && x.responseTrailers && (

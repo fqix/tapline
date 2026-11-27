@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { formatHttpVersion, toCurl, type Transaction } from '../../shared/model'
 import { t } from '../lib/i18n'
 import { saveState, state, vscode } from '../lib/vscode'
-import type { ComposeDraft } from '../types/messages'
+import { composeDraft, type ComposeDraft } from '../types/messages'
 import { Editor, headersToText, textToHeaders, type EditorValue } from './Editor'
 import { Frames, ServerEvents } from './Frames'
 import { IconButton } from './IconButton'
@@ -96,11 +96,13 @@ function BreakpointBar({ x }: { x: Transaction }) {
 export function Inspector({
     x,
     onFocus,
-    onCompose
+    onCompose,
+    onFuzz
 }: {
     x: Transaction
     onFocus(id: string): void
     onCompose(draft: ComposeDraft): void
+    onFuzz(draft: ComposeDraft): void
 }) {
     const [tab, setTab] = useState<Tab>(() => (state().tab as Tab) ?? 'overview')
     const choose = (next: Tab) => {
@@ -187,15 +189,14 @@ export function Inspector({
                         <IconButton
                             icon="edit"
                             title={t('editResend')}
-                            onClick={() =>
-                                onCompose({
-                                    method: x.method,
-                                    url: x.url,
-                                    headers: headersToText(x.requestHeaders),
-                                    body: x.requestBody,
-                                    replayOf: x.id
-                                })
-                            }
+                            onClick={() => onCompose(composeDraft(x))}
+                        />
+                    )}
+                    {replayable && (
+                        <IconButton
+                            icon="run-all"
+                            title={t('fuzz')}
+                            onClick={() => onFuzz(composeDraft(x))}
                         />
                     )}
                     <IconButton
