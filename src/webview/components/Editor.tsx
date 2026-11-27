@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { type Headers } from '../../shared/model'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { FUZZ_MARKER, type Headers } from '../../shared/model'
 import { AuthEditor } from './AuthEditor'
 import { AdvancedBody, type BodyUpdate } from './AdvancedBody'
 import { bodyModes, graphqlBody, multipartBody, type BodyDraft, type BodyMode } from '../lib/body'
@@ -93,7 +93,7 @@ const contentTypeOf = (headers: string) =>
         ''
     ).toLowerCase()
 
-type Tab = 'params' | 'authorization' | 'headers' | 'body'
+type Tab = 'fuzz' | 'params' | 'authorization' | 'headers' | 'body'
 
 /**
  * Request line (or status), then Params / Headers / Body tabs. `phase` decides which
@@ -107,7 +107,8 @@ export function Editor({
     autoFocus,
     action,
     onCurl,
-    allowFiles = false
+    allowFiles = false,
+    fuzzTab
 }: {
     phase: 'request' | 'response'
     value: EditorValue
@@ -118,8 +119,41 @@ export function Editor({
     action?: ReactNode
     /** Called with a pasted curl command instead of inserting it as text. */
     onCurl?(text: string): void
+    /** Contents of the first request tab, supplied by (Re)Play. */
+    fuzzTab?: ReactNode
 }) {
     const set = (patch: Partial<EditorValue>) => onChange({ ...value, ...patch })
+    const editorRef = useRef<HTMLDivElement>(null)
+    const urlField = useRef<HTMLInputElement>(null)
+    /**
+     * Replace the selection in whichever text field has focus with `$FUZZ$`. A native
+     * value setter makes React see the change, so this also works for pair and auth
+     * fields owned by child components.
+     */
+    const markFuzz = () => {
+        const field = document.activeElement
+        if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return
+        if (!editorRef.current?.contains(field)) return
+        if (
+            field instanceof HTMLInputElement &&
+            !['text', 'password', 'search', 'tel', 'url', 'email'].includes(field.type)
+        )
+            return
+        const start = field.selectionStart
+        const end = field.selectionEnd
+        if (start == null || end == null || start === end) return
+        const marked = field.value.slice(0, start) + FUZZ_MARKER + field.value.slice(end)
+        const prototype =
+            field instanceof HTMLTextAreaElement
+                ? HTMLTextAreaElement.prototype
+                : HTMLInputElement.prototype
+        const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set
+        if (!setter) return
+        setter.call(field, marked)
+        field.dispatchEvent(new Event('input', { bubbles: true }))
+        const caret = start + FUZZ_MARKER.length
+        field.setSelectionRange(caret, caret)
+    }
     const pasteCurl = (event: React.ClipboardEvent) => {
         const text = event.clipboardData.getData('text/plain')
         if (onCurl && looksLikeCurl(text)) {
@@ -127,7 +161,10 @@ export function Editor({
             onCurl(text)
         }
     }
-    const [tab, setTab] = useState<Tab>(phase === 'request' ? 'params' : 'headers')
+    const showFuzz = phase === 'request' && !!fuzzTab
+    const [tab, setTab] = useState<Tab>(
+        showFuzz ? 'fuzz' : phase === 'request' ? 'params' : 'headers'
+    )
     const [bulk, setBulk] = useState(false)
     const [bodyRaw, setBodyRaw] = useState(false)
     const [formState, setFormState] = useState(() => ({
@@ -256,7 +293,7 @@ export function Editor({
     }
     const json = type.includes('json') || (!type && /^\s*[[{]/.test(value.body))
     const jsonError = useMemo(() => {
-        if (!json || !value.body.trim()) return undefined
+        if (!json || !value.body.trim() || value.body.includes(FUZZ_MARKER)) return undefined
         try {
             JSON.parse(value.body)
             return undefined
@@ -271,8 +308,11 @@ export function Editor({
             /* the validity badge already explains */
         }
     }
-    const tabs: Tab[] =
-        phase === 'request' ? ['params', 'authorization', 'headers', 'body'] : ['headers', 'body']
+    const tabs: Tab[] = showFuzz
+        ? ['fuzz', 'params', 'authorization', 'headers', 'body']
+        : phase === 'request'
+          ? ['params', 'authorization', 'headers', 'body']
+          : ['headers', 'body']
     const active = tabs.includes(tab) ? tab : tabs[0]
     const authorization =
         enabledHeaders.find((p) => p.name.toLowerCase() === 'authorization')?.value ?? ''
@@ -285,7 +325,7 @@ export function Editor({
                 ? !!authorization
                 : false
     return (
-        <div className="editor" data-clipboard="" onPaste={pasteCurl}>
+        <div ref={editorRef} className="editor" data-clipboard="" onPaste={pasteCurl}>
             {phase === 'request' ? (
                 <div className="request-line">
                     <select
@@ -303,6 +343,7 @@ export function Editor({
                         ))}
                     </select>
                     <input
+                        ref={urlField}
                         className="mono"
                         type="text"
                         spellCheck={false}
@@ -347,6 +388,15 @@ export function Editor({
                     </button>
                 ))}
                 <span className="spacer" />
+                {phase === 'request' && (
+                    <IconButton
+                        icon="replace"
+                        label={t('setFuzz')}
+                        title={t('setFuzzHint')}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={markFuzz}
+                    />
+                )}
                 {active === 'headers' && (
                     <IconButton
                         icon="list-flat"
@@ -377,6 +427,7 @@ export function Editor({
                 )}
             </nav>
             <div className="editor-page">
+                {active === 'fuzz' && fuzzTab}
                 {active === 'params' &&
                     (url ? (
                         <PairsEditor pairs={params} onChange={setParams} toggles />

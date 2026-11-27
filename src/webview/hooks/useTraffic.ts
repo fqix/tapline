@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Rule, Transaction } from '../../shared/model'
 import { defaultFilters, matches, type Filters } from '../lib/filter'
 import { saveState, state, vscode } from '../lib/vscode'
-import type { ComposeDraft, HostMessage, Pane, Row } from '../types/messages'
+import { composeDraft } from '../types/messages'
+import type {
+    ComposeDraft,
+    FuzzDraft,
+    FuzzFile,
+    FuzzResult,
+    HostMessage,
+    Pane,
+    Row
+} from '../types/messages'
 
 /**
  * Table rows, selection and the selected transaction, kept live from host messages.
@@ -39,6 +48,15 @@ export function useTraffic() {
             : 'inspector'
     })
     const [draft, setDraftState] = useState<ComposeDraft | undefined>(() => state().draft)
+    const [fuzzDraft, setFuzzDraftState] = useState<FuzzDraft | undefined>(() => state().fuzzDraft)
+    const [fuzzFiles, setFuzzFiles] = useState<FuzzFile[]>(() => state().fuzzFiles ?? [])
+    const [fuzzStatus, setFuzzStatus] = useState<{
+        running: boolean
+        done: number
+        total: number
+        results: FuzzResult[]
+        error?: string
+    }>({ running: false, done: 0, total: 0, results: [] })
     /** Outcome of the last curl import, shown by the composer until the next one. */
     const [curlImport, setCurlImport] = useState<{ warnings: string[]; error?: string }>()
     const [pickedFile, setPickedFile] = useState<{ ruleId: string; path: string }>()
@@ -66,6 +84,11 @@ export function useTraffic() {
     const setDraft = useCallback((next: ComposeDraft | undefined) => {
         setDraftState(next)
         saveState({ draft: next })
+    }, [])
+
+    const setFuzzDraft = useCallback((next: FuzzDraft) => {
+        setFuzzDraftState(next)
+        saveState({ fuzzDraft: next })
     }, [])
 
     /** Local edit first, then one save to the host once typing pauses. */
@@ -136,12 +159,44 @@ export function useTraffic() {
                 case 'pickedFile':
                     setPickedFile({ ruleId: message.ruleId, path: message.path })
                     return
+                case 'fuzzFiles':
+                    setFuzzFiles(message.files)
+                    saveState({ fuzzFiles: message.files })
+                    return
+                case 'fuzzStatus':
+                    // shortcut: keep the last 200 payloads; every request stays in the table.
+                    setFuzzStatus((previous) => ({
+                        running: message.running,
+                        done: message.done,
+                        total: message.total,
+                        results: message.reset
+                            ? []
+                            : message.result
+                              ? [...previous.results, message.result].slice(-200)
+                              : previous.results,
+                        error: message.error
+                    }))
+                    return
             }
         }
         window.addEventListener('message', listener)
         vscode.postMessage({ type: 'ready' })
         return () => window.removeEventListener('message', listener)
     }, [select, setFilters, setPane, setDraft])
+
+    // Clicking a row fills the editor with that request; later updates to the same
+    // transaction must not overwrite edits made there.
+    const filledFor = useRef<string | undefined>(undefined)
+    useEffect(() => {
+        if (!selected || !detail || detail.id !== selected) {
+            if (!selected) filledFor.current = undefined
+            return
+        }
+        if (filledFor.current === selected) return
+        filledFor.current = selected
+        const request = composeDraft(detail)
+        setDraft(request)
+    }, [selected, detail, setDraft])
 
     // A picked file lands in its map-local rule.
     useEffect(() => {
@@ -186,6 +241,10 @@ export function useTraffic() {
         setPane,
         draft,
         setDraft,
+        fuzzDraft,
+        setFuzzDraft,
+        fuzzFiles,
+        fuzzStatus,
         curlImport,
         setCurlImport
     }

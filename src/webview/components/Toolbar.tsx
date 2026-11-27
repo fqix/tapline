@@ -18,6 +18,7 @@ const syntax = [
     'body:"text"',
     'header:x-id=1',
     'rule:any',
+    'param:ssrf',
     '-status:2xx'
 ]
 

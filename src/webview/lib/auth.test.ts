@@ -8,6 +8,12 @@ it('round trips imported bearer and basic credentials', () => {
     expect(parseAuth(formatAuth(auth))).toEqual(auth)
 })
 
+it('keeps a marked Basic credential readable for the fuzzer', () => {
+    const auth = { type: 'basic' as const, token: '', username: 'user', password: `$FUZZ$` }
+    expect(formatAuth(auth)).toBe('Basic user:$FUZZ$')
+    expect(parseAuth('Basic user:$FUZZ$')).toEqual(auth)
+})
+
 it('preserves unsupported or malformed schemes and removes auth explicitly', () => {
     for (const value of ['Digest realm="example"', 'Basic ???']) {
         expect(parseAuth(value).type).toBe('custom')

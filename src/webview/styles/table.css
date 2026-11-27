@@ -230,6 +230,15 @@ body.resizing-column {
 .grid-row.selected.error .path {
     color: inherit;
 }
+.grid-row.param-hit {
+    box-shadow: inset 2px 0 var(--warn);
+}
+.grid-row.param-hit .param-hit-icon {
+    color: var(--warn);
+}
+.grid-row.selected.param-hit .param-hit-icon {
+    color: inherit;
+}
 .grid-row .seq,
 .grid-row .c-proto {
     color: var(--vscode-descriptionForeground);

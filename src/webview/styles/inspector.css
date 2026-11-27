@@ -160,6 +160,11 @@ table.pairs th {
     color: var(--vscode-symbolIcon-propertyForeground, var(--vscode-textLink-foreground));
     user-select: text;
 }
+table.pairs th.param-hit {
+    color: var(--warn);
+    background: var(--vscode-inputValidation-warningBackground, transparent);
+    border-radius: 2px;
+}
 table.pairs tr + tr {
     border-top: 1px solid var(--border-faint);
 }
@@ -672,12 +677,12 @@ pre.body.hex {
 .body-toolbar select {
     min-width: 220px;
     max-width: 100%;
-    height: 34px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.12));
-    font-weight: 500;
+    height: 30px;
+}
+/* VS Code themes the dropdown popup through <option>, not just the closed select. */
+.body-toolbar option {
+    background: var(--vscode-dropdown-background);
+    color: var(--vscode-dropdown-foreground);
 }
 .body-pairs {
     gap: 0;
@@ -1221,4 +1226,82 @@ table.stats td.seq {
 }
 .body-error {
     color: var(--vscode-errorForeground);
+}
+
+/* ---- fuzzer ---- */
+.fuzz-config {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.fuzz-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+    font-size: var(--font-size-small);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--vscode-descriptionForeground);
+}
+.fuzz-head .button {
+    height: 20px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.fuzz-head .muted {
+    text-transform: none;
+    letter-spacing: 0;
+}
+.fuzz-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius);
+}
+.fuzz-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 22px;
+    padding: 2px 6px;
+}
+.fuzz-item + .fuzz-item {
+    border-top: 1px solid var(--border-faint);
+}
+.fuzz-item input[type='checkbox'] {
+    flex: none;
+}
+.fuzz-item .status {
+    flex: none;
+}
+.fuzz-item .muted {
+    flex: none;
+}
+.fuzz-note {
+    margin: 0;
+}
+.fuzz-markers {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-small);
+}
+.fuzz-markers th,
+.fuzz-markers td {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border-faint);
+    text-align: left;
+}
+.fuzz-markers th {
+    color: var(--vscode-descriptionForeground);
+    font-weight: 600;
+}
+.fuzz-bar {
+    height: 3px;
+    margin-bottom: 6px;
+    background: var(--vscode-panel-border);
+}
+.fuzz-bar > div {
+    height: 100%;
+    background: var(--vscode-focusBorder);
 }

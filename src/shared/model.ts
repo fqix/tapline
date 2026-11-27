@@ -279,6 +279,149 @@ export interface ComposeRequest {
     replayOf?: string
 }
 
+// ---- fuzzing -------------------------------------------------------------
+
+/** Text selected with "Set Fuzz" is replaced by this token and filled verbatim. */
+export const FUZZ_MARKER = '$FUZZ$'
+
+/** A value in the base request that each wordlist entry can replace. */
+export type FuzzTarget =
+    | { kind: 'query'; name: string }
+    | { kind: 'header'; name: string }
+    | { kind: 'form'; name: string }
+    | { kind: 'json'; name: string }
+    | { kind: 'marker' }
+    | { kind: 'body' }
+
+export const fuzzTargetKey = (target: FuzzTarget) =>
+    target.kind === 'body' || target.kind === 'marker'
+        ? target.kind
+        : `${target.kind}:${target.name}`
+
+export const fuzzTargetLabel = (target: FuzzTarget) => {
+    if (target.kind === 'body') return 'Body'
+    if (target.kind === 'marker') return 'Marker'
+    const prefix = { query: 'Query', header: 'Header', form: 'Form', json: 'Body JSON' }[
+        target.kind
+    ]
+    return `${prefix}: ${target.name}`
+}
+
+/** Is the marker present anywhere in the request that is sent? */
+export const hasFuzzMarker = (request: Pick<ComposeRequest, 'url' | 'headers' | 'body'>) =>
+    [request.url, ...Object.entries(request.headers).flat(), request.body].some((value) =>
+        value.includes(FUZZ_MARKER)
+    )
+
+/** Fuzzable values of a request, in the order they appear. */
+export function fuzzTargets(
+    request: Pick<ComposeRequest, 'url' | 'headers' | 'body' | 'bodyEncoding'>
+): FuzzTarget[] {
+    const targets: FuzzTarget[] = []
+    if (hasFuzzMarker(request)) targets.push({ kind: 'marker' })
+    try {
+        const params = new Set([...new URL(request.url).searchParams.keys()])
+        for (const name of params) targets.push({ kind: 'query', name })
+    } catch {
+        // An incomplete URL still offers headers and the body.
+    }
+    const skip = new Set(['host', 'content-length', 'connection', 'transfer-encoding'])
+    const seen = new Set<string>()
+    for (const name of Object.keys(request.headers)) {
+        const key = name.toLowerCase()
+        if (skip.has(key) || seen.has(key)) continue
+        seen.add(key)
+        targets.push({ kind: 'header', name })
+    }
+    if (!request.bodyEncoding && request.body.trim()) {
+        const type = Object.entries(request.headers)
+            .find(([name]) => name.toLowerCase() === 'content-type')?.[1]
+            ?.split(';')[0]
+            .trim()
+            .toLowerCase()
+        // Only top-level fields of text bodies are offered; multipart and binary are
+        // left to the whole-body target, which forwards their bytes unchanged.
+        if (type === 'application/x-www-form-urlencoded') {
+            const fields = new Set([...new URLSearchParams(request.body).keys()])
+            for (const name of fields) targets.push({ kind: 'form', name })
+        } else if (type?.endsWith('json')) {
+            try {
+                const data: unknown = JSON.parse(request.body)
+                if (data && typeof data === 'object' && !Array.isArray(data))
+                    for (const name of Object.keys(data)) targets.push({ kind: 'json', name })
+            } catch {
+                // An invalid body still offers the whole-body target below.
+            }
+        }
+    }
+    if (!request.bodyEncoding) targets.push({ kind: 'body' })
+    return targets
+}
+
+/** Replace one target with a payload, keeping the rest of the request unchanged. */
+export function applyFuzz(
+    request: ComposeRequest,
+    target: FuzzTarget,
+    payload: string
+): ComposeRequest {
+    if (target.kind === 'body') return { ...request, body: payload, bodyEncoding: undefined }
+    if (target.kind === 'marker') {
+        const replace = (value: string) => value.split(FUZZ_MARKER).join(payload)
+        const basicMarker = (value: string) =>
+            /^Basic\s/i.test(value) && value.includes(FUZZ_MARKER)
+        const encodeBasic = (credentials: string) =>
+            'Basic ' +
+            btoa(
+                Array.from(new TextEncoder().encode(credentials), (b) =>
+                    String.fromCharCode(b)
+                ).join('')
+            )
+        return {
+            ...request,
+            url: replace(request.url),
+            headers: Object.fromEntries(
+                Object.entries(request.headers).map(([name, value]) => {
+                    const filled = replace(value)
+                    return [
+                        replace(name),
+                        basicMarker(value) ? encodeBasic(filled.replace(/^Basic\s+/i, '')) : filled
+                    ]
+                })
+            ),
+            body: replace(request.body)
+        }
+    }
+    if (target.kind === 'form') {
+        const params = new URLSearchParams(request.body)
+        params.set(target.name, payload)
+        return { ...request, body: params.toString() }
+    }
+    if (target.kind === 'json') {
+        const data: unknown = JSON.parse(request.body)
+        if (!data || typeof data !== 'object' || Array.isArray(data))
+            throw new Error('Fuzz target is not a JSON object')
+        return {
+            ...request,
+            body: JSON.stringify({ ...(data as Record<string, unknown>), [target.name]: payload })
+        }
+    }
+    if (target.kind === 'header') {
+        const headers: Headers = {}
+        let found = false
+        for (const [name, value] of Object.entries(request.headers)) {
+            if (name.toLowerCase() === target.name.toLowerCase()) {
+                headers[name] = payload
+                found = true
+            } else headers[name] = value
+        }
+        if (!found) headers[target.name] = payload
+        return { ...request, headers }
+    }
+    const url = new URL(request.url)
+    url.searchParams.set(target.name, payload)
+    return { ...request, url: url.toString() }
+}
+
 export interface AgentState {
     running: boolean
     recording: boolean

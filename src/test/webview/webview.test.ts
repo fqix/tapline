@@ -28,7 +28,7 @@ import {
 import { tokenize } from '../../webview/lib/jsonHighlight'
 import { aggregate } from '../../webview/lib/stats'
 import { scrollIntoView, visibleRange } from '../../webview/lib/virtual'
-import { toRow, type Row } from '../../webview/types/messages'
+import { composeDraft, toRow, type Row } from '../../webview/types/messages'
 
 const make = (sequence: number, url: string, extra: Partial<Transaction> = {}): Transaction => {
     const u = new URL(url)
@@ -80,6 +80,35 @@ describe('toRow', () => {
         expect(r.events).toBe(1)
         expect(r).not.toHaveProperty('responseBody')
         expect(r).not.toHaveProperty('responseHeaders')
+    })
+})
+
+describe('composeDraft', () => {
+    it('copies method, URL, headers and body from a captured request', () => {
+        const draft = composeDraft(
+            make(2, 'https://api.example.com/path?query=1', {
+                method: 'POST',
+                requestHeaders: { 'Content-Type': 'application/json', 'X-Test': 'one' },
+                requestBody: '{"a":1}'
+            })
+        )
+        expect(draft).toEqual({
+            method: 'POST',
+            url: 'https://api.example.com/path?query=1',
+            headers: 'Content-Type: application/json\nX-Test: one',
+            body: '{"a":1}',
+            replayOf: 't2'
+        })
+    })
+
+    it('leaves a binary body out of the draft', () => {
+        const draft = composeDraft(
+            make(3, 'https://api.example.com/upload', {
+                requestBody: 'AAEC',
+                requestBinary: true
+            })
+        )
+        expect(draft.body).toBe('')
     })
 })
 

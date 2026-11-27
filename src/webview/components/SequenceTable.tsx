@@ -95,7 +95,7 @@ const RowView = memo(function RowView({
             : formatHttpVersion(row.httpVersion)
     return (
         <div
-            className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''}`}
+            className={`grid-row ${selected ? 'selected' : ''} ${primary ? 'primary' : ''} ${row.state} ${row.paused ? 'paused' : ''} ${row.paramHits?.length ? 'param-hit' : ''}`}
             role="row"
             aria-selected={selected}
             data-vscode-context={JSON.stringify({
@@ -140,6 +140,12 @@ const RowView = memo(function RowView({
                     title={row.rules ? t('rulesApplied') : undefined}
                     aria-hidden="true"
                 />
+                {row.paramHits?.length ? (
+                    <span
+                        className="codicon codicon-shield param-hit-icon"
+                        title={`${t('suspiciousParams')}: ${row.paramHits.join(', ')}`}
+                    />
+                ) : undefined}
                 {row.marked && (
                     <span className="codicon codicon-star-full request-mark" title={t('mark')} />
                 )}

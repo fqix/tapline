@@ -38,13 +38,21 @@ the original, decode grpcbin fields with the workspace `.proto`._
   the row.
 - **Filter query** — terms such as `status:5xx`, `method:post`, `host:api.*`,
   `path:/v1`, `type:json`, `type:js`, `proto:h2`, `size>10k`, `dur>500`, `ip:10.0.`,
-  `body:"not found"`, `header:x-id=1`, `rule:any` and negations like `-status:2xx`; plain
-  words match URL, method or status. Quick chips filter by status (2xx/3xx/4xx/5xx/errors),
-  media type (JSON, JS, HTML) and WebSocket. _Statistics_ summarises the filtered rows per host.
+  `body:"not found"`, `header:x-id=1`, `rule:any`, `param:ssrf` and negations like
+  `-status:2xx`; plain words match URL, method or status. Quick chips filter by status
+  (2xx/3xx/4xx/5xx/errors), media type (JSON, JS, HTML) and WebSocket. _Statistics_
+  summarises the filtered rows per host.
 - **Rules** — breakpoints, rewrite, map local, map remote, block and throttle
   ([below](#rules)).
-- **Native context menu, compose and compare** — right-click requests to replay,
-  _Edit & Resend_, copy as cURL, open as text, compare, mark, annotate or delete;
+- **Fuzzing** — the first tab in (Re)Play: pick local wordlist files, insert `$FUZZ$`
+  anywhere in the request, then send one request per payload; results appear in the traffic
+  table.
+- **Interesting parameters** — requests with parameter names from the built-in SSRF, SQLi,
+  XSS, LFI, OpenRedirect and RCE lists are marked in the traffic table, and matching names
+  are highlighted in the inspector ([below](#interesting-parameters)).
+- **Native context menu, (Re)Play and compare** — right-click requests to replay,
+  _Send to Fuzzer_ (opens (Re)Play with the fuzz settings), _Edit & Resend_, copy as cURL,
+  open as text, compare, mark, annotate or delete;
   write a request or paste a curl command; compare any two rows, or a replay with its
   original, in the native diff editor.
 - **Automatic capture** — new terminals and debug sessions (`node`, `python`, `go`,
@@ -53,6 +61,8 @@ the original, decode grpcbin fields with the workspace `.proto`._
   `GIT_SSL_CAINFO`, `JAVA_TOOL_OPTIONS`, …). _Copy Proxy Environment_ gives any other
   program one line of `https_proxy`, `http_proxy` and `all_proxy` (SOCKS5), quoted for
   the shell you pick.
+- **Captured browser** — _Open Captured Browser_ launches Chrome, Firefox, Edge, Brave or
+  Chromium with an isolated profile whose proxy is Tapline.
 - **Root certificate** — install, trust and uninstall the CA in the OS store on macOS,
   Windows and Linux with one click ([below](#root-certificate)).
 - **One capture per window** — every VS Code window has its own traffic, controls and
@@ -63,10 +73,12 @@ the original, decode grpcbin fields with the workspace `.proto`._
   search, read, replay and send captured requests ([below](#mcp-server)).
 - Context menus, copy as cURL, export HAR, status-bar controls, English and 简体中文 UI.
 
-## Compose requests
+## (Re)Play requests
 
-Open _Tapline: Compose Request_, paste a cURL command into the composer or use its
-_cURL_ import button. Parsing uses curlconverter. Multiline commands and UTF-8 data
+Open _Tapline: (Re)Play_, paste a cURL command into the editor or use its _cURL_ import
+button. Clicking any request in the traffic table fills this editor — whose first tab holds
+the fuzz settings — with its method, URL, headers and body. Parsing uses curlconverter.
+Multiline commands and UTF-8 data
 files such as `curl -d @data.json https://example.com/api` are supported; review import
 warnings before sending. Missing files, multipart file references and unsupported
 transport options produce warnings. For binary uploads, select the file in Body.
@@ -80,10 +92,40 @@ transport options produce warnings. For binary uploads, select the file in Body.
   checkboxes, descriptions and bulk editing. Binary sends the selected file's bytes.
   GraphQL has Query, Variables and Operation Name fields and validates variables JSON.
 - Send with **⌘↩ / Ctrl+↩**, then inspect the captured result or compare it with the
-  original request.
+  original request. The Fuzz tab uses the same request.
 
 The [ReqBin coverage report](docs/reqbin-curl-coverage.md) records tested examples and
 import limitations.
+
+## Fuzzing
+
+Fuzzing is the first tab in (Re)Play. Open (Re)Play from the toolbar, or use a captured
+request's _Fuzz_ button; you can also right-click a request in the table or the structure
+tree and choose _Send to Fuzzer_ to open it prefilled. Clicking a row in the traffic table
+fills the same editor. _Add files…_ selects local wordlists (one payload per line, up to
+5 MB / 20,000 lines each); check the ones to use, then _Start fuzzing_. There is no
+insertion-point list: every `$FUZZ$` in the request is filled from the same payload.
+Each payload is sent through the capture proxy sequentially and appears as its own request
+in the sequence table; the Fuzz tab shows status codes and errors as they arrive. _Stop_
+stops after the request in flight.
+
+For an arbitrary position, select text in any request field — URL, parameter name or value,
+header name or value, authorization credential, body field — and press _Set Fuzz_. The
+selection becomes `$FUZZ$`, filled verbatim with each payload — including partial values
+inside a JSON string, a URL path or a header token. All markers in the request use the same
+payload. The Fuzz tab lists every marked value in a _Location / Element_ table, so you can
+check what will be fuzzed before starting.
+
+## Interesting parameters
+
+Requests whose query string or URL-encoded form body uses a name from the built-in lists get a
+shield icon and a warning stripe in the sequence table; the same names are highlighted in the
+inspector's Query and Form tables. The lists cover SSRF, SQLi, XSS, LFI, OpenRedirect and RCE,
+including localized names in Spanish, French, German, Chinese, Japanese, Korean and Arabic.
+
+Filter with `param:ssrf`, `param:sqli`, `param:xss`, `param:lfi`, `param:redirect`, `param:rce`
+or `param:any`; prefix `-` to exclude. Only names are checked, not values or JSON bodies. Common
+names such as `id`, `page` and `q` appear in several lists, so a hit is a hint, not proof.
 
 ## Settings
 
@@ -163,7 +205,9 @@ it, and _Tapline: Uninstall Root Certificate_ removes it.
 | Windows  | current-user Trusted Root via `certutil` (confirmation dialog)  |
 | Linux    | distribution anchor directory + update command, run with `sudo` |
 
-Firefox and snap/flatpak browsers keep their own stores and need a manual import. Set
+The captured-browser command makes Firefox trust the OS certificate store (enterprise
+roots on Windows/macOS, the p11-kit trust module on Linux), so the installed Tapline CA
+works for HTTPS. Snap/flatpak browsers still need a manual import. Set
 `tapline.ssl.hosts` to `[]` to capture without decryption or any certificate.
 
 TLS interception follows host inclusion/exclusion settings. Unlike Charles's
@@ -177,8 +221,8 @@ settings, preserving the client's native CA trust.
 Add a hostname or wildcard to `tapline.ssl.hosts` to decrypt its traffic; `*` opts in
 all hosts. `tapline.ssl.noHosts` and `!` patterns exclude hosts and take precedence.
 Existing saved patterns are preserved. Changes apply to new connections, so reconnect
-or restart capture to replace existing tunnels. Composer/Replay explicitly inspects its
-own request without changing the host policy for other clients.
+or restart capture to replace existing tunnels. (Re)Play explicitly inspects its own
+request without changing the host policy for other clients.
 
 `tapline.ssl.insecureUpstream` is enabled by default: decrypted connections accept
 self-signed, expired and hostname-mismatched upstream certificates. Disable it to
@@ -230,18 +274,39 @@ npm run package        # VSIX for this platform (package:all for all six)
 Press F5 to launch the extension development host. CI builds, tests and packages every
 platform on each push and runs the end-to-end suite on one runner per OS.
 
+### Troubleshooting
+
+**`Tapline could not start capture: ENOENT ... core/<platform>-<arch>/sing-box.build.json`** -
+the bundled sing-box core is missing. From a source checkout, build it for your host and
+reload:
+
+```sh
+npm run core:build
+```
+
+When packaging/installing a VSIX, use the package script so the platform core is staged
+into the VSIX:
+
+```sh
+node scripts/package.mjs --target linux-x64
+code --install-extension tapline-linux-x64-*.vsix --force
+```
+
+Replace `linux-x64` with your target (`darwin-arm64`, `darwin-x64`, `linux-arm64`,
+`win32-x64`, `win32-arm64`). Plain `npx @vscode/vsce package` does not stage the core.
+
 ## Releasing
 
-Push/PR CI only builds and tests. Add the version to [CHANGELOG.md](CHANGELOG.md), bump, push the tag
-and publish a GitHub release:
+Push/PR CI only builds and tests. Add the version to [CHANGELOG.md](CHANGELOG.md), bump and
+push the tag:
 
 ```sh
 npm version patch && git push --follow-tags
 ```
 
-The [release workflow](.github/workflows/release.yml) rebuilds all platforms, publishes to
-the VS Code Marketplace (Azure managed identity over OIDC, no PAT) and Open VSX (trusted
-publishing over OIDC, no PAT), and attaches the VSIX files to the release.
+The [release workflow](.github/workflows/release.yml) rebuilds all platforms, creates a
+GitHub release and attaches the VSIX files to it. It does not publish to any extension
+marketplace, so forks get installable packages without marketplace credentials.
 
 ## Licence
 

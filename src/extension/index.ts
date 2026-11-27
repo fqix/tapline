@@ -8,10 +8,12 @@ import { AgentClient } from './client'
 import { ComparisonDocuments } from './providers/comparisonDocuments'
 import { TransactionDocuments } from './providers/transactionDocuments'
 import { CaptureEnvironment } from './environment/captureEnvironment'
+import { CapturedBrowser } from './environment/capturedBrowser'
 import { CertificateTrust } from './environment/certificateTrust'
 import { ProtoIndex } from './environment/protoIndex'
 import { TrafficView, type TrafficNode } from './views/trafficView'
 import { TrafficPanel, type PanelActions } from './panels/trafficPanel'
+import { composeDraft } from '../webview/types/messages'
 import { configureMcp } from './commands/mcp'
 
 let client: AgentClient | undefined
@@ -29,6 +31,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     const documents = new TransactionDocuments(client)
     const comparisons = new ComparisonDocuments()
     const environment = new CaptureEnvironment(context, client)
+    const capturedBrowser = new CapturedBrowser(client, context.globalStorageUri.fsPath)
     const certificate = new CertificateTrust(client)
     const protos = new ProtoIndex(client)
     const byId = (id: string) => {
@@ -145,6 +148,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
         },
         replay: (id) => replay(byId(id)),
         compose,
+        fuzz: (request) => client!.compose(request),
         openText: async (id) => void (await openText(byId(id))),
         openBody: async (id, side) =>
             void (await vscode.window.showTextDocument(
@@ -443,20 +447,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     )
     command('tapline.compose', (node?: TrafficNode) => {
         const t = one(node)
-        panel.showPane(
-            'composer',
-            t && t.scheme !== 'connect'
-                ? {
-                      method: t.method,
-                      url: t.url,
-                      headers: Object.entries(t.requestHeaders)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join('\n'),
-                      body: t.requestBinary ? '' : t.requestBody,
-                      replayOf: t.id
-                  }
-                : undefined
-        )
+        panel.showPane('composer', t && t.scheme !== 'connect' ? composeDraft(t) : undefined)
+    })
+    command('tapline.sendToFuzzer', (node?: TrafficNode) => {
+        const t = one(node)
+        if (!t || t.scheme === 'connect' || t.requestBinary || t.frames.length || t.status === 101)
+            throw new Error(vscode.l10n.t('Only HTTP requests with text bodies can be fuzzed'))
+        panel.showFuzzer(composeDraft(t))
     })
     command('tapline.settings', () => settingsPanel.show())
     command('tapline.rules', () => panel.showPane('rules'))
@@ -483,6 +480,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Taplin
     command('tapline.openTerminal', async () => {
         if (!client!.running && !(await startCapture())) return
         await environment.openTerminal()
+    })
+    command('tapline.openBrowser', async () => {
+        if (!client!.running && !(await startCapture())) return
+        await capturedBrowser.open()
     })
     command('tapline.installCertificate', () => certificate.install())
     command('tapline.trustCertificate', () => certificate.trust())
